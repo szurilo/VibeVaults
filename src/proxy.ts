@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { decrypt } from '@/lib/auth'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const session = request.cookies.get('session')?.value
 
     if (request.nextUrl.pathname.startsWith('/dashboard')) {

@@ -1,5 +1,5 @@
 (function () {
-  const SCRIPT_ID = 'clog-script';
+  const SCRIPT_ID = 'vibevault-script';
   const API_BASE = 'http://localhost:3000/api/widget'; // TODO: Change for prod
 
   // Get API Key from script attribute
@@ -7,7 +7,7 @@
   const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
   if (!apiKey) {
-    console.warn('Clog: Missing data-key attribute on script tag.');
+    console.warn('VibeVault: Missing data-key attribute on script tag.');
     return;
   }
 

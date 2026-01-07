@@ -17,7 +17,7 @@ export default function DashboardPage() {
                     Embed the widget on your site to start collecting feedback and displaying updates.
                 </p>
                 <div style={{ background: 'var(--bg-secondary)', padding: '1rem', borderRadius: 'var(--radius-md)', fontFamily: 'monospace', fontSize: '0.875rem' }}>
-                    &lt;script src="https://clog.app/widget.js"&gt;&lt;/script&gt;
+                    &lt;script src="https://vibevault.app/widget.js"&gt;&lt;/script&gt;
                 </div>
             </div>
         </div>

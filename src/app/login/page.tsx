@@ -52,8 +52,8 @@ export default function LoginPage() {
                         <input
                             name="email"
                             type="email"
-                            placeholder="demo@clog.app"
-                            defaultValue="demo@clog.app"
+                            placeholder="demo@vibevault.app"
+                            defaultValue="demo@vibevault.app"
                             required
                             style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}
                         />

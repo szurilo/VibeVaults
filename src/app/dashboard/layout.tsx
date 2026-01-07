@@ -10,7 +10,7 @@ export default function DashboardLayout({
         <div className="dashboard-layout">
             <aside className="dashboard-sidebar">
                 <div className="sidebar-header">
-                    <span className="logo">Clog.</span>
+                    <span className="logo">VibeVault.</span>
                 </div>
                 <nav className="sidebar-nav">
                     <Link href="/dashboard" className="nav-item">Overview</Link>
@@ -27,4 +27,4 @@ export default function DashboardLayout({
             </main>
         </div>
     );
-}
+} 
