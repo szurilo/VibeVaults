@@ -2,27 +2,29 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ padding: 'var(--space-4) var(--space-8)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--brand-600)' }}>VibeVault.</span>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <Link href="/login" style={{ fontSize: '0.875rem', fontWeight: 500, padding: '0.5rem 1rem' }}>Sign In</Link>
-          <Link href="/login" className="btn btn-primary">Get Started</Link>
+    <div className="min-h-screen flex flex-col">
+      <header className="px-8 py-4 border-b border-gray-200 flex justify-between items-center">
+        <span className="font-bold text-xl text-indigo-600">VibeVault.</span>
+        <div className="flex gap-4">
+          <Link href="/login" className="text-sm font-medium px-4 py-2 text-gray-700 hover:text-gray-900">Sign In</Link>
+          <Link href="/login" className="inline-flex items-center justify-center px-4 py-2 rounded-md font-medium text-sm transition-colors bg-indigo-600 text-white hover:bg-indigo-500">
+            Get Started
+          </Link>
         </div>
       </header>
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 1rem', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '3.5rem', fontWeight: 800, lineHeight: 1.2, marginBottom: '1.5rem', maxWidth: '800px' }}>
-          Keep your users in the loop with <span style={{ color: 'var(--brand-600)' }}>VibeVault</span>.
+      <main className="flex-1 flex flex-col items-center justify-center py-16 px-4 text-center">
+        <h1 className="text-6xl font-extrabold leading-tight mb-6 max-w-4xl text-gray-900">
+          Keep your users in the loop with <span className="text-indigo-600">VibeVault</span>.
         </h1>
-        <p style={{ fontSize: '1.25rem', color: 'var(--text-secondary)', maxWidth: '600px', marginBottom: '2.5rem' }}>
+        <p className="text-xl text-gray-500 max-w-2xl mb-10">
           The simplest way to announce product updates and collect feedback directly from your website.
         </p>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <Link href="/login" className="btn btn-primary" style={{ fontSize: '1rem', padding: '0.75rem 1.5rem' }}>
+        <div className="flex gap-4">
+          <Link href="/login" className="inline-flex items-center justify-center px-6 py-3 rounded-md font-medium text-base transition-colors bg-indigo-600 text-white hover:bg-indigo-500">
             Start Free Trial
           </Link>
-          <a href="#" className="btn" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', fontSize: '1rem', padding: '0.75rem 1.5rem' }}>
+          <a href="#" className="inline-flex items-center justify-center px-6 py-3 rounded-md font-medium text-base transition-colors bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">
             View Demo
           </a>
         </div>

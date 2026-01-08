@@ -37,39 +37,39 @@ export default function LoginPage() {
     }
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-secondary)' }}>
-            <div className="card" style={{ width: '100%', maxWidth: '400px' }}>
-                <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>Welcome Back</h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Sign in to your account</p>
+        <div className="flex min-h-screen items-center justify-center bg-gray-50">
+            <div className="w-full max-w-[400px] bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                <div className="text-center mb-6">
+                    <h1 className="text-2xl font-bold mb-2 text-gray-900">Welcome Back</h1>
+                    <p className="text-gray-500 text-sm">Sign in to your account</p>
                 </div>
 
-                {error && <div style={{ color: 'red', fontSize: '0.875rem', marginBottom: '1rem', textAlign: 'center' }}>{error}</div>}
+                {error && <div className="text-red-500 text-sm mb-4 text-center">{error}</div>}
 
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <div>
-                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Email</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700">Email</label>
                         <input
                             name="email"
                             type="email"
                             placeholder="demo@vibevault.app"
                             defaultValue="demo@vibevault.app"
                             required
-                            style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                     </div>
                     <div>
-                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Password</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700">Password</label>
                         <input
                             name="password"
                             type="password"
                             placeholder="••••••••"
                             defaultValue="demo"
                             required
-                            style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                     </div>
-                    <button type="submit" disabled={loading} className="btn btn-primary" style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                    <button type="submit" disabled={loading} className="w-full mt-2 inline-flex items-center justify-center px-4 py-2 rounded-md font-medium text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors">
                         {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
