@@ -7,7 +7,7 @@ export default function Home() {
         <span className="font-bold text-xl text-primary">VibeVault</span>
         <div className="flex gap-4">
           <Link href="/login" className="text-sm font-medium px-4 py-2 text-gray-700 hover:text-gray-900">Sign In</Link>
-          <Link href="/login" className="inline-flex items-center justify-center px-4 py-2 rounded-md font-medium text-sm transition-colors bg-secondary text-white hover:bg-secondary/90">
+          <Link href="/register" className="inline-flex items-center justify-center px-4 py-2 rounded-md font-medium text-sm transition-colors bg-secondary text-white hover:bg-secondary/90">
             Get Started
           </Link>
         </div>
@@ -21,8 +21,8 @@ export default function Home() {
           Collect feedback directly from your website or offer a feedback dashboard to your users.
         </p>
         <div className="flex gap-4">
-          <Link href="/login" className="inline-flex items-center justify-center px-6 py-3 rounded-md font-medium text-base transition-colors bg-secondary text-white hover:bg-secondary/90">
-            Start Free Trial
+          <Link href="/register" className="inline-flex items-center justify-center px-6 py-3 rounded-md font-medium text-base transition-colors bg-secondary text-white hover:bg-secondary/90">
+            Get started
           </Link>
           <a href="#" className="inline-flex items-center justify-center px-6 py-3 rounded-md font-medium text-base transition-colors bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">
             View Demo

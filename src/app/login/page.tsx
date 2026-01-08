@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -69,10 +70,17 @@ export default function LoginPage() {
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                         />
                     </div>
-                    <button type="submit" disabled={loading} className="w-full mt-2 inline-flex items-center justify-center px-4 py-2 rounded-md font-medium text-white bg-secondary hover:bg-secondary/90 disabled:opacity-50 transition-colors">
+                    <button type="submit" disabled={loading} className="w-full mt-2 inline-flex items-center justify-center px-4 py-2 rounded-md font-medium text-white bg-secondary hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer">
                         {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
+
+                <div className="mt-6 text-center text-sm text-gray-500">
+                    Don't have an account?{' '}
+                    <Link href="/register" className="font-medium text-primary hover:text-primary/80">
+                        Sign up
+                    </Link>
+                </div>
             </div>
         </div>
     );

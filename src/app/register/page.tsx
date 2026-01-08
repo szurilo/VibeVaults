@@ -1,0 +1,92 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+
+export default function RegisterPage() {
+    const [email, setEmail] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        setLoading(true);
+
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        console.log('Magic link requested for:', email);
+        setSubmitted(true);
+        setLoading(false);
+    }
+
+    if (submitted) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-gray-50">
+                <div className="w-full max-w-[400px] bg-white border border-gray-200 rounded-lg shadow-sm p-6 text-center">
+                    <div className="mb-4">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                            <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                        </div>
+                    </div>
+                    <h1 className="text-2xl font-bold mb-2 text-gray-900">Check your inbox</h1>
+                    <p className="text-gray-500 mb-6">
+                        We've sent a magic link to <span className="font-semibold text-gray-900">{email}</span>.
+                        <br />Click the link to complete your signup.
+                    </p>
+                    <p className="text-xs text-gray-400">
+                        (This is a demo, no email was actually sent)
+                    </p>
+                    <div className="mt-6">
+                        <Link href="/login" className="text-sm font-medium text-primary hover:text-primary/80">
+                            Back to login
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-gray-50">
+            <div className="w-full max-w-[400px] bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                <div className="text-center mb-6">
+                    <h1 className="text-2xl font-bold mb-2 text-gray-900">Create your account</h1>
+                    <p className="text-gray-500 text-sm">Sign up with your email via Magic Link</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-medium mb-1 text-gray-700">Email</label>
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            placeholder="you@example.com"
+                            required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full mt-2 inline-flex items-center justify-center px-4 py-2 rounded-md font-medium text-white bg-secondary hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    >
+                        {loading ? 'Sending Magic Link...' : 'Send Magic Link'}
+                    </button>
+                </form>
+
+                <div className="mt-6 text-center text-sm text-gray-500">
+                    Already have an account?{' '}
+                    <Link href="/login" className="font-medium text-primary hover:text-primary/80">
+                        Sign in
+                    </Link>
+                </div>
+            </div>
+        </div>
+    );
+}
