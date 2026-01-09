@@ -4,10 +4,10 @@ const prisma = new PrismaClient()
 
 async function main() {
     const user = await prisma.user.upsert({
-        where: { email: 'demo@vibevault.app' },
+        where: { email: 'demo@vibevaults.app' },
         update: {},
         create: {
-            email: 'demo@vibevault.app',
+            email: 'demo@vibevaults.app',
             password: 'demo', // Plaintext for MVP
             projects: {
                 create: {

@@ -1,6 +1,6 @@
 {
-    "name": "VibeVault",
-    "short_name": "VibeVault",
+    "name": "VibeVaults",
+    "short_name": "VibeVaults",
     "description": "The simplest way to announce product updates and collect feedback.",
     "start_url": "/",
     "display": "standalone",

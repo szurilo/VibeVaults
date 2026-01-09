@@ -17,7 +17,7 @@ export default function DashboardPage() {
                     Embed the widget on your site to start collecting feedback and displaying updates.
                 </p>
                 <div className="bg-gray-50 p-4 rounded-md font-mono text-sm text-gray-800">
-                    &lt;script src="https://vibevault.app/widget.js"&gt;&lt;/script&gt;
+                    &lt;script src="https://vibevaults.app/widget.js"&gt;&lt;/script&gt;
                 </div>
             </div>
         </div>

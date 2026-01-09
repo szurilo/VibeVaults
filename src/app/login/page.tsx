@@ -53,8 +53,8 @@ export default function LoginPage() {
                         <input
                             name="email"
                             type="email"
-                            placeholder="demo@vibevault.app"
-                            defaultValue="demo@vibevault.app"
+                            placeholder="demo@vibevaults.app"
+                            defaultValue="demo@vibevaults.app"
                             required
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                         />
