@@ -1,5 +1,4 @@
 import Link from "next/link";
-// Removed: import "./dashboard.css";
 
 export default function DashboardLayout({
     children,

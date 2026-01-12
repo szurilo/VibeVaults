@@ -1,12 +1,13 @@
 {
-  "name": "changelog-saas",
+  "name": "vibe-vaults",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.18",

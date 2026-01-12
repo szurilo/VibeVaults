@@ -42,7 +42,7 @@ export default function Home() {
               Get Started
             </Link>
             <a href="#" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 bg-white border-2 border-gray-100 text-gray-700 hover:bg-gray-50 hover:border-gray-200">
-              View Demo
+              Replace this with an image about dashboard and widget
             </a>
           </div>
         </section>

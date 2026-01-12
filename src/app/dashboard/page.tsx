@@ -1,4 +1,22 @@
-export default function DashboardPage() {
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
+export default async function DashboardPage() {
+    const session = await getSession();
+
+    if (!session || !session.user) {
+        redirect("/login");
+    }
+
+    const totalFeedback = await prisma.feedback.count({
+        where: {
+            project: {
+                userId: session.user.id,
+            },
+        },
+    });
+
     return (
         <div>
             <h1 className="text-2xl font-semibold mb-8 text-gray-900">Overview</h1>
@@ -6,7 +24,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
                     <h3 className="text-sm font-medium text-gray-500 mb-2">Total Feedback</h3>
-                    <p className="text-3xl font-bold text-gray-900">0</p>
+                    <p className="text-3xl font-bold text-gray-900">{totalFeedback}</p>
                 </div>
 
             </div>
@@ -23,3 +41,4 @@ export default function DashboardPage() {
         </div>
     );
 }
+
