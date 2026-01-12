@@ -39,7 +39,7 @@ export default function Home() {
           </p>
           <div className="flex gap-6">
             <Link href="/register" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 bg-secondary text-white hover:bg-secondary/90 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
-              Get started
+              Get Started
             </Link>
             <a href="#" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 bg-white border-2 border-gray-100 text-gray-700 hover:bg-gray-50 hover:border-gray-200">
               View Demo
@@ -76,20 +76,20 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-8 text-center">
             <h2 className="text-5xl font-extrabold mb-6">Simple Pricing</h2>
             <p className="text-xl text-gray-500 max-w-2xl mx-auto mb-16">
-              Start for free and scale as you grow. No hidden fees.
+              For everybody.
             </p>
             <div className="max-w-md mx-auto">
               {/* Pro Pricing Card */}
               <div className="p-10 bg-white rounded-3xl border-2 border-primary shadow-xl relative">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-white px-4 py-1 rounded-full text-xs font-bold tracking-widest uppercase">Popular</div>
-                <h3 className="text-xl font-bold mb-2">Pro</h3>
-                <div className="text-4xl font-extrabold mb-6">$29<span className="text-lg text-gray-400 font-normal">/mo</span></div>
+                {/* <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-white px-4 py-1 rounded-full text-xs font-bold tracking-widest uppercase">Popular</div> */}
+                {/* <h3 className="text-xl font-bold mb-2">Pro</h3> */}
+                <div className="text-4xl font-extrabold mb-6">$9<span className="text-lg text-gray-400 font-normal">/mo</span></div>
                 <ul className="text-left space-y-4 mb-10 text-gray-600">
                   <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Unlimited Feedback</li>
                   <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Custom Domain</li>
                   <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Priority Support</li>
                 </ul>
-                <Link href="/register" className="block w-full py-4 px-6 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0">Start Pro Trial</Link>
+                <Link href="/register" className="block w-full py-4 px-6 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0">Get started</Link>
               </div>
             </div>
           </div>
