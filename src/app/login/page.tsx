@@ -1,38 +1,36 @@
+
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
-    const router = useRouter();
-    const [error, setError] = useState('');
+    const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        setError('');
         setLoading(true);
+        setError(null);
 
-        const formData = new FormData(e.currentTarget);
-        const email = formData.get('email');
-        const password = formData.get('password');
+        const supabase = createClient();
 
-        try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+                emailRedirectTo: `${location.origin}/auth/callback`,
+            },
+        });
 
-            if (res.ok) {
-                router.push('/dashboard');
-            } else {
-                setError('Invalid credentials');
-            }
-        } catch (err) {
-            setError('Something went wrong');
-        } finally {
+        if (error) {
+            console.error('Error sending magic link:', error);
+            setError(error.message);
+            setLoading(false);
+        } else {
+            setSubmitted(true);
             setLoading(false);
         }
     }
@@ -48,49 +46,65 @@ export default function LoginPage() {
             </header>
 
             <main className="flex-1 flex items-center justify-center bg-gray-50 p-4">
-                <div className="w-full max-w-[400px] bg-white border border-gray-200 rounded-lg shadow-sm p-6">
-                    <div className="text-center mb-6">
-                        <h1 className="text-2xl font-bold mb-2 text-gray-900">Welcome Back</h1>
-                        <p className="text-gray-500 text-sm">Sign in to your account</p>
-                    </div>
-
-                    {error && <div className="text-red-500 text-sm mb-4 text-center">{error}</div>}
-
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-700">Email</label>
-                            <input
-                                name="email"
-                                type="email"
-                                placeholder="demo@vibevaults.app"
-                                defaultValue="demo@vibevaults.app"
-                                required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                            />
+                {submitted ? (
+                    <div className="w-full max-w-[400px] bg-white border border-gray-200 rounded-lg shadow-sm p-6 text-center">
+                        <div className="mb-4">
+                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-gray-700">Password</label>
-                            <input
-                                name="password"
-                                type="password"
-                                placeholder="••••••••"
-                                defaultValue="demo"
-                                required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                            />
-                        </div>
-                        <button type="submit" disabled={loading} className="w-full mt-2 inline-flex items-center justify-center px-4 py-2 rounded-md font-medium text-white bg-secondary hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer">
-                            {loading ? 'Signing in...' : 'Sign In'}
-                        </button>
-                    </form>
-
-                    <div className="mt-6 text-center text-sm text-gray-500">
-                        Don't have an account?{' '}
-                        <Link href="/register" className="font-medium text-primary hover:text-primary/80">
-                            Sign up
-                        </Link>
+                        <h1 className="text-2xl font-bold mb-2 text-gray-900">Check your inbox</h1>
+                        <p className="text-gray-500 mb-6">
+                            We've sent a magic link to <span className="font-semibold text-gray-900">{email}</span>.
+                            <br />Click the link to complete your sign in.
+                        </p>
                     </div>
-                </div>
+                ) : (
+                    <div className="w-full max-w-[400px] bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                        <div className="text-center mb-6">
+                            <h1 className="text-2xl font-bold mb-2 text-gray-900">Welcome Back</h1>
+                            <p className="text-gray-500 text-sm">Sign in with your email via Magic Link</p>
+                        </div>
+
+                        {error && (
+                            <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-md border border-red-100">
+                                {error}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                            <div>
+                                <label htmlFor="email" className="block text-sm font-medium mb-1 text-gray-700">Email</label>
+                                <input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    placeholder="demo@vibevaults.app"
+                                    required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full mt-2 inline-flex items-center justify-center px-4 py-2 rounded-md font-medium text-white bg-secondary hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                            >
+                                {loading ? 'Sending Magic Link...' : 'Sign In with Magic Link'}
+                            </button>
+                        </form>
+
+                        <div className="mt-6 text-center text-sm text-gray-500">
+                            Don't have an account?{' '}
+                            <Link href="/register" className="font-medium text-primary hover:text-primary/80">
+                                Sign up
+                            </Link>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

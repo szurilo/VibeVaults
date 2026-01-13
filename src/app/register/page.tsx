@@ -1,23 +1,39 @@
+
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 
 export default function RegisterPage() {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         setLoading(true);
+        setError(null);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const supabase = createClient();
 
-        console.log('Magic link requested for:', email);
-        setSubmitted(true);
-        setLoading(false);
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+                emailRedirectTo: `${location.origin}/auth/callback`,
+            },
+        });
+
+        if (error) {
+            console.error('Error sending magic link:', error);
+            setError(error.message);
+            setLoading(false);
+        } else {
+            console.log('Magic link requested for:', email);
+            setSubmitted(true);
+            setLoading(false);
+        }
     }
 
     return (
@@ -45,9 +61,6 @@ export default function RegisterPage() {
                             We've sent a magic link to <span className="font-semibold text-gray-900">{email}</span>.
                             <br />Click the link to complete your signup.
                         </p>
-                        <p className="text-xs text-gray-400">
-                            (This is a demo, no email was actually sent)
-                        </p>
                         <div className="mt-6">
                             <Link href="/login" className="text-sm font-medium text-primary hover:text-primary/80">
                                 Back to login
@@ -60,6 +73,12 @@ export default function RegisterPage() {
                             <h1 className="text-2xl font-bold mb-2 text-gray-900">Create your account</h1>
                             <p className="text-gray-500 text-sm">Sign up with your email via Magic Link</p>
                         </div>
+
+                        {error && (
+                            <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-md border border-red-100">
+                                {error}
+                            </div>
+                        )}
 
                         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                             <div>

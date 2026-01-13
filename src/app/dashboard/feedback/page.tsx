@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -6,14 +6,16 @@ export default async function FeedbackListPage() {
     const session = await getSession();
     if (!session) redirect("/login");
 
-    const feedbacks = await prisma.feedback.findMany({
-        where: {
-            project: {
-                userId: session.user.id
-            }
-        },
-        orderBy: { createdAt: 'desc' }
-    });
+    const supabase = await createClient();
+    const { data: feedbacks } = await supabase
+        .from('feedbacks')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (!feedbacks) {
+        // Handle error gracefully or redirect
+        return <div>Error loading feedback</div>;
+    }
 
     return (
         <div>
@@ -25,14 +27,14 @@ export default async function FeedbackListPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {feedbacks.map(item => (
+                    {feedbacks.map((item: any) => (
                         <div key={item.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 flex flex-col">
                             <div className="flex justify-between items-start mb-4">
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary">
                                     {item.type}
                                 </span>
                                 <span className="text-xs text-gray-500">
-                                    {new Date(item.createdAt).toLocaleDateString()}
+                                    {new Date(item.created_at).toLocaleDateString()}
                                 </span>
                             </div>
                             <p className="text-gray-700 text-sm mb-4 flex-1">

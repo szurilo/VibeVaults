@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -9,13 +9,14 @@ export default async function DashboardPage() {
         redirect("/login");
     }
 
-    const totalFeedback = await prisma.feedback.count({
-        where: {
-            project: {
-                userId: session.user.id,
-            },
-        },
-    });
+    const supabase = await createClient();
+
+    // RLS policies ensure we only count feedback for the user's projects
+    const { count } = await supabase
+        .from('feedbacks')
+        .select('*', { count: 'exact', head: true });
+
+    const totalFeedback = count || 0;
 
     return (
         <div>
