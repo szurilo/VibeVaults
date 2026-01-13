@@ -24,12 +24,6 @@ export async function decrypt(input: string): Promise<any> {
     }
 }
 
-export async function login(formData: FormData) {
-    // Verify credentials (this would normally check DB)
-    // For this MVP step we will do it in the API route, but this helper sets the cookie.
-    // Actually, let's keep it simple: API route handles logic, this handles token.
-}
-
 export async function getSession() {
     const session = (await cookies()).get("session")?.value;
     if (!session) return null;
