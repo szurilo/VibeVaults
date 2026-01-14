@@ -95,6 +95,12 @@ export default function LoginPage() {
                             >
                                 {loading ? 'Sending Magic Link...' : 'Sign In with Magic Link'}
                             </button>
+                            <p className="text-xs text-center text-gray-500 mt-2">
+                                By continuing, you agree to our{' '}
+                                <Link href="/terms-of-service" className="underline hover:text-gray-900">Terms of Service</Link>
+                                {' '}and{' '}
+                                <Link href="/privacy-policy" className="underline hover:text-gray-900">Privacy Policy</Link>.
+                            </p>
                         </form>
 
                         <div className="mt-6 text-center text-sm text-gray-500">
