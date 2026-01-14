@@ -7,9 +7,3 @@ Run locally:
 ```bash
 npm run dev
 ```
-
-## Browse your data
-
-```bash
-npx prisma studio
-```
