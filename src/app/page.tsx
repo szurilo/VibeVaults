@@ -1,14 +1,6 @@
 import Link from "next/link";
-import { getSession } from "@/lib/auth";
-import { redirect } from "next/navigation";
 
-export default async function Home() {
-  const session = await getSession();
-
-  if (session) {
-    redirect("/dashboard");
-  }
-
+export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <div className="w-full bg-yellow-50 border-b border-yellow-100 text-yellow-800 px-4 py-2 text-center text-sm font-medium">
