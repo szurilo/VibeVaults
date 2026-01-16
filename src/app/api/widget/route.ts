@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     }
 
     const supabase = await createClient();
-    const { data: projects, error } = await supabase.rpc('get_project_by_key', { key_param: apiKey });
+    const { data: projects, error } = await supabase.rpc('get_project_by_api_key', { key_param: apiKey });
 
     if (error || !projects || projects.length === 0) {
         return NextResponse.json({ error: "Invalid API Key" }, { status: 401 });
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
-    const { data: projects, error: projectError } = await supabase.rpc('get_project_by_key', { key_param: apiKey });
+    const { data: projects, error: projectError } = await supabase.rpc('get_project_by_api_key', { key_param: apiKey });
 
     if (projectError || !projects || projects.length === 0) {
         return NextResponse.json({ error: "Invalid API Key" }, { status: 401 });
