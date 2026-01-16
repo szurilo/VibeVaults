@@ -1,9 +1,10 @@
 (function () {
-  const SCRIPT_ID = 'vibevaults-script';
-  const API_BASE = 'http://localhost:3000/api/widget'; // TODO: Change for prod
+  const scriptTag = document.currentScript;
 
-  // Get API Key from script attribute
-  const scriptTag = document.currentScript || document.getElementById(SCRIPT_ID);
+  // Dynamically determine API base from script source (works for local & prod)
+  const scriptUrl = new URL(scriptTag.src);
+  const API_BASE = `${scriptUrl.origin}/api/widget`;
+
   const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
   if (!apiKey) {
