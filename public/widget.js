@@ -103,6 +103,43 @@
       cursor: pointer;
       font-weight: 500;
     }
+    button.submit-btn:hover {
+      background: #1a8ad4;
+    }
+    .success-view {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 32px 16px;
+      gap: 12px;
+    }
+    .success-view.active {
+      display: flex;
+    }
+    .success-icon {
+      width: 48px;
+      height: 48px;
+      background: #ecfdf5;
+      color: #10b981;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+    .success-title {
+      font-weight: 600;
+      font-size: 18px;
+      color: #111827;
+      margin: 0;
+    }
+    .success-text {
+      font-size: 14px;
+      color: #6b7280;
+      margin: 0;
+    }
   `;
   shadow.appendChild(style);
 
@@ -120,11 +157,20 @@
         <button id="close-btn" style="background:none;border:none;cursor:pointer;font-size:18px">×</button>
       </div>
       <div class="content">
-         <div class="feedback-form">
+          <div class="feedback-form">
             <p style="font-size:14px;color:#4b5563;margin-top:0">Have a suggestion or found a bug? Let us know!</p>
             <textarea placeholder="I wish this app could..."></textarea>
             <button class="submit-btn">Send Feedback</button>
-         </div>
+          </div>
+          <div class="success-view">
+            <div class="success-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <path d="M20 6L9 17l-5-5"></path>
+              </svg>
+            </div>
+            <p class="success-title">Message sent!</p>
+            <p class="success-text">Thank you for helping us.</p>
+          </div>
       </div>
     </div>
   `;
@@ -137,6 +183,8 @@
   const popup = wrapper.querySelector('.popup');
   const triggerBtn = wrapper.querySelector('.trigger-btn');
   const closeBtn = wrapper.querySelector('#close-btn');
+  const form = wrapper.querySelector('.feedback-form');
+  const successView = wrapper.querySelector('.success-view');
   const textarea = wrapper.querySelector('textarea');
   const submitBtn = wrapper.querySelector('.submit-btn');
 
@@ -145,7 +193,9 @@
     isOpen = !isOpen;
     if (isOpen) {
       popup.classList.add('open');
-      // Focus textarea on open
+      // Reset view to form
+      form.style.display = 'flex';
+      successView.classList.remove('active');
       setTimeout(() => textarea.focus(), 100);
     } else {
       popup.classList.remove('open');
@@ -157,22 +207,37 @@
     if (!text) return;
 
     submitBtn.textContent = 'Sending...';
+    submitBtn.disabled = true;
+
     try {
       await fetch(API_BASE, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           apiKey,
           content: text,
           type: 'Feature'
         })
       });
-      alert('Thanks for your feedback!');
+
+      // Transition to success view
+      form.style.display = 'none';
+      successView.classList.add('active');
       textarea.value = '';
-      toggleOpen();
+
+      // Auto-close after 3 seconds
+      setTimeout(() => {
+        if (isOpen && successView.classList.contains('active')) {
+          toggleOpen();
+        }
+      }, 5000);
+
     } catch (e) {
+      console.error('VibeVaults: Error sending feedback', e);
       alert('Error sending feedback');
     } finally {
       submitBtn.textContent = 'Send Feedback';
+      submitBtn.disabled = false;
     }
   };
 
