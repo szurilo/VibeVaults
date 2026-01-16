@@ -2,6 +2,16 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { XIcon } from 'lucide-react';
 
 export default function Onboarding() {
     const router = useRouter();
@@ -32,41 +42,38 @@ export default function Onboarding() {
     if (isDismissed) return null;
 
     return (
-        <div className="bg-primary/5 border border-primary/20 rounded-xl p-8 mb-8 relative overflow-hidden">
-            <div className="absolute top-4 right-4">
-                <button
-                    onClick={() => setIsDismissed(true)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer p-1 hover:bg-gray-100 rounded-md"
-                >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
+        <Card className="bg-primary/5 border-primary/20 mb-8 relative">
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsDismissed(true)}
+                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+            >
+                <XIcon className="w-5 h-5" />
+            </Button>
 
-            <div className="max-w-2xl">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to VibeVaults! 🚀</h2>
-                <p className="text-gray-600 mb-6 text-lg">
+            <CardHeader className="max-w-2xl px-8 pt-8 pb-4">
+                <CardTitle className="text-2xl">Welcome to VibeVaults! 🚀</CardTitle>
+                <CardDescription className="text-lg text-muted-foreground/80">
                     Let's get started by creating your first project. Enter a name below to generate your API key and start collecting feedback.
-                </p>
+                </CardDescription>
+            </CardHeader>
 
+            <CardContent className="max-w-2xl px-8 pb-8">
                 <form onSubmit={handleCreateProject} className="flex flex-col sm:flex-row gap-3">
-                    <input
+                    <Input
                         type="text"
                         placeholder="e.g. My Awesome App"
-                        className="flex-1 bg-white border border-gray-200 rounded-lg py-3 px-4 text-base focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                        className="flex-1 bg-white"
                         value={projectName}
                         onChange={(e) => setProjectName(e.target.value)}
                         autoFocus
                     />
-                    <button
-                        type="submit"
-                        className="bg-primary text-white font-semibold py-3 px-8 rounded-lg hover:bg-primary/90 transition-all shadow-md active:scale-95 cursor-pointer"
-                    >
+                    <Button type="submit" className="px-8 shadow-md">
                         Create Project
-                    </button>
+                    </Button>
                 </form>
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 }
