@@ -140,6 +140,20 @@
       color: #6b7280;
       margin: 0;
     }
+    @media (max-width: 640px) {
+      :host {
+        bottom: 15px;
+        right: 15px;
+      }
+      .popup {
+        position: fixed;
+        bottom: 80px;
+        right: 15px;
+        left: 15px;
+        width: auto;
+        min-width: 0;
+      }
+    }
   `;
   shadow.appendChild(style);
 

@@ -3,6 +3,8 @@ import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import Onboarding from "@/components/Onboarding";
+import Link from "next/link";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default async function DashboardPage() {
     const session = await getSession();
@@ -56,22 +58,34 @@ export default async function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Total Feedback</h3>
-                    <p className="text-3xl font-bold text-gray-900">{totalFeedback}</p>
-                </div>
+                <Link href="/dashboard/feedback" className="block transition-transform hover:scale-[1.02]">
+                    <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                Total Feedback
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-3xl font-bold text-foreground">{totalFeedback}</p>
+                        </CardContent>
+                    </Card>
+                </Link>
             </div>
 
             {currentProject && (
-                <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mt-8">
-                    <h2 className="text-lg font-semibold mb-4 text-gray-900">Get Started</h2>
-                    <p className="text-gray-500 mb-6">
-                        Embed the widget on your site just before the closing &lt;/body&gt; tag to start collecting feedback for <strong>{currentProject.name}</strong>.
-                    </p>
-                    <div className="bg-gray-50 p-4 rounded-md font-mono text-sm text-gray-800 break-all">
-                        &lt;script src="https://vibe-vaults.com/widget.js" data-key="{currentProject.api_key}"&gt;&lt;/script&gt;
-                    </div>
-                </div>
+                <Card className="mt-8">
+                    <CardHeader>
+                        <CardTitle className="text-lg">Get Started</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground mb-6">
+                            Embed the widget on your site just before the closing &lt;/body&gt; tag to start collecting feedback for <strong>{currentProject.name}</strong>.
+                        </p>
+                        <div className="bg-muted p-4 rounded-md font-mono text-sm text-foreground break-all border overflow-x-auto">
+                            &lt;script src="https://vibe-vaults.com/widget.js" data-key="{currentProject.api_key}"&gt;&lt;/script&gt;
+                        </div>
+                    </CardContent>
+                </Card>
             )}
         </div>
     );
