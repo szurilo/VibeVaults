@@ -128,6 +128,16 @@ max_frequency = "1s"
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
+# Magic Link template (for signInWithOtp)
+[auth.email.template.magic_link]
+subject = "Your Magic Link"
+content_path = "./supabase/templates/magic_link.html"
+
+# Confirmation template (for signup with email confirmation enabled)
+[auth.email.template.confirmation]
+subject = "Confirm your signup"
+content_path = "./supabase/templates/confirmation.html"
+
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
 enable_signup = true
