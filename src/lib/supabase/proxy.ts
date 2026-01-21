@@ -40,7 +40,6 @@ export async function updateSession(request: NextRequest) {
     // to ensure the session is valid and tokens are refreshed on the server.
     // We strictly use getUser() here to avoid type mismatches and ensure reliability.
     const { data: { user } } = await supabase.auth.getUser()
-
     if (
         !user &&
         !request.nextUrl.pathname.startsWith('/login') &&
