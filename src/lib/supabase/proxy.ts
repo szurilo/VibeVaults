@@ -1,4 +1,5 @@
 
+import { type User } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -36,11 +37,23 @@ export async function updateSession(request: NextRequest) {
     // supabase.auth.getClaims(). A simple mistake could make it very hard to debug
     // issues with users being randomly logged out.
 
-    // IMPORTANT: If you remove getClaims() and you use server-side rendering
-    // with the Supabase client, your users may be randomly logged out.
-    const { data } = await supabase.auth.getClaims()
+    // IMPORTANT: The official Supabase SSR documentation recommends using getUser() 
+    // to ensure the session is valid and tokens are refreshed on the server.
+    // However, for performance, we try getClaims() first.
+    let { data } = await supabase.auth.getClaims()
+    let user: User | Record<string, any> | null = data?.claims ?? null
 
-    const user = data?.claims
+    // If no claims found (e.g. expired token, clock skew in prod, or key mismatch),
+    // we MUST verify with getUser() which handles token refresh and server-side validation.
+    if (!user) {
+        const { data: userData, error } = await supabase.auth.getUser()
+
+        // If getUser found a valid user, we allow the request.
+        // We do NOT re-call getClaims() here as it might persistently fail in this environment.
+        if (userData?.user && !error) {
+            user = userData.user
+        }
+    }
 
     if (
         !user &&
