@@ -25,6 +25,12 @@ export async function createClient() {
                     }
                 },
             },
+            cookieOptions: {
+                domain: process.env.NODE_ENV === 'production' ? '.vibe-vaults.com' : undefined,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/',
+            }
         }
     )
 }

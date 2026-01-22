@@ -8,6 +8,16 @@ export async function GET(request: Request) {
     const type = searchParams.get('type')
     const next = searchParams.get('next') ?? '/dashboard'
 
+    // CANONICAL DOMAIN ENFORCEMENT
+    // If not in development and not on 'www', redirect to 'www'
+    const host = request.headers.get('host')
+    const isLocalEnv = process.env.NODE_ENV === 'development'
+    if (!isLocalEnv && host && host === 'vibe-vaults.com') {
+        const canonicalURL = new URL(request.url)
+        canonicalURL.host = 'www.vibe-vaults.com'
+        return NextResponse.redirect(canonicalURL.toString())
+    }
+
     if (token_hash && type) {
         const supabase = await createClient()
         const { error } = await supabase.auth.verifyOtp({
@@ -17,7 +27,6 @@ export async function GET(request: Request) {
 
         if (!error) {
             const forwardedHost = request.headers.get('x-forwarded-host')
-            const isLocalEnv = process.env.NODE_ENV === 'development'
 
             if (isLocalEnv) {
                 return NextResponse.redirect(`${origin}${next}`)

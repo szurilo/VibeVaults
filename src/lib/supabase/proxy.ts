@@ -28,6 +28,12 @@ export async function updateSession(request: NextRequest) {
                     );
                 },
             },
+            cookieOptions: {
+                domain: process.env.NODE_ENV === 'production' ? '.vibe-vaults.com' : undefined,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/',
+            }
         },
     );
 
