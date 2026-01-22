@@ -50,10 +50,10 @@ export default function AuthCodeError() {
                 </CardContent>
                 <CardFooter className="flex flex-col gap-3 pt-2">
                     <Button asChild className="w-full h-10" variant="default">
-                        <Link href="/login">Try logging in again</Link>
+                        <Link href="/auth/login">Try logging in again</Link>
                     </Button>
                     <Button asChild className="w-full h-10" variant="secondary">
-                        <Link href="/register">Create a new account</Link>
+                        <Link href="/auth/register">Create a new account</Link>
                     </Button>
                     <p className="text-xs text-muted-foreground mt-4 text-center">
                         If you continue to experience issues, please contact{' '}

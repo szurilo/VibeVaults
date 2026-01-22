@@ -1,13 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSession } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 export async function GET() {
-    const session = await getSession();
-    if (!session || !session.user) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const supabase = await createClient();
     const { data: projects, error } = await supabase
         .from("projects")
@@ -22,11 +16,6 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-    const session = await getSession();
-    if (!session || !session.user) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const body = await req.json();
     const { name } = body;
 
@@ -35,11 +24,18 @@ export async function POST(req: Request) {
     }
 
     const supabase = await createClient();
+    const { data } = await supabase.auth.getClaims();
+    const user = data?.claims;
+
+    if (!user) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const { data: project, error } = await supabase
         .from("projects")
         .insert({
             name,
-            user_id: session.user.id
+            user_id: user.session_id
         })
         .select()
         .single();

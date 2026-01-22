@@ -1,11 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export default async function FeedbackListPage() {
-    const session = await getSession();
-    if (!session) redirect("/login");
-
     const supabase = await createClient();
     const { data: feedbacks } = await supabase
         .from('feedbacks')

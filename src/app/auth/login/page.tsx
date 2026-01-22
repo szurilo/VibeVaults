@@ -5,7 +5,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
-export default function RegisterPage() {
+export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -30,7 +30,6 @@ export default function RegisterPage() {
             setError(error.message);
             setLoading(false);
         } else {
-            console.log('Magic link requested for:', email);
             setSubmitted(true);
             setLoading(false);
         }
@@ -59,19 +58,14 @@ export default function RegisterPage() {
                         <h1 className="text-2xl font-bold mb-2 text-gray-900">Check your inbox</h1>
                         <p className="text-gray-500 mb-6">
                             We've sent a magic link to <span className="font-semibold text-gray-900">{email}</span>.
-                            <br />Click the link to complete your signup.
+                            <br />Click the link to complete your sign in.
                         </p>
-                        <div className="mt-6">
-                            <Link href="/login" className="text-sm font-medium text-primary hover:text-primary/80">
-                                Back to login
-                            </Link>
-                        </div>
                     </div>
                 ) : (
                     <div className="w-full max-w-[400px] bg-white border border-gray-200 rounded-lg shadow-sm p-6">
                         <div className="text-center mb-6">
-                            <h1 className="text-2xl font-bold mb-2 text-gray-900">Create your account</h1>
-                            <p className="text-gray-500 text-sm">Sign up with your email via Magic Link</p>
+                            <h1 className="text-2xl font-bold mb-2 text-gray-900">Welcome Back</h1>
+                            <p className="text-gray-500 text-sm">Sign in with your email via Magic Link</p>
                         </div>
 
                         {error && (
@@ -87,7 +81,7 @@ export default function RegisterPage() {
                                     id="email"
                                     name="email"
                                     type="email"
-                                    placeholder="you@example.com"
+                                    placeholder="demo@vibevaults.app"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
@@ -99,7 +93,7 @@ export default function RegisterPage() {
                                 disabled={loading}
                                 className="w-full mt-2 inline-flex items-center justify-center px-4 py-2 rounded-md font-medium text-white bg-secondary hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                             >
-                                {loading ? 'Sending Magic Link...' : 'Send Magic Link'}
+                                {loading ? 'Sending Magic Link...' : 'Sign In with Magic Link'}
                             </button>
                             <p className="text-xs text-center text-gray-500 mt-2">
                                 By continuing, you agree to our{' '}
@@ -110,9 +104,9 @@ export default function RegisterPage() {
                         </form>
 
                         <div className="mt-6 text-center text-sm text-gray-500">
-                            Already have an account?{' '}
-                            <Link href="/login" className="font-medium text-primary hover:text-primary/80">
-                                Sign in
+                            Don't have an account?{' '}
+                            <Link href="/auth/register" className="font-medium text-primary hover:text-primary/80">
+                                Sign up
                             </Link>
                         </div>
                     </div>

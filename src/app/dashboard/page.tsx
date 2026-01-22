@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import Onboarding from "@/components/Onboarding";
@@ -7,12 +6,6 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default async function DashboardPage() {
-    const session = await getSession();
-
-    if (!session || !session.user) {
-        redirect("/login");
-    }
-
     const supabase = await createClient();
 
     // Fetch all projects for the user
