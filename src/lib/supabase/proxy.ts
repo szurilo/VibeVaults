@@ -45,8 +45,7 @@ export async function updateSession(request: NextRequest) {
         !user &&
         !request.nextUrl.pathname.startsWith("/login") &&
         !request.nextUrl.pathname.startsWith("/auth") &&
-        // !request.nextUrl.pathname.startsWith('/api') && you can remove this later I think
-        // !request.nextUrl.pathname.startsWith('/register') && you can this these later I think
+        !request.nextUrl.pathname.includes('widget.js') &&
         !request.nextUrl.pathname.includes('manifest') &&
         !request.nextUrl.pathname.startsWith('/privacy-policy') &&
         !request.nextUrl.pathname.startsWith('/terms-of-service')
