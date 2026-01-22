@@ -14,11 +14,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const defaultUrl = process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}`
+  : "http://localhost:3000";
+
 export const viewport: Viewport = {
   themeColor: "#209CEE",
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL(defaultUrl),
   title: "VibeVaults",
   description: "Collect and manage customer feedback with VibeVaults."
 };
@@ -30,10 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable}`}
-        suppressHydrationWarning
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
         {children}
         <Analytics />
         <SpeedInsights />
