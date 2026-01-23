@@ -1,46 +1,30 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from "@/lib/supabase/server";
+import { type EmailOtpType } from "@supabase/supabase-js";
+import { redirect } from "next/navigation";
+import { type NextRequest } from "next/server";
 
-export async function GET(request: Request) {
-    const { searchParams, origin } = new URL(request.url)
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const token_hash = searchParams.get("token_hash");
+  const type = searchParams.get("type") as EmailOtpType | null;
+  const next = searchParams.get("next") ?? "/";
 
-    const token_hash = searchParams.get('token_hash')
-    const type = searchParams.get('type')
-    const next = searchParams.get('next') ?? '/dashboard'
+  if (token_hash && type) {
+    const supabase = await createClient();
 
-    // CANONICAL DOMAIN ENFORCEMENT
-    // If not in development and not on 'www', redirect to 'www'
-    const host = request.headers.get('host')
-    const isLocalEnv = process.env.NODE_ENV === 'development'
-    if (!isLocalEnv && host && host === 'vibe-vaults.com') {
-        const canonicalURL = new URL(request.url)
-        canonicalURL.host = 'www.vibe-vaults.com'
-        return NextResponse.redirect(canonicalURL.toString())
-    }
-
-    if (token_hash && type) {
-        const supabase = await createClient()
-        const { error } = await supabase.auth.verifyOtp({
-            type: type as any,
-            token_hash,
-        })
-
-        if (!error) {
-            const forwardedHost = request.headers.get('x-forwarded-host')
-
-            if (isLocalEnv) {
-                return NextResponse.redirect(`${origin}${next}`)
-            } else if (forwardedHost) {
-                return NextResponse.redirect(`https://${forwardedHost}${next}`)
-            } else {
-                return NextResponse.redirect(`${origin}${next}`)
-            }
-        }
-
-        console.error('❌ [/auth/confirm] Error verifying OTP:', error)
+    const { error } = await supabase.auth.verifyOtp({
+      type,
+      token_hash,
+    });
+    if (!error) {
+      // redirect user to specified redirect URL or root of app
+      redirect(next);
     } else {
+      // redirect the user to an error page with some instructions
+      redirect(`/auth/error?error=${error?.message}`);
     }
+  }
 
-    // If verification failed or no params provided, redirect to error page
-    return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  // redirect the user to an error page with some instructions
+  redirect(`/auth/error?error=No token hash or type`);
 }
