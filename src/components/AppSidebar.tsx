@@ -11,6 +11,8 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 
 export function AppSidebar({
     projects,
@@ -19,6 +21,14 @@ export function AppSidebar({
     projects: any[]
     selectedProjectId?: string
 }) {
+    const router = useRouter();
+
+    const logout = async () => {
+        const supabase = createClient();
+        await supabase.auth.signOut();
+        router.push("/auth/login");
+    };
+
     return (
         <Sidebar>
             <SidebarHeader className="bg-white border-b border-gray-100 p-4">
@@ -62,11 +72,9 @@ export function AppSidebar({
             <SidebarFooter className="bg-white border-t border-gray-100 p-4">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <form action="/api/auth/signout" method="POST" className="w-full">
-                            <SidebarMenuButton type="submit" className="w-full font-medium text-gray-600 justify-start">
-                                <span>Sign Out</span>
-                            </SidebarMenuButton>
-                        </form>
+                        <SidebarMenuButton onClick={logout} className="w-full font-medium text-gray-600 justify-start">
+                            <span>Sign Out</span>
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarFooter>
