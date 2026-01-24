@@ -62,11 +62,11 @@ export function AppSidebar({
             <SidebarFooter className="bg-white border-t border-gray-100 p-4">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                            <Link href="/api/auth/signout" className="font-medium text-gray-600">
+                        <form action="/api/auth/signout" method="POST" className="w-full">
+                            <SidebarMenuButton type="submit" className="w-full font-medium text-gray-600 justify-start">
                                 <span>Sign Out</span>
-                            </Link>
-                        </SidebarMenuButton>
+                            </SidebarMenuButton>
+                        </form>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarFooter>
