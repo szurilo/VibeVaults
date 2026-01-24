@@ -24,10 +24,7 @@ export async function createClient() {
                         // user sessions.
                     }
                 },
-            },
-            cookieOptions: {
-                secure: process.env.NODE_ENV === 'production',
-            },
+            }
         }
     )
 }
