@@ -1,11 +1,10 @@
+
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url)
-
-    const token_hash = searchParams.get('token_hash')
-    const type = searchParams.get('type')
+    const code = searchParams.get('code')
     const next = searchParams.get('next') ?? '/dashboard'
 
     // CANONICAL DOMAIN ENFORCEMENT
@@ -18,17 +17,15 @@ export async function GET(request: Request) {
         return NextResponse.redirect(canonicalURL.toString())
     }
 
-    if (token_hash && type) {
+    // Handle OAuth PKCE flow (used by OAuth providers like Google, GitHub, etc.)
+    if (code) {
         const supabase = await createClient()
-        const { error } = await supabase.auth.verifyOtp({
-            type: type as any,
-            token_hash,
-        })
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (!error) {
-            const forwardedHost = request.headers.get('x-forwarded-host')
-
+            const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
             if (isLocalEnv) {
+                // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
                 return NextResponse.redirect(`${origin}${next}`)
             } else if (forwardedHost) {
                 return NextResponse.redirect(`https://${forwardedHost}${next}`)
@@ -37,10 +34,9 @@ export async function GET(request: Request) {
             }
         }
 
-        console.error('❌ [/auth/confirm] Error verifying OTP:', error)
-    } else {
+        console.error('Error exchanging code for session:', error)
     }
 
-    // If verification failed or no params provided, redirect to error page
+    // If we get here, either no code was provided or verification failed
     return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }
