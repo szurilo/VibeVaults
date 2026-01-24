@@ -35,7 +35,7 @@ export async function POST(req: Request) {
         .from("projects")
         .insert({
             name,
-            user_id: user.session_id
+            user_id: user.sub
         })
         .select()
         .single();

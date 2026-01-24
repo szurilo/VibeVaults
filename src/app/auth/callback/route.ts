@@ -7,31 +7,13 @@ export async function GET(request: Request) {
     const code = searchParams.get('code')
     const next = searchParams.get('next') ?? '/dashboard'
 
-    // CANONICAL DOMAIN ENFORCEMENT
-    // If not in development and not on 'www', redirect to 'www'
-    const host = request.headers.get('host')
-    const isLocalEnv = process.env.NODE_ENV === 'development'
-    if (!isLocalEnv && host && host === 'vibe-vaults.com') {
-        const canonicalURL = new URL(request.url)
-        canonicalURL.host = 'www.vibe-vaults.com'
-        return NextResponse.redirect(canonicalURL.toString())
-    }
-
     // Handle OAuth PKCE flow (used by OAuth providers like Google, GitHub, etc.)
     if (code) {
         const supabase = await createClient()
         const { error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (!error) {
-            const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
-            if (isLocalEnv) {
-                // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-                return NextResponse.redirect(`${origin}${next}`)
-            } else if (forwardedHost) {
-                return NextResponse.redirect(`https://${forwardedHost}${next}`)
-            } else {
-                return NextResponse.redirect(`${origin}${next}`)
-            }
+            return NextResponse.redirect(`${origin}${next}`)
         }
 
         console.error('Error exchanging code for session:', error)
