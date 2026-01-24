@@ -62,7 +62,7 @@ export default function RegisterPage() {
                             <br />Click the link to complete your signup.
                         </p>
                         <div className="mt-6">
-                            <Link href="/login" className="text-sm font-medium text-primary hover:text-primary/80">
+                            <Link href="/auth/login" className="text-sm font-medium text-primary hover:text-primary/80">
                                 Back to login
                             </Link>
                         </div>
