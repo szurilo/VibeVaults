@@ -47,12 +47,35 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.includes('widget.js') &&
         !request.nextUrl.pathname.includes('manifest') &&
         !request.nextUrl.pathname.startsWith('/privacy-policy') &&
-        !request.nextUrl.pathname.startsWith('/terms-of-service')
+        !request.nextUrl.pathname.startsWith('/terms-of-service') &&
+        !request.nextUrl.pathname.startsWith('/api/stripe')
     ) {
         // no user, potentially respond by redirecting the user to the login page
         const url = request.nextUrl.clone();
         url.pathname = "/auth/login";
         return NextResponse.redirect(url);
+    }
+
+    // New: Subscription protection for /dashboard
+    if (request.nextUrl.pathname.startsWith('/dashboard') && user) {
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('subscription_status')
+            .eq('id', user.sub)
+            .single();
+
+        // If the table is missing or there's an error, don't redirect yet to avoid infinite loops
+        // during development or if the profile hasn't been created yet.
+        if (error) {
+            console.error('Middleware: Error fetching profile:', error.message);
+            return supabaseResponse;
+        }
+
+        if (profile?.subscription_status !== 'active') {
+            const url = request.nextUrl.clone();
+            url.pathname = "/api/stripe/checkout";
+            return NextResponse.redirect(url);
+        }
     }
 
     // IMPORTANT: You *must* return the supabaseResponse object as it is.

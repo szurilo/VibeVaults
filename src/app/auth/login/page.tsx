@@ -81,7 +81,7 @@ export default function LoginPage() {
                                     id="email"
                                     name="email"
                                     type="email"
-                                    placeholder="demo@vibevaults.app"
+                                    placeholder="name@example.com"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
