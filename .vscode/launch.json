@@ -15,15 +15,9 @@
         },
         {
             "name": "Next.js: debug full stack",
-            "type": "node",
+            "type": "node-terminal",
             "request": "launch",
-            "program": "${workspaceFolder}/node_modules/next/dist/bin/next",
-            "runtimeArgs": [
-                "--inspect"
-            ],
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
+            "command": "npm run dev",
             "serverReadyAction": {
                 "action": "debugWithChrome",
                 "killOnServerStop": true,

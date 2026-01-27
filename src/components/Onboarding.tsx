@@ -55,7 +55,7 @@ export default function Onboarding() {
             <CardHeader className="max-w-2xl px-8 pt-8 pb-4">
                 <CardTitle className="text-2xl">Welcome to VibeVaults! 🚀</CardTitle>
                 <CardDescription className="text-lg text-muted-foreground/80">
-                    Let's get started by creating your first project. Enter a name below to generate your API key and start collecting feedback.
+                    Let's get started by creating your first project. Enter a project name below to generate your API key and start collecting feedback.
                 </CardDescription>
             </CardHeader>
 

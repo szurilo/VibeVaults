@@ -62,6 +62,7 @@ export default function ProjectSwitcher({
                 <Select
                     value={selectedProjectId || ''}
                     onValueChange={handleProjectChange}
+                    disabled={projects.length < 2}
                 >
                     <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a project" />

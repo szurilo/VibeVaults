@@ -18,15 +18,13 @@ export default async function DashboardPage() {
     // Use selected project or default to the first one
     const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
 
-    // If no projects exist, show onboarding
-    if (!projects || projects.length === 0) {
-        return (
-            <div>
-                <h1 className="text-2xl font-semibold mb-8 text-gray-900">Overview</h1>
-                <Onboarding />
-            </div>
-        );
-    }
+    // Check if the user has completed onboarding
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('has_onboarded')
+        .single();
+
+    const hasOnboarded = profile?.has_onboarded ?? false;
 
     // RLS policies ensure we only count feedback for the user's projects
     // But we filter by project_id if one is selected
@@ -49,36 +47,58 @@ export default async function DashboardPage() {
                 </h1>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Link href="/dashboard/feedback" className="block transition-transform hover:scale-[1.02]">
-                    <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                Total Feedback
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-3xl font-bold text-foreground">{totalFeedback}</p>
-                        </CardContent>
-                    </Card>
-                </Link>
-            </div>
+            {!hasOnboarded ? (
+                <Onboarding />
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <Link href="/dashboard/feedback" className="block transition-transform hover:scale-[1.02]">
+                            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                        Total Feedback
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-3xl font-bold text-foreground">{totalFeedback}</p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+                    </div>
 
-            {currentProject && (
-                <Card className="mt-8">
-                    <CardHeader>
-                        <CardTitle className="text-lg">Get Started</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground mb-6">
-                            Embed the widget on your site just before the closing &lt;/body&gt; tag to start collecting feedback for <strong>{currentProject.name}</strong>.
-                        </p>
-                        <div className="bg-muted p-4 rounded-md font-mono text-sm text-foreground break-all border overflow-x-auto">
-                            &lt;script src="https://vibe-vaults.com/widget.js" data-key="{currentProject.api_key}"&gt;&lt;/script&gt;
-                        </div>
-                    </CardContent>
-                </Card>
+                    {currentProject && (
+                        <Card className="mt-8">
+                            <CardHeader>
+                                <CardTitle className="text-lg">Get Started</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-muted-foreground mb-6">
+                                    Embed the widget on your site just before the closing &lt;/body&gt; tag to start collecting feedback for <strong>{currentProject.name}</strong>.
+                                </p>
+                                <div className="bg-muted p-4 rounded-md font-mono text-sm text-foreground break-all border overflow-x-auto">
+                                    &lt;script src="https://vibe-vaults.com/widget.js" data-key="{currentProject.api_key}"&gt;&lt;/script&gt;
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </>
             )}
+
+            <Card className="mt-8">
+                <CardHeader>
+                    <CardTitle className="text-lg">Questions or Problems?</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <h2 className="font-semibold text-sm mb-1">Regarding billing:</h2>
+                    <p className="text-muted-foreground mb-6">
+                        Send us an email at <a href="mailto:support@vibe-vaults.com" className="text-primary hover:underline">support@vibe-vaults.com</a>
+                    </p>
+                    <h2 className="font-semibold text-sm mb-1">Regarding other issues:</h2>
+                    <p className="text-muted-foreground">
+                        Please use the widget in the bottom right corner.
+                    </p>
+                </CardContent>
+            </Card>
         </div>
     );
 }
