@@ -106,7 +106,7 @@ export default function ProjectSwitcher({
                     <Button
                         variant="outline"
                         onClick={() => setIsCreating(true)}
-                        className="w-full border-dashed justify-center gap-2"
+                        className="w-full border-dashed justify-center gap-2 cursor-pointer"
                     >
                         <PlusIcon className="w-4 h-4" />
                         Create Project

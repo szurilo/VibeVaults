@@ -47,7 +47,7 @@ export default function Onboarding() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsDismissed(true)}
-                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground cursor-pointer"
             >
                 <XIcon className="w-5 h-5" />
             </Button>
@@ -69,7 +69,7 @@ export default function Onboarding() {
                         onChange={(e) => setProjectName(e.target.value)}
                         autoFocus
                     />
-                    <Button type="submit" className="px-8 shadow-md hover:shadow-lg transition-all active:scale-95">
+                    <Button type="submit" className="px-8 shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer">
                         Create Project
                     </Button>
                 </form>

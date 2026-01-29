@@ -72,8 +72,10 @@ export function AppSidebar({
             <SidebarFooter className="bg-white border-t border-gray-100 p-4">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton onClick={logout} className="w-full font-medium text-gray-600 justify-start">
-                            <span>Sign Out</span>
+                        <SidebarMenuButton asChild>
+                            <button onClick={logout} className="font-medium text-gray-600 cursor-pointer">
+                                <span>Sign Out</span>
+                            </button>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>

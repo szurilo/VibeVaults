@@ -29,7 +29,7 @@ export default function PrivacyPolicy() {
                     <p className="mb-4">
                         <strong>Service name:</strong> VibeVaults<br />
                         <strong>Operator:</strong> József Tar<br />
-                        <strong>Contact email:</strong> info@vibe-vaults.com<br />
+                        <strong>Contact email:</strong> support@vibe-vaults.com<br />
                         <strong>Location:</strong> European Union (Hungary)
                     </p>
                     <p className="mb-6">
@@ -172,7 +172,7 @@ export default function PrivacyPolicy() {
                         If you have questions about this Privacy Policy or data protection matters, contact:
                     </p>
                     <p className="mb-6">
-                        <strong>Email:</strong> info@vibe-vaults.com
+                        <strong>Email:</strong> support@vibe-vaults.com
                     </p>
                 </div>
             </main>
