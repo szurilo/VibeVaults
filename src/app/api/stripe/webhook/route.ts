@@ -91,6 +91,49 @@ export async function POST(req: NextRequest) {
                 break;
             }
 
+            case 'invoice.paid': {
+                const invoice = data.object as any;
+                const customerId = invoice.customer;
+
+                // When an invoice is paid, ensure the subscription is marked as active
+                const { error } = await supabaseAdmin
+                    .from('profiles')
+                    .update({
+                        subscription_status: 'active',
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('stripe_customer_id', customerId);
+
+                if (error) {
+                    console.error('❌ Webhook: Failed to update profile on invoice.paid:', error.message);
+                } else {
+                    console.log('✅ Webhook: Subscription marked as active on invoice.paid for customer', customerId);
+                }
+                break;
+            }
+
+            case 'invoice.payment_failed': {
+                const invoice = data.object as any;
+                const customerId = invoice.customer;
+
+                // When a payment fails, we mark the subscription as inactive
+                // This allows the UI to prompt the user to update their payment method
+                const { error } = await supabaseAdmin
+                    .from('profiles')
+                    .update({
+                        subscription_status: 'inactive',
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('stripe_customer_id', customerId);
+
+                if (error) {
+                    console.error('❌ Webhook: Failed to update profile on invoice.payment_failed:', error.message);
+                } else {
+                    console.log('⚠️ Webhook: Subscription marked as inactive on invoice.payment_failed for customer', customerId);
+                }
+                break;
+            }
+
             default:
                 console.log(`Unhandled event type ${type}`);
         }
