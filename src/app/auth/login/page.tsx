@@ -58,7 +58,7 @@ export default function LoginPage() {
                         <h1 className="text-2xl font-bold mb-2 text-gray-900">Check your inbox</h1>
                         <p className="text-gray-500 mb-6">
                             We've sent a magic link to <span className="font-semibold text-gray-900">{email}</span>.
-                            <br />Click the link to complete your sign in.
+                            <br />Click the link in the email to complete your sign in.
                         </p>
                     </div>
                 ) : (

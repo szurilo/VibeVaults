@@ -2,6 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
+    // Fast exit for Stripe webhooks - bypass all auth checks
+    if (request.nextUrl.pathname.startsWith('/api/stripe')) {
+        return NextResponse.next({
+            request,
+        });
+    }
+
     let supabaseResponse = NextResponse.next({
         request,
     });
@@ -57,7 +64,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     // New: Subscription protection for /dashboard
-    if (request.nextUrl.pathname.startsWith('/dashboard') && user) {
+    if (request.nextUrl.pathname.startsWith('/dashboard') && !request.nextUrl.pathname.startsWith('/dashboard/payment-success') && user) {
         const { data: profile, error } = await supabase
             .from('profiles')
             .select('subscription_status')

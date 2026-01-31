@@ -83,7 +83,7 @@ export default function Home() {
               <div className="p-10 bg-white rounded-3xl border-2 border-primary shadow-xl relative">
                 {/* <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-white px-4 py-1 rounded-full text-xs font-bold tracking-widest uppercase">Popular</div> */}
                 {/* <h3 className="text-xl font-bold mb-2">Pro</h3> */}
-                <div className="text-4xl font-extrabold mb-6">$9<span className="text-lg text-gray-400 font-normal">/mo</span></div>
+                <div className="text-4xl font-extrabold mb-6">$29<span className="text-lg text-gray-400 font-normal">/mo</span></div>
                 <ul className="text-left space-y-4 mb-10 text-gray-600">
                   <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Unlimited Feedback</li>
                   <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Multiple Projects</li>
