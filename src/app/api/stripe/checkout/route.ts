@@ -20,6 +20,21 @@ export async function GET(request: Request) {
 
         let customerId = profile?.stripe_customer_id;
 
+        if (customerId) {
+            try {
+                // Verify the customer exists in Stripe
+                await stripe.customers.retrieve(customerId);
+            } catch (error: any) {
+                // If customer doesn't exist in Stripe, we'll create a new one
+                if (error.code === 'resource_missing' || (error.statusCode === 404)) {
+                    console.warn(`Stale Stripe customer ID ${customerId} found for user ${user.id}. Resetting and creating a new one.`);
+                    customerId = null;
+                } else {
+                    throw error;
+                }
+            }
+        }
+
         if (!customerId) {
             // Create a new Stripe customer
             const customer = await stripe.customers.create({
