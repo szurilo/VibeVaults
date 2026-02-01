@@ -23,13 +23,26 @@ export async function GET(request: Request) {
         if (customerId) {
             try {
                 // Verify the customer exists in Stripe
-                await stripe.customers.retrieve(customerId);
+                const customer = await stripe.customers.retrieve(customerId);
+
+                // If the customer was deleted in Stripe, treat it as null
+                if (customer.deleted) {
+                    console.warn(`Stripe customer ${customerId} is marked as deleted. Creating a new one.`);
+                    customerId = null;
+                }
             } catch (error: any) {
-                // If customer doesn't exist in Stripe, we'll create a new one
-                if (error.code === 'resource_missing' || (error.statusCode === 404)) {
+                // Stripe throws an error if customer is not found (404 or 400 resource_missing)
+                const isNotFoundError =
+                    error.code === 'resource_missing' ||
+                    error.statusCode === 404 ||
+                    error.statusCode === 400 ||
+                    error.message?.toLowerCase().includes('no such customer');
+
+                if (isNotFoundError) {
                     console.warn(`Stale Stripe customer ID ${customerId} found for user ${user.id}. Resetting and creating a new one.`);
                     customerId = null;
                 } else {
+                    // Re-throw if it's some other API error (rate limit, etc)
                     throw error;
                 }
             }
