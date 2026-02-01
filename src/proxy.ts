@@ -8,13 +8,13 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
+     * Match all request paths except those that you see in the regexp, so e.g:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
-     * Feel free to modify this pattern to include more paths.
+     * Matching means besides these requests below all other requests will be proxied to API route (app/api/...), Route handler, Page/Server Component, this means they will be redirected from the apex domain to the www domain it it is needed.
      */
-    "/((?!_next/static|_next/image|favicon.ico|widget.js|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/stripe|widget.js|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
