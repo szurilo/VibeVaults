@@ -48,7 +48,9 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.includes('widget.js') &&
         !request.nextUrl.pathname.includes('manifest') &&
         !request.nextUrl.pathname.startsWith('/privacy-policy') &&
-        !request.nextUrl.pathname.startsWith('/terms-of-service')
+        !request.nextUrl.pathname.startsWith('/terms-of-service') &&
+        !request.nextUrl.pathname.includes('sitemap.xml') &&
+        !request.nextUrl.pathname.includes('robots.txt')
     ) {
         // If it's a non-GET unauthenticated request (frequently bots), return 401 immediately
         // to avoid 405 errors caused by method-preserving redirects.
