@@ -14,9 +14,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const defaultUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+const defaultUrl = "https://www.vibe-vaults.com";
 
 export const viewport: Viewport = {
   themeColor: "#209CEE",
