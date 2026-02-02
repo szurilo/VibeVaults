@@ -33,6 +33,24 @@ export default function Home() {
       </header>
 
       <main className="flex-1 flex flex-col items-center">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              "name": "VibeVaults",
+              "operatingSystem": "Web",
+              "applicationCategory": "BusinessApplication",
+              "description": "Collect and manage customer feedback with VibeVaults. Build better products with powerful insights.",
+              "offers": {
+                "@type": "Offer",
+                "price": "29.00",
+                "priceCurrency": "USD"
+              }
+            })
+          }}
+        />
         <section className="flex flex-col items-center justify-center py-24 px-4 text-center max-w-5xl">
           <h1 className="text-7xl font-extrabold tracking-tight leading-none mb-8 text-gray-900">
             Collect feedback. <span className="text-primary">Make customers happy.</span>

@@ -26,9 +26,9 @@ export default async function FeedbackListPage() {
                     {feedbacks.map((item: any) => (
                         <div key={item.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 flex flex-col">
                             <div className="flex justify-between items-start mb-4">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary">
+                                {/* <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary">
                                     {item.type}
-                                </span>
+                                </span> */}
                                 <span className="text-xs text-gray-500">
                                     {new Date(item.created_at).toLocaleDateString()}
                                 </span>
