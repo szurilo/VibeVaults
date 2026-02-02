@@ -44,6 +44,8 @@ export async function updateSession(request: NextRequest) {
         request.nextUrl.pathname !== "/" &&
         !user &&
         !request.nextUrl.pathname.startsWith("/auth") &&
+        !request.nextUrl.pathname.startsWith("/api/widget") &&
+        !request.nextUrl.pathname.startsWith("/api/stripe") &&
         !request.nextUrl.pathname.includes('widget.js') &&
         !request.nextUrl.pathname.includes('manifest') &&
         !request.nextUrl.pathname.startsWith('/privacy-policy') &&

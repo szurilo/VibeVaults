@@ -15,6 +15,6 @@ export const config = {
      * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
      * Matching means besides these requests below all other requests will be proxied to API route (app/api/...), Route handler, Page/Server Component, this means they will be redirected from the apex domain to the www domain it it is needed.
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/stripe|widget.js|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/stripe|api/widget|widget.js|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
