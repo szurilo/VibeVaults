@@ -3,7 +3,14 @@
 
   // Dynamically determine API base from script source (works for local & prod)
   const scriptUrl = new URL(scriptTag.src);
-  const API_BASE = `${scriptUrl.origin}/api/widget`;
+  let origin = scriptUrl.origin;
+
+  // If loaded from apex domain, force canonical www to avoid CORS preflight redirects
+  if (origin === 'https://vibe-vaults.com') {
+    origin = 'https://www.vibe-vaults.com';
+  }
+
+  const API_BASE = `${origin}/api/widget`;
 
   const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 

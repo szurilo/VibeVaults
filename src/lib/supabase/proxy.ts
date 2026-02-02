@@ -41,7 +41,6 @@ export async function updateSession(request: NextRequest) {
     const user = data?.claims;
 
     if (
-        request.nextUrl.pathname !== "/" &&
         !user &&
         !request.nextUrl.pathname.startsWith("/auth") &&
         !request.nextUrl.pathname.startsWith("/api/widget") &&
@@ -51,10 +50,20 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.startsWith('/privacy-policy') &&
         !request.nextUrl.pathname.startsWith('/terms-of-service')
     ) {
-        // no user, potentially respond by redirecting the user to the login page
-        const url = request.nextUrl.clone();
-        url.pathname = "/auth/login";
-        return NextResponse.redirect(url);
+        // If it's a non-GET unauthenticated request (frequently bots), return 401 immediately
+        // to avoid 405 errors caused by method-preserving redirects.
+        if (request.method !== 'GET') {
+            return new NextResponse(null, { status: 401 });
+        }
+
+        // For GET requests to protected paths, redirect to login.
+        // We exclude "/" as it's the landing page.
+        if (request.nextUrl.pathname !== "/") {
+            const url = request.nextUrl.clone();
+            url.pathname = "/auth/login";
+            // Use 303 (See Other) to force the browser to use GET on the destination.
+            return NextResponse.redirect(url, 303);
+        }
     }
 
     // New: Subscription protection for /dashboard

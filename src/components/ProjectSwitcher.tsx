@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,19 @@ export default function ProjectSwitcher({
     const router = useRouter();
     const [isCreating, setIsCreating] = useState(false);
     const [projectName, setProjectName] = useState('');
+
+    useEffect(() => {
+        // If we have projects and no selected ID from prop (shouldn't happen with layout fix but good for safety)
+        // or if the cookie is missing, set it.
+        const cookieValue = typeof document !== 'undefined' ? document.cookie
+            .split('; ')
+            .find(row => row.startsWith('selectedProjectId='))
+            ?.split('=')[1] : null;
+
+        if (selectedProjectId && selectedProjectId !== cookieValue) {
+            document.cookie = `selectedProjectId=${selectedProjectId}; path=/; max-age=31536000`;
+        }
+    }, [selectedProjectId]);
 
     const handleProjectChange = (projectId: string) => {
         document.cookie = `selectedProjectId=${projectId}; path=/; max-age=31536000`;

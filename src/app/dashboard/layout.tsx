@@ -16,7 +16,15 @@ export default async function DashboardLayout({
         .order("created_at", { ascending: false });
 
     const cookieStore = await cookies();
-    const selectedProjectId = cookieStore.get("selectedProjectId")?.value;
+    let selectedProjectId = cookieStore.get("selectedProjectId")?.value;
+
+    // If no selected project in cookie, or project no longer exists, default to the first one
+    if (projects && projects.length > 0) {
+        if (!selectedProjectId || !projects.some(p => p.id === selectedProjectId)) {
+            selectedProjectId = projects[0].id;
+        }
+    }
+
     const cookie = cookieStore.get("sidebar_state");
     const defaultOpen = cookie ? cookie.value === "true" : true;
 
