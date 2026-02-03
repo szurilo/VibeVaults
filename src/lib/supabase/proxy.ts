@@ -52,9 +52,9 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.includes('sitemap.xml') &&
         !request.nextUrl.pathname.includes('robots.txt')
     ) {
-        // If it's a non-GET unauthenticated request (frequently bots), return 401 immediately
+        // If it's a non-GET/HEAD unauthenticated request (frequently bots), return 401 immediately
         // to avoid 405 errors caused by method-preserving redirects.
-        if (request.method !== 'GET') {
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
             return new NextResponse(null, { status: 401 });
         }
 
