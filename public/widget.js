@@ -83,20 +83,29 @@
     }
     .header {
       padding: 16px 20px;
-      background: #ffffff;
-      border-bottom: 1px solid #f3f4f6;
+      background: #209CEE;
+      color: white;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
     }
     .header h3 {
       margin: 0;
       font-size: 18px;
-      font-weight: 600;
-      color: #111827;
+      font-weight: 700;
+      color: white;
+    }
+    .header p {
+      margin: 0;
+      font-size: 14px;
+      opacity: 0.8;
     }
     .close-btn {
-      background: #f3f4f6;
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(255, 255, 255, 0.1);
       border: none;
       border-radius: 50%;
       width: 28px;
@@ -105,12 +114,11 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      color: #6b7280;
+      color: white;
       transition: all 0.2s;
     }
     .close-btn:hover {
-      background: #e5e7eb;
-      color: #111827;
+      background: rgba(255, 255, 255, 0.2);
     }
     .content {
       flex: 1;
@@ -237,7 +245,8 @@
     </button>
     <div class="popup">
       <div class="header">
-        <h3>Send Feedback</h3>
+        <h3>Send us your feedback</h3>
+        <p>We'd love to hear from you!</p>
         <button class="close-btn" aria-label="Close">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -247,7 +256,6 @@
       </div>
       <div class="content">
           <div class="feedback-form">
-            <p class="form-label">Have a suggestion or found a bug? We'd love to hear from you!</p>
             <textarea placeholder="Tell us what's on your mind..."></textarea>
             <button class="submit-btn" type="button">Send Feedback</button>
           </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UserFlowAnimation } from "@/components/landing/UserFlowAnimation";
 
 export default function Home() {
   return (
@@ -51,17 +52,23 @@ export default function Home() {
             })
           }}
         />
-        <section className="flex flex-col items-center justify-center py-24 px-4 text-center max-w-5xl">
-          <h1 className="text-7xl font-extrabold tracking-tight leading-none mb-8 text-gray-900">
-            Collect feedback. <span className="text-primary">Make customers happy.</span>
-          </h1>
-          <p className="text-2xl text-gray-500 max-w-3xl mb-12 leading-relaxed">
-            An easy way to collect and manage customer feedback. Build better products with VibeVaults' powerful insights.
-          </p>
-          <div className="flex gap-6">
-            <Link href="/auth/register" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 bg-secondary text-white hover:bg-secondary/90 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
-              Get Started
-            </Link>
+        <section className="flex flex-col items-center justify-center py-20 px-4 text-center max-w-7xl mx-auto">
+          <div className="max-w-4xl">
+            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-none mb-8 text-gray-900">
+              Collect feedback. <span className="text-primary">Make customers happy.</span>
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-500 max-w-3xl mb-12 leading-relaxed mx-auto">
+              An easy way to collect and manage customer feedback. Build better products with VibeVaults' powerful insights.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20">
+              <Link href="/auth/register" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 bg-secondary text-white hover:bg-secondary/90 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
+                Get Started
+              </Link>
+            </div>
+          </div>
+
+          <div className="w-full mt-8">
+            <UserFlowAnimation />
           </div>
         </section>
 
