@@ -76,7 +76,7 @@ export default async function DashboardPage() {
                                     Embed the widget on your site just before the closing &lt;/body&gt; tag to start collecting feedback for <strong>{currentProject.name}</strong>.
                                 </p>
                                 <div className="bg-muted p-4 rounded-md font-mono text-sm text-foreground break-all border overflow-x-auto">
-                                    &lt;script src="https://www.vibe-vaults.com/widget.js" data-key="{currentProject.api_key}"&gt;&lt;/script&gt;
+                                    &lt;script src="https://www.vibe-vaults.com/widget.js" data-key="{currentProject.api_key}" async&gt;&lt;/script&gt;
                                 </div>
                             </CardContent>
                         </Card>

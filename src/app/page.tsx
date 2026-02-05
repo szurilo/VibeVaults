@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { UserFlowAnimation } from "@/components/landing/UserFlowAnimation";
+import { HowItWorks } from "@/components/landing/HowItWorks";
 
 export default function Home() {
   return (
@@ -17,6 +18,9 @@ export default function Home() {
           <nav className="hidden md:flex gap-8 flex-1 justify-center">
             <Link href="#features" className="text-sm font-semibold text-gray-600 hover:text-primary transition-all duration-200">
               Features
+            </Link>
+            <Link href="#how-it-works" className="text-sm font-semibold text-gray-600 hover:text-primary transition-all duration-200">
+              How it works
             </Link>
             <Link href="#pricing" className="text-sm font-semibold text-gray-600 hover:text-primary transition-all duration-200">
               Pricing
@@ -96,6 +100,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <HowItWorks />
 
         <section id="pricing" className="py-32 w-full flex flex-col items-center">
           <div className="max-w-7xl mx-auto px-8 text-center">
