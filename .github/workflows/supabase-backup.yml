@@ -35,7 +35,7 @@ jobs:
           supabase db dump -p "$DB_PASSWORD" --role-only -f backups/roles.sql
           
           # 2. Dump Schema
-          supabase db dump -p "$DB_PASSWORD" --schema-only -f backups/schema.sql
+          supabase db dump -p "$DB_PASSWORD" -f backups/schema.sql
           
           # 3. Dump Data (The important stuff)
           supabase db dump -p "$DB_PASSWORD" --data-only -f backups/data.sql
