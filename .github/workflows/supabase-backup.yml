@@ -27,15 +27,18 @@ jobs:
         run: |
           # Create a backup directory
           mkdir -p backups
+
+          # Link the project (required for newer CLI versions)
+          supabase link --project-ref "$PROJECT_ID" -p "$DB_PASSWORD"
           
           # 1. Dump Roles
-          supabase db dump --project-ref "$PROJECT_ID" -p "$DB_PASSWORD" --role-only -f backups/roles.sql
+          supabase db dump -p "$DB_PASSWORD" --role-only -f backups/roles.sql
           
           # 2. Dump Schema
-          supabase db dump --project-ref "$PROJECT_ID" -p "$DB_PASSWORD" --schema-only -f backups/schema.sql
+          supabase db dump -p "$DB_PASSWORD" --schema-only -f backups/schema.sql
           
           # 3. Dump Data (The important stuff)
-          supabase db dump --project-ref "$PROJECT_ID" -p "$DB_PASSWORD" --data-only -f backups/data.sql
+          supabase db dump -p "$DB_PASSWORD" --data-only -f backups/data.sql
           
           # Compress the backups
           tar -czvf "supabase_backup_$(date +%Y%m%d_%H%M%S).tar.gz" backups/
