@@ -157,7 +157,7 @@ export const HowItWorks = () => {
                         </div>
                     </div>
                     <Link
-                        href="mailto:support@vibevaults.com"
+                        href="mailto:support@vibe-vaults.com"
                         className="group flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 hover:border-secondary hover:text-secondary rounded-xl font-bold transition-all duration-300 whitespace-nowrap"
                     >
                         Contact Support

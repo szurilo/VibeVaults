@@ -44,7 +44,7 @@ export const UserFlowAnimation = () => {
                     <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
                 </div>
                 <div className="mx-auto bg-gray-200 h-5 w-48 rounded-md flex items-center justify-center text-[10px] text-gray-400 font-medium">
-                    {STAGES[stage] === "dashboard" ? "vibevaults.com/dashboard" : "yourwebsite.com"}
+                    {STAGES[stage] === "dashboard" ? "vibe-vaults.com/dashboard" : "yourwebsite.com"}
                 </div>
             </div>
 
