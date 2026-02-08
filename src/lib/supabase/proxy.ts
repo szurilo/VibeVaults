@@ -49,6 +49,7 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.includes('manifest') &&
         !request.nextUrl.pathname.startsWith('/privacy-policy') &&
         !request.nextUrl.pathname.startsWith('/terms-of-service') &&
+        !request.nextUrl.pathname.startsWith('/share') &&
         !request.nextUrl.pathname.includes('sitemap.xml') &&
         !request.nextUrl.pathname.includes('robots.txt')
     ) {

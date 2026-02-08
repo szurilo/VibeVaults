@@ -1,57 +1,21 @@
-"use client";
+import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { DeleteAccountCard } from "@/components/DeleteAccountCard";
+import { ShareProjectCard } from "@/components/ShareProjectCard";
 
-import { Button } from "@/components/ui/button";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+export default async function SettingsPage() {
+    const supabase = await createClient();
 
-export default function SettingsPage() {
-    const [loading, setLoading] = useState(false);
-    const router = useRouter();
-    const supabase = createClient();
+    // Fetch all projects to find selected
+    const { data: projects } = await supabase
+        .from('projects')
+        .select('*');
 
-    const handleDeleteAccount = async () => {
-        setLoading(true);
-        try {
-            // Call the API route to delete the account
-            const response = await fetch("/api/auth/delete-account", {
-                method: "DELETE",
-            });
+    const cookieStore = await cookies();
+    const selectedProjectId = cookieStore.get("selectedProjectId")?.value;
 
-            if (!response.ok) {
-                throw new Error("Failed to delete account");
-            }
-
-            // Sign out locally
-            await supabase.auth.signOut();
-
-            // Redirect to home/login
-            router.push("/auth/login");
-        } catch (error) {
-            console.error("Error deleting account:", error);
-            alert("Failed to delete account. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Use selected project or default to the first one
+    const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
 
     return (
         <div>
@@ -62,52 +26,12 @@ export default function SettingsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="col-span-full">
-                    <Card className="border-destructive/20 bg-destructive/5 shadow-sm">
-                        <CardHeader>
-                            <CardTitle className="text-destructive font-semibold">Danger Zone</CardTitle>
-                            <CardDescription>
-                                Irreversible actions that affect your account.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center justify-between p-4 border border-destructive/20 rounded-lg bg-white/50">
-                                <div className="space-y-1">
-                                    <h3 className="font-medium text-gray-900">Delete Account</h3>
-                                    <p className="text-sm text-gray-500">
-                                        Permanently delete your account and all associated data.
-                                    </p>
-                                </div>
+                <div className="col-span-full space-y-6">
+                    {currentProject && (
+                        <ShareProjectCard project={currentProject} />
+                    )}
 
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" disabled={loading} size="sm" className="cursor-pointer">
-                                            {loading ? "Deleting..." : "Delete Account"}
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This action cannot be undone. This will permanently delete your
-                                                account and remove your data from our servers.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
-                                            <AlertDialogAction
-                                                onClick={handleDeleteAccount}
-                                                className="cursor-pointer"
-                                                variant="destructive"
-                                            >
-                                                Delete Account
-                                            </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <DeleteAccountCard />
                 </div>
             </div>
         </div>
