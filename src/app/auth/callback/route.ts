@@ -13,17 +13,6 @@ export async function GET(request: Request) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (!error) {
-            // Check subscription status
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('subscription_status')
-                .eq('id', (await supabase.auth.getUser()).data.user?.id)
-                .single();
-
-            if (profile?.subscription_status !== 'active') {
-                return NextResponse.redirect(`${origin}/api/stripe/checkout`)
-            }
-
             return NextResponse.redirect(`${origin}${next}`)
         }
 

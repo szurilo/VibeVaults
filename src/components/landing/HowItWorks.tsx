@@ -18,9 +18,9 @@ const steps = [
         isCode: true,
     },
     {
-        title: "Start collecting",
-        description: "Your widget is live! Start receiving and managing feedback immediately.",
-        icon: Rocket,
+        title: "Share with clients",
+        description: "Generate a private link for your clients to see the feedback board and follow your progress.",
+        icon: ArrowRight,
     },
 ];
 
@@ -82,7 +82,7 @@ export const HowItWorks = () => {
                     </motion.p>
                 </div>
 
-                <div className="grid lg:grid-cols-3 gap-12 items-start relative">
+                <div className="grid lg:grid-cols-3 gap-12 items-start relative text-center">
                     {/* Connection lines (desktop) */}
                     <div className="hidden lg:block absolute top-8 left-[15%] right-[15%] h-0.5 pointer-events-none">
                         <div className="w-full h-full bg-linear-to-r from-gray-100 via-gray-200 to-gray-100" />
@@ -145,23 +145,25 @@ export const HowItWorks = () => {
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.6 }}
-                    className="mt-20 max-w-2xl mx-auto p-8 rounded-3xl bg-gray-50 border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6"
+                    className="mt-20 max-w-4xl mx-auto p-8 rounded-3xl bg-gray-50 border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden"
                 >
-                    <div className="flex items-center gap-4 text-center md:text-left">
-                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-secondary shadow-sm">
-                            <Mail size={24} />
+                    <div className="flex items-center gap-6 text-center md:text-left relative z-10">
+                        <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-primary shadow-xl border border-gray-100 shrink-0">
+                            <UserPlus size={32} />
                         </div>
                         <div>
-                            <h4 className="font-bold text-gray-900">Not a developer? No problem.</h4>
-                            <p className="text-sm text-gray-500">We’ll embed this for you. Just reach out and we'll handle the technical part.</p>
+                            <h4 className="text-xl font-bold text-gray-900 mb-1">Direct Senior Support</h4>
+                            <p className="text-gray-600 max-w-md">
+                                Skip the chatbots. As a solo founder with 20+ years of experience, I personally handle every support request to ensure your agency stays at top speed.
+                            </p>
                         </div>
                     </div>
                     <Link
-                        href="mailto:support@vibe-vaults.com"
-                        className="group flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 hover:border-secondary hover:text-secondary rounded-xl font-bold transition-all duration-300 whitespace-nowrap"
+                        href="/auth/register"
+                        className="group flex items-center gap-3 px-8 py-4 bg-primary text-white hover:bg-primary/90 rounded-2xl font-bold transition-all duration-300 whitespace-nowrap shadow-lg shadow-primary/20 hover:shadow-xl hover:-translate-y-1 relative z-10"
                     >
-                        Contact Support
-                        <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                        Try VibeVaults Free
+                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                     </Link>
                 </motion.div>
             </div>

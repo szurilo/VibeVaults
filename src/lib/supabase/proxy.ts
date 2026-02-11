@@ -73,7 +73,7 @@ export async function updateSession(request: NextRequest) {
     if (request.nextUrl.pathname.startsWith('/dashboard') && !request.nextUrl.pathname.startsWith('/dashboard/payment-success') && user) {
         const { data: profile, error } = await supabase
             .from('profiles')
-            .select('subscription_status')
+            .select('subscription_status, trial_ends_at')
             .eq('id', user.sub)
             .single();
 
@@ -84,7 +84,10 @@ export async function updateSession(request: NextRequest) {
             return supabaseResponse;
         }
 
-        if (profile?.subscription_status !== 'active') {
+        const isSubscribed = profile?.subscription_status === 'active';
+        const isTrialActive = profile?.trial_ends_at ? new Date(profile.trial_ends_at) > new Date() : false;
+
+        if (!isSubscribed && !isTrialActive) {
             const url = request.nextUrl.clone();
             url.pathname = "/api/stripe/checkout";
             return NextResponse.redirect(url);
