@@ -47,7 +47,7 @@ export default function Home() {
               "name": "VibeVaults",
               "operatingSystem": "Web",
               "applicationCategory": "BusinessApplication",
-              "description": "Collect and manage customer feedback with VibeVaults. Build better products with powerful insights.",
+              "description": "The feedback tool for modern agencies. Collect visual feedback, share progress with clients, and ship faster with VibeVaults.",
               "offers": {
                 "@type": "Offer",
                 "price": "29.00",

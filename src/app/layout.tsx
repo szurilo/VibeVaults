@@ -26,11 +26,11 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   title: {
-    default: "VibeVaults - Collect and Manage Customer Feedback",
+    default: "VibeVaults - The Feedback Tool for Modern Agencies",
     template: "%s | VibeVaults"
   },
-  description: "Collect and manage customer feedback with VibeVaults. The easiest way to get insights and build better products.",
-  keywords: ["customer feedback", "feedback widget", "SaaS insights", "user feedback", "VibeVaults"],
+  description: "Collect visual feedback, share progress with clients, and ship faster. The feedback tool designed specifically for freelancers and agencies.",
+  keywords: ["agency feedback tool", "freelancer feedback", "client feedback tool", "visual feedback", "VibeVaults", "web design feedback"],
   authors: [{ name: "VibeVaults Team" }],
   creator: "VibeVaults",
   publisher: "VibeVaults",
@@ -44,21 +44,21 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: defaultUrl,
     siteName: "VibeVaults",
-    title: "VibeVaults - Collect and Manage Customer Feedback",
-    description: "Collect and manage customer feedback with VibeVaults. Build better products with powerful insights.",
+    title: "VibeVaults - The Feedback Tool for Modern Agencies",
+    description: "Stop the endless email chains. Collect visual feedback, share progress with clients, and ship faster with VibeVaults.",
     images: [
       {
-        url: "/og-image.png", // We should probably generate this or remind the user to add it
+        url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "VibeVaults - Feedback Management",
+        alt: "VibeVaults - Feedback Tool for Agencies",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "VibeVaults - Feedback Management",
-    description: "Collect and manage customer feedback with VibeVaults. Build better products with powerful insights.",
+    title: "VibeVaults - The Feedback Tool for Modern Agencies",
+    description: "Stop the endless email chains. Collect visual feedback, share progress with clients, and ship faster with VibeVaults.",
     images: ["/og-image.png"],
     creator: "@vibevaults",
   },
