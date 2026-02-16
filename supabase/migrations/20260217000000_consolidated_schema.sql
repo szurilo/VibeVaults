@@ -190,3 +190,8 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
+
+-- Trigger to create a profile when a new user signs up
+CREATE OR REPLACE TRIGGER "on_auth_user_created"
+    AFTER INSERT ON "auth"."users"
+    FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_user"();
