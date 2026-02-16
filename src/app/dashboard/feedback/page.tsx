@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { FeedbackStatusSelect } from "@/components/feedback-status-select";
 
 export default async function FeedbackListPage() {
     const supabase = await createClient();
@@ -29,9 +30,12 @@ export default async function FeedbackListPage() {
                                 {/* <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary">
                                     {item.type}
                                 </span> */}
-                                <span className="text-xs text-gray-500">
-                                    {new Date(item.created_at).toLocaleDateString()}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500">
+                                        {new Date(item.created_at).toLocaleDateString()}
+                                    </span>
+                                    <FeedbackStatusSelect id={item.id} initialStatus={item.status || 'open'} />
+                                </div>
                             </div>
                             <p className="text-gray-700 text-sm mb-4 flex-1">
                                 {item.content}

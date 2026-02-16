@@ -9,6 +9,7 @@ type Feedback = {
     content: string
     created_at: string
     sender?: string
+    status?: string
 }
 
 export default async function SharedProjectPage({ params }: { params: Promise<{ token: string }> }) {
@@ -45,6 +46,20 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
         .order('created_at', { ascending: false })
 
     const feedbacks = (feedbackData || []) as Feedback[]
+
+    const getStatusStyles = (status?: string) => {
+        switch (status) {
+            case 'in progress':
+                return 'bg-blue-100 text-blue-700'
+            case 'in review':
+                return 'bg-amber-100 text-amber-700'
+            case 'completed':
+                return 'bg-green-100 text-green-700'
+            case 'open':
+            default:
+                return 'bg-gray-100 text-gray-700'
+        }
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans">
@@ -102,6 +117,9 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
                                     <div className="flex justify-between items-start gap-2">
                                         <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
                                             {new Date(f.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </span>
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getStatusStyles(f.status)}`}>
+                                            {f.status || 'open'}
                                         </span>
                                     </div>
                                 </CardHeader>
