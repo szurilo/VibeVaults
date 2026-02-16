@@ -11,13 +11,23 @@ export const UserFlowAnimation = () => {
     const [text, setText] = useState("");
     const fullText = "I love the UX, any plans to add a dark mode? ✨";
 
+    // Dynamic stage transitions
     useEffect(() => {
-        const timer = setInterval(() => {
-            setStage((prev) => (prev + 1) % STAGES.length);
-        }, 4500);
+        // 'visitor' stage is handled by the animation completion for snappiness
+        if (STAGES[stage] === "visitor") return;
 
-        return () => clearInterval(timer);
-    }, []);
+        const stageDurations: Record<string, number> = {
+            widget: 4500,    // Typing (2.3s) + delay to read
+            success: 2500,   // Short confirmation
+            dashboard: 5000, // Longer look at the dashboard
+        };
+
+        const timer = setTimeout(() => {
+            setStage((prev) => (prev + 1) % STAGES.length);
+        }, stageDurations[STAGES[stage]] || 4000);
+
+        return () => clearTimeout(timer);
+    }, [stage]);
 
     // Handle typing effect during 'widget' stage
     useEffect(() => {
@@ -76,9 +86,20 @@ export const UserFlowAnimation = () => {
                             {STAGES[stage] === "visitor" && (
                                 <motion.div
                                     initial={{ x: 400, y: 300, opacity: 0 }}
-                                    animate={{ x: 798, y: 364, opacity: 1 }}
-                                    transition={{ delay: 1, duration: 1.5, ease: "easeInOut" }}
-                                    className="absolute z-50 text-secondary"
+                                    animate={{
+                                        x: 798,
+                                        y: 364,
+                                        opacity: 1,
+                                    }}
+                                    transition={{
+                                        delay: 0.2,
+                                        duration: 1.0,
+                                        ease: "easeInOut"
+                                    }}
+                                    onAnimationComplete={() => {
+                                        setTimeout(() => setStage(1), 150);
+                                    }}
+                                    className="absolute z-50 text-secondary pointer-events-none"
                                 >
                                     <MousePointer2 size={32} fill="currentColor" strokeWidth={1} color="white" />
                                 </motion.div>
