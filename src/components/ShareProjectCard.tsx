@@ -68,6 +68,7 @@ export function ShareProjectCard({ project }: { project: any }) {
                         checked={isEnabled}
                         onCheckedChange={handleToggle}
                         disabled={loading}
+                        className="cursor-pointer"
                     />
                 </div>
             </CardHeader>

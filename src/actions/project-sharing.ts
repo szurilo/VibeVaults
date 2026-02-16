@@ -7,11 +7,17 @@ export async function toggleProjectSharing(projectId: string, enable: boolean) {
     const supabase = await createClient();
 
     if (enable) {
-        const { data: project } = await supabase
+        // Check if project has a share token
+        const { data: project, error: fetchError } = await supabase
             .from('projects')
             .select('share_token')
             .eq('id', projectId)
             .single();
+
+        if (fetchError) {
+            console.error("Error fetching project:", fetchError);
+            throw new Error("Failed to fetch project details");
+        }
 
         if (!project?.share_token) {
             const token = crypto.randomUUID();
@@ -21,7 +27,7 @@ export async function toggleProjectSharing(projectId: string, enable: boolean) {
             }).eq('id', projectId);
 
             if (updateError) {
-                console.error("Failed to generate share token:", updateError);
+                console.error("Failed to generate share token and enable:", updateError);
                 throw new Error("Failed to enable sharing");
             }
         } else {
@@ -31,15 +37,20 @@ export async function toggleProjectSharing(projectId: string, enable: boolean) {
                 .eq('id', projectId);
 
             if (updateError) {
-                console.error("Failed to update sharing status (enable):", updateError);
+                console.error("Failed to enable sharing:", updateError);
                 throw new Error("Failed to enable sharing");
             }
         }
     } else {
-        await supabase
+        const { error: updateError } = await supabase
             .from('projects')
             .update({ is_sharing_enabled: false })
             .eq('id', projectId);
+
+        if (updateError) {
+            console.error("Failed to disable sharing:", updateError);
+            throw new Error("Failed to disable sharing");
+        }
     }
 
     revalidatePath('/dashboard/settings');
