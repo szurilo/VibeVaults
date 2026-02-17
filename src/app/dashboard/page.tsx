@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import Onboarding from "@/components/Onboarding";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { GetStartedCard } from "@/components/GetStartedCard";
+
 
 export default async function DashboardPage() {
     const supabase = await createClient();
@@ -66,21 +68,8 @@ export default async function DashboardPage() {
                         </Link>
                     </div>
 
-                    {currentProject && (
-                        <Card className="mt-8">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Get Started</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-muted-foreground mb-6">
-                                    Embed the widget on your site just before the closing &lt;/body&gt; tag to start collecting feedback for <strong>{currentProject.name}</strong>.
-                                </p>
-                                <div className="bg-muted p-4 rounded-md font-mono text-sm text-foreground break-all border overflow-x-auto">
-                                    &lt;script src="https://www.vibe-vaults.com/widget.js" data-key="{currentProject.api_key}" async&gt;&lt;/script&gt;
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
+                    {currentProject && <GetStartedCard project={currentProject} />}
+
                 </>
             )}
 

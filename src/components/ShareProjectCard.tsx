@@ -14,6 +14,8 @@ import {
 import { Check, Copy, ExternalLink, Link as LinkIcon, Lock } from 'lucide-react'
 import Link from 'next/link'
 import { toggleProjectSharing } from '@/actions/project-sharing'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
 
 export function ShareProjectCard({ project }: { project: any }) {
     const [isEnabled, setIsEnabled] = useState(project.is_sharing_enabled || false)
@@ -80,24 +82,40 @@ export function ShareProjectCard({ project }: { project: any }) {
                             readOnly
                             className="bg-white font-mono text-sm"
                         />
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={copyToClipboard}
-                            className="shrink-0 bg-white hover:bg-blue-50 cursor-pointer"
-                        >
-                            {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-gray-600" />}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            asChild
-                            className="shrink-0 bg-white hover:bg-blue-50 cursor-pointer"
-                        >
-                            <Link href={`/share/${project.share_token}`} target="_blank">
-                                <ExternalLink className="w-4 h-4 text-gray-600" />
-                            </Link>
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={copyToClipboard}
+                                    className="shrink-0 bg-white hover:bg-blue-50 cursor-pointer"
+                                >
+                                    {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-gray-600" />}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{copied ? 'Copied!' : 'Copy share link'}</p>
+                            </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    asChild
+                                    className="shrink-0 bg-white hover:bg-blue-50 cursor-pointer"
+                                >
+                                    <Link href={`/share/${project.share_token}`} target="_blank">
+                                        <ExternalLink className="w-4 h-4 text-gray-600" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Open public link</p>
+                            </TooltipContent>
+                        </Tooltip>
+
                     </div>
                     <p className="text-xs text-blue-600/70 mt-3 flex items-center gap-1">
                         <Lock className="w-3 h-3" />
