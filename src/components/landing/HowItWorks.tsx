@@ -145,9 +145,9 @@ export const HowItWorks = () => {
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.6 }}
-                    className="mt-20 max-w-4xl mx-auto p-8 rounded-3xl bg-gray-50 border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden"
+                    className="mt-20 max-w-4xl mx-auto p-8 rounded-3xl bg-gray-50 border border-gray-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative overflow-hidden"
                 >
-                    <div className="flex items-center gap-6 text-center md:text-left relative z-10">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-6 text-left relative z-10">
                         <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-primary shadow-xl border border-gray-100 shrink-0">
                             <UserPlus size={32} />
                         </div>
@@ -160,7 +160,7 @@ export const HowItWorks = () => {
                     </div>
                     <Link
                         href="/auth/register"
-                        className="group flex items-center gap-3 px-8 py-4 bg-primary text-white hover:bg-primary/90 rounded-2xl font-bold transition-all duration-300 whitespace-nowrap shadow-lg shadow-primary/20 hover:shadow-xl hover:-translate-y-1 relative z-10"
+                        className="group flex items-center gap-3 px-8 py-4 bg-primary text-white hover:bg-primary/90 rounded-2xl font-bold transition-all duration-300 whitespace-nowrap shadow-lg shadow-primary/20 hover:shadow-xl hover:-translate-y-1 relative z-10 w-full md:w-auto justify-center"
                     >
                         Try VibeVaults Free
                         <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />

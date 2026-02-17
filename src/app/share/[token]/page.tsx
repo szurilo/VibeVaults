@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { FeedbackCard } from '@/components/feedback-card'
 import Link from 'next/link'
 import { Clock } from 'lucide-react'
 
@@ -47,19 +47,7 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
 
     const feedbacks = (feedbackData || []) as Feedback[]
 
-    const getStatusStyles = (status?: string) => {
-        switch (status) {
-            case 'in progress':
-                return 'bg-blue-100 text-blue-700'
-            case 'in review':
-                return 'bg-amber-100 text-amber-700'
-            case 'completed':
-                return 'bg-green-100 text-green-700'
-            case 'open':
-            default:
-                return 'bg-gray-100 text-gray-700'
-        }
-    }
+
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans">
@@ -110,35 +98,9 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
                         </p>
                     </div>
                 ) : (
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {feedbacks.map((f) => (
-                            <Card key={f.id} className="hover:shadow-md transition-shadow duration-200 border-gray-200 flex flex-col h-full">
-                                <CardHeader className="pb-3 pt-4 px-4">
-                                    <div className="flex justify-between items-start gap-2">
-                                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                                            {new Date(f.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        </span>
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getStatusStyles(f.status)}`}>
-                                            {f.status || 'open'}
-                                        </span>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="px-4 pb-4 flex-1 flex flex-col">
-                                    <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap mb-4 line-clamp-6 flex-1">
-                                        {f.content}
-                                    </p>
-                                    {f.sender && (
-                                        <div className="pt-3 border-t border-gray-50 flex items-center gap-2 mt-auto">
-                                            <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center text-[10px] font-bold text-indigo-500 uppercase border border-indigo-100">
-                                                {f.sender.charAt(0)}
-                                            </div>
-                                            <span className="text-xs font-medium text-gray-600 truncate max-w-[150px]" title={f.sender}>
-                                                {f.sender}
-                                            </span>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                            <FeedbackCard key={f.id} feedback={f} mode="view" />
                         ))}
                     </div>
                 )}
