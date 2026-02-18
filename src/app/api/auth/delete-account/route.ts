@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 
@@ -17,29 +17,21 @@ export async function DELETE() {
     }
 
     try {
-        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const secretKey = process.env.SUPABASE_SECRET_KEY?.trim();
 
-        if (!serviceRoleKey) {
-            console.error("SUPABASE_SERVICE_ROLE_KEY is not defined");
+        if (!secretKey) {
+            console.error("SUPABASE_SECRET_KEY is not defined");
             return NextResponse.json(
                 { error: "Server configuration error" },
                 { status: 500 }
             );
         }
 
-        // Initialize admin client with service role key
-        const adminAuthClient = createAdminClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            serviceRoleKey,
-            {
-                auth: {
-                    autoRefreshToken: false,
-                    persistSession: false,
-                },
-            }
-        );
+        // Initialize admin client using centralized helper
+        const adminAuthClient = createAdminClient();
 
         // Get user profile to check for Stripe customer ID
+        // Note: Using the specific current user ID for safety
         const { data: profile } = await adminAuthClient
             .from("profiles")
             .select("stripe_customer_id")
@@ -57,21 +49,26 @@ export async function DELETE() {
         }
 
         // Delete the user from Supabase Auth (cascades to DB tables via FK)
+        // This is where the admin privileges are required
         const { error: deleteError } = await adminAuthClient.auth.admin.deleteUser(
             user.id
         );
 
         if (deleteError) {
-            console.error("Error deleting user:", deleteError);
+            console.error("Error deleting user from Auth:", deleteError);
             return NextResponse.json(
-                { error: "Failed to delete account" },
-                { status: 500 }
+                {
+                    error: "Failed to delete account",
+                    details: deleteError.message,
+                    code: deleteError.status
+                },
+                { status: deleteError.status || 500 }
             );
         }
 
         return NextResponse.json({ message: "Account deleted successfully" });
     } catch (error) {
-        console.error("Internal server error:", error);
+        console.error("Internal server error in delete-account:", error);
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }

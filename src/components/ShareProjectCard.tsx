@@ -117,8 +117,7 @@ export function ShareProjectCard({ project }: { project: any }) {
                         </Tooltip>
 
                     </div>
-                    <p className="text-xs text-blue-600/70 mt-3 flex items-center gap-1">
-                        <Lock className="w-3 h-3" />
+                    <p className="text-xs text-blue-600/70 mt-3">
                         This link is read-only. Visitors cannot delete or modify feedback.
                     </p>
                 </CardContent>

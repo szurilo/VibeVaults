@@ -44,15 +44,5 @@ export async function POST(req: Request) {
         return new NextResponse(error.message, { status: 500 });
     }
 
-    // Mark onboarding as completed when the first project is created
-    const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ has_onboarded: true })
-        .eq("id", user.sub);
-
-    if (profileError) {
-        console.error("Failed to update profile onboarding status:", profileError);
-    }
-
     return NextResponse.json(project);
 }

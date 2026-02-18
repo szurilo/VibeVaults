@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import Onboarding from "@/components/Onboarding";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { GetStartedCard } from "@/components/GetStartedCard";
 
 
 export default async function DashboardPage() {
@@ -67,9 +66,6 @@ export default async function DashboardPage() {
                             </Card>
                         </Link>
                     </div>
-
-                    {currentProject && <GetStartedCard project={currentProject} />}
-
                 </>
             )}
 

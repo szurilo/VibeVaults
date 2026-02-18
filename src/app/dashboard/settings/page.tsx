@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { DeleteAccountCard } from "@/components/DeleteAccountCard";
 import { EditProjectCard } from "@/components/EditProjectCard";
 import { ShareProjectCard } from "@/components/ShareProjectCard";
+import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
 
 export default async function SettingsPage() {
     const supabase = await createClient();
@@ -31,6 +32,7 @@ export default async function SettingsPage() {
                     {currentProject && (
                         <>
                             <EditProjectCard project={currentProject} />
+                            <EmbedWidgetCard project={currentProject} />
                             <ShareProjectCard project={currentProject} />
                         </>
                     )}

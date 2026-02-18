@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 
-// Use service role key to bypass RLS for webhook updates
+// Use secret key to bypass RLS for webhook updates
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY! // You'll need to add this to .env.local
+    process.env.SUPABASE_SECRET_KEY!
 );
 
 export async function POST(req: NextRequest) {
