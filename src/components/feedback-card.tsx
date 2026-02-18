@@ -1,7 +1,26 @@
+'use client';
+
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { FeedbackStatusSelect } from "./feedback-status-select"
 import { cn } from "@/lib/utils"
-import { Calendar, User } from "lucide-react"
+import { Calendar, Trash2 } from "lucide-react"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
+import { deleteFeedback } from "@/actions/feedback"
+import { useState } from "react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 
 interface FeedbackCardProps {
     feedback: {
@@ -15,7 +34,28 @@ interface FeedbackCardProps {
 }
 
 export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
+    const [isDeleting, setIsDeleting] = useState(false)
     const status = feedback.status || 'open'
+    const supabase = createClient()
+    const router = useRouter()
+
+    const handleDelete = async () => {
+        setIsDeleting(true)
+        try {
+            const { error } = await supabase
+                .from('feedbacks')
+                .delete()
+                .eq('id', feedback.id)
+
+            if (error) throw error
+
+            router.refresh()
+        } catch (error) {
+            console.error(error)
+            alert("Failed to delete feedback")
+            setIsDeleting(false)
+        }
+    }
 
     const getStatusStyles = (status: string) => {
         switch (status.toLowerCase()) {
@@ -46,16 +86,60 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                         </span>
                     </div>
 
-                    {mode === 'edit' ? (
-                        <FeedbackStatusSelect id={feedback.id} initialStatus={status} />
-                    ) : (
-                        <span className={cn(
-                            "text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-widest border shadow-sm transition-colors",
-                            getStatusStyles(status)
-                        )}>
-                            {status}
-                        </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {mode === 'edit' ? (
+                            <>
+                                <FeedbackStatusSelect id={feedback.id} initialStatus={status} />
+                                <TooltipProvider>
+                                    <AlertDialog>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-gray-400 hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                                        disabled={isDeleting}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Delete feedback</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Delete Feedback?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action cannot be undone. This feedback will be permanently removed.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                    onClick={handleDelete}
+                                                    className="cursor-pointer"
+                                                    variant="destructive"
+                                                >
+                                                    Delete
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </TooltipProvider>
+                            </>
+                        ) : (
+                            <span className={cn(
+                                "text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-widest border shadow-sm transition-colors",
+                                getStatusStyles(status)
+                            )}>
+                                {status}
+                            </span>
+                        )}
+                    </div>
                 </div>
             </CardHeader>
 

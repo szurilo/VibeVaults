@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { DeleteAccountCard } from "@/components/DeleteAccountCard";
+import { EditProjectCard } from "@/components/EditProjectCard";
 import { ShareProjectCard } from "@/components/ShareProjectCard";
 
 export default async function SettingsPage() {
@@ -21,17 +22,20 @@ export default async function SettingsPage() {
         <div>
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-semibold text-gray-900">
-                    Settings
+                    Settings {currentProject && <span className="text-gray-400 font-normal">/ {currentProject.name}</span>}
                 </h1>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="col-span-full space-y-6">
                     {currentProject && (
-                        <ShareProjectCard project={currentProject} />
+                        <>
+                            <EditProjectCard project={currentProject} />
+                            <ShareProjectCard project={currentProject} />
+                        </>
                     )}
 
-                    <DeleteAccountCard />
+                    <DeleteAccountCard project={currentProject} />
                 </div>
             </div>
         </div>

@@ -11,8 +11,9 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { LayoutDashboard, MessageSquare, Settings, LogOut } from "lucide-react"
 
 export function AppSidebar({
     projects,
@@ -22,6 +23,7 @@ export function AppSidebar({
     selectedProjectId?: string
 }) {
     const router = useRouter();
+    const pathname = usePathname();
 
     const logout = async () => {
         const supabase = createClient();
@@ -44,24 +46,27 @@ export function AppSidebar({
             <SidebarContent className="bg-white px-2 py-4 gap-1">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                            <Link href="/dashboard" className="font-medium text-gray-600">
+                        <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
+                            <Link href="/dashboard" className="font-medium flex items-center gap-2">
+                                <LayoutDashboard className="w-4 h-4" />
                                 <span>Overview</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
 
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                            <Link href="/dashboard/feedback" className="font-medium text-gray-600">
+                        <SidebarMenuButton asChild isActive={pathname === "/dashboard/feedback"}>
+                            <Link href="/dashboard/feedback" className="font-medium flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4" />
                                 <span>Feedback</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
 
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                            <Link href="/dashboard/settings" className="font-medium text-gray-600">
+                        <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings"}>
+                            <Link href="/dashboard/settings" className="font-medium flex items-center gap-2">
+                                <Settings className="w-4 h-4" />
                                 <span>Settings</span>
                             </Link>
                         </SidebarMenuButton>
@@ -73,7 +78,8 @@ export function AppSidebar({
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild>
-                            <button onClick={logout} className="font-medium text-gray-600 cursor-pointer">
+                            <button onClick={logout} className="font-medium flex items-center gap-2">
+                                <LogOut className="w-4 h-4" />
                                 <span>Sign Out</span>
                             </button>
                         </SidebarMenuButton>

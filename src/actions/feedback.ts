@@ -17,3 +17,18 @@ export async function updateFeedbackStatus(id: string, status: string) {
 
     revalidatePath('/dashboard/feedback');
 }
+
+export async function deleteFeedback(id: string) {
+    const supabase = await createClient();
+
+    const { error } = await supabase
+        .from('feedbacks')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        throw new Error('Failed to delete feedback');
+    }
+
+    revalidatePath('/dashboard/feedback');
+}

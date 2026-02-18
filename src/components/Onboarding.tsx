@@ -79,7 +79,7 @@ export default function Onboarding() {
                             onChange={(e) => setProjectName(e.target.value)}
                             autoFocus
                         />
-                        <Button type="submit" className="px-8 shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer">
+                        <Button type="submit" disabled={!projectName.trim()} className="px-8 shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer">
                             Create Project
                         </Button>
                     </form>

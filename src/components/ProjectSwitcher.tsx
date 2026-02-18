@@ -101,14 +101,14 @@ export default function ProjectSwitcher({
                             autoFocus
                         />
                         <div className="flex gap-2">
-                            <Button type="submit" className="flex-1" size="sm">
+                            <Button type="submit" className="flex-1 cursor-pointer" size="sm" disabled={!projectName.trim()}>
                                 Create
                             </Button>
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => setIsCreating(false)}
-                                className="flex-1"
+                                className="flex-1 cursor-pointer"
                                 size="sm"
                             >
                                 Cancel
