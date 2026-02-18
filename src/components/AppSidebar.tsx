@@ -78,7 +78,7 @@ export function AppSidebar({
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild>
-                            <button onClick={logout} className="font-medium flex items-center gap-2">
+                            <button onClick={logout} className="font-medium flex items-center gap-2 cursor-pointer">
                                 <LogOut className="w-4 h-4" />
                                 <span>Sign Out</span>
                             </button>

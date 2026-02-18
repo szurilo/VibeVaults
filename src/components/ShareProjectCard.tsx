@@ -22,6 +22,11 @@ export function ShareProjectCard({ project }: { project: any }) {
     const [loading, setLoading] = useState(false)
     const [copied, setCopied] = useState(false)
 
+    // Sync state with props when project changes
+    useEffect(() => {
+        setIsEnabled(project.is_sharing_enabled || false)
+    }, [project.is_sharing_enabled])
+
     const [origin, setOrigin] = useState('')
 
     useEffect(() => {

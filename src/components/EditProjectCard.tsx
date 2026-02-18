@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,11 @@ export function EditProjectCard({ project }: EditProjectCardProps) {
     const [success, setSuccess] = useState(false);
     const router = useRouter();
     const supabase = createClient();
+
+    // Sync state with props when project changes
+    useEffect(() => {
+        setName(project.name);
+    }, [project.name]);
 
     const handleUpdateName = async (e: React.FormEvent) => {
         e.preventDefault();
