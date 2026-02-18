@@ -19,6 +19,87 @@
     return;
   }
 
+  // --- Metadata & Logs Collection ---
+  const logs = [];
+  const MAX_LOGS = 50;
+  const originalConsole = {
+    log: console.log,
+    warn: console.warn,
+    error: console.error
+  };
+
+  const captureLog = (type, args) => {
+    try {
+      const argsArray = Array.from(args);
+      let content = '';
+
+      // Aggressively check for %c in any part of the message
+      const containsFormatting = argsArray.some(arg => typeof arg === 'string' && arg.includes('%c'));
+
+      if (containsFormatting) {
+        content = argsArray
+          .filter(arg => {
+            // Filter out CSS strings
+            if (typeof arg !== 'string') return true;
+            const isCss = (arg.includes(':') && (arg.includes('color') || arg.includes('font') || arg.includes('bg'))) ||
+              (arg.startsWith('font-') || arg.startsWith('background:'));
+            return !isCss;
+          })
+          .map(arg => {
+            try {
+              let str = typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+              return str.replace(/%c/g, ''); // Strip %c from the actual text
+            } catch (e) {
+              return '[Object]';
+            }
+          })
+          .join(' ');
+      } else {
+        content = argsArray.map(arg => {
+          try {
+            return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+          } catch (e) {
+            return '[Object]';
+          }
+        }).join(' ');
+      }
+
+      logs.push({
+        type,
+        time: new Date().toLocaleTimeString(),
+        content: content.trim()
+      });
+      if (logs.length > MAX_LOGS) logs.shift();
+    } catch (e) {
+      // Fail silently
+    }
+  };
+
+  console.log = (...args) => {
+    captureLog('log', args);
+    originalConsole.log.apply(console, args);
+  };
+  console.warn = (...args) => {
+    captureLog('warn', args);
+    originalConsole.warn.apply(console, args);
+  };
+  console.error = (...args) => {
+    captureLog('error', args);
+    originalConsole.error.apply(console, args);
+  };
+
+  const getMetadata = () => {
+    return {
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      screen: `${window.innerWidth}x${window.innerHeight}`,
+      viewport: `${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`,
+      language: navigator.language,
+      logs: logs
+    };
+  };
+  // ---------------------------------
+
   // Create Host Element for Shadow DOM
   const host = document.createElement('div');
   const shadow = host.attachShadow({ mode: 'open' });
@@ -317,7 +398,8 @@
         body: JSON.stringify({
           apiKey,
           content: text,
-          type: 'Feature'
+          type: 'Feature',
+          metadata: getMetadata()
         })
       });
 

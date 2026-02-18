@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-    const { apiKey, content, type, sender } = await request.json();
+    const { apiKey, content, type, sender, metadata } = await request.json();
 
     if (!apiKey) {
         return NextResponse.json({ error: "Missing API Key" }, { status: 400, headers: corsHeaders });
@@ -51,7 +51,8 @@ export async function POST(request: Request) {
         content,
         type: type || 'Feature',
         sender,
-        project_id: project.id
+        project_id: project.id,
+        metadata: metadata || {}
     });
 
     return NextResponse.json({ success: true }, { headers: corsHeaders });

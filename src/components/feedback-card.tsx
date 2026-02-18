@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { FeedbackStatusSelect } from "./feedback-status-select"
 import { cn } from "@/lib/utils"
-import { Calendar, Trash2 } from "lucide-react"
+import { Calendar, Trash2, Globe, Monitor, Terminal, Info, ChevronRight, Activity, Cpu } from "lucide-react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -16,11 +16,28 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { deleteFeedback } from "@/actions/feedback"
 import { useState } from "react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet"
+import { Separator } from "@/components/ui/separator"
+
+interface FeedbackMetadata {
+    url?: string
+    userAgent?: string
+    screen?: string
+    viewport?: string
+    language?: string
+    logs?: Array<{ type: string; time: string; content: string }>
+}
 
 interface FeedbackCardProps {
     feedback: {
@@ -29,6 +46,7 @@ interface FeedbackCardProps {
         created_at: string
         sender?: string
         status?: string
+        metadata?: FeedbackMetadata
     }
     mode: 'view' | 'edit'
 }
@@ -70,6 +88,27 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                 return 'bg-slate-50 text-slate-700 border-slate-100'
         }
     }
+
+    const parseUA = (ua?: string) => {
+        if (!ua) return { browser: 'Unknown', os: 'Unknown' }
+        let browser = 'Unknown'
+        let os = 'Unknown'
+
+        if (ua.includes('Win')) os = 'Windows'
+        else if (ua.includes('Mac')) os = 'macOS'
+        else if (ua.includes('Linux')) os = 'Linux'
+        else if (ua.includes('Android')) os = 'Android'
+        else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS'
+
+        if (ua.includes('Edg')) browser = 'Edge'
+        else if (ua.includes('Chrome')) browser = 'Chrome'
+        else if (ua.includes('Firefox')) browser = 'Firefox'
+        else if (ua.includes('Safari')) browser = 'Safari'
+
+        return { browser, os }
+    }
+
+    const { browser, os } = parseUA(feedback.metadata?.userAgent)
 
     return (
         <Card className="group hover:shadow-lg transition-all duration-300 border-gray-200/60 overflow-hidden flex flex-col h-full bg-white/50 backdrop-blur-sm">
@@ -149,6 +188,132 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                         {feedback.content}
                     </p>
                 </div>
+
+                {mode === 'edit' && feedback.metadata && (
+                    <div className="mt-6 pt-5 border-t border-gray-100 flex flex-col gap-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                                    <Globe className="w-3.5 h-3.5 text-gray-400" />
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Source URL</span>
+                                    <a
+                                        href={feedback.metadata.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[11px] text-blue-600 font-medium truncate hover:underline"
+                                        title={feedback.metadata.url}
+                                    >
+                                        {feedback.metadata.url ? new URL(feedback.metadata.url).hostname : 'N/A'}
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                                    <Cpu className="w-3.5 h-3.5 text-gray-400" />
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">System</span>
+                                    <span className="text-[11px] text-gray-600 font-medium truncate">
+                                        {browser} on {os}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                                    <Monitor className="w-3.5 h-3.5 text-gray-400" />
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Display</span>
+                                    <span className="text-[11px] text-gray-600 font-medium">
+                                        {feedback.metadata.screen || 'N/A'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {feedback.metadata.logs && feedback.metadata.logs.length > 0 && (
+                                <Sheet>
+                                    <SheetTrigger asChild>
+                                        <button className="flex items-center gap-2.5 min-w-0 group cursor-pointer text-left">
+                                            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                                                <Terminal className="w-3.5 h-3.5" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider">Console Logs</span>
+                                                <span className="text-[11px] text-blue-600 font-medium flex items-center gap-1">
+                                                    View {feedback.metadata.logs.length} logs <ChevronRight className="w-3 h-3" />
+                                                </span>
+                                            </div>
+                                        </button>
+                                    </SheetTrigger>
+                                    <SheetContent className="sm:max-w-2xl h-full flex flex-col p-0">
+                                        <div className="px-8 pt-8 flex-none">
+                                            <SheetHeader>
+                                                <SheetTitle className="flex items-center gap-2 text-xl">
+                                                    <Terminal className="w-5 h-5 text-blue-600" />
+                                                    Console logs
+                                                </SheetTitle>
+                                                <SheetDescription>
+                                                    Recorded during the feedback session on {feedback.metadata.url}
+                                                </SheetDescription>
+                                            </SheetHeader>
+                                        </div>
+
+                                        <div className="flex-1 min-h-0 flex flex-col px-8">
+                                            <div className="bg-slate-950 rounded-xl p-6 font-mono text-[11px] flex-1 flex flex-col overflow-hidden ring-1 ring-white/10 shadow-2xl">
+                                                <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                                                    {feedback.metadata.logs.map((log, i) => (
+                                                        <div key={i} className="flex gap-4 border-b border-white/5 py-3 px-3 -mx-2 hover:bg-white/[0.07] transition-all duration-200 group/log rounded-lg border-transparent">
+                                                            <span className="text-slate-500 shrink-0 font-medium tabular-nums text-[10px] pt-0.5">{log.time}</span>
+                                                            <span className={cn(
+                                                                "shrink-0 font-bold uppercase tracking-tighter text-[9px] px-1.5 py-0.5 rounded h-fit self-start",
+                                                                log.type === 'error' ? "bg-red-500/20 text-red-400 border border-red-500/20" :
+                                                                    log.type === 'warn' ? "bg-amber-500/20 text-amber-400 border border-amber-500/20" :
+                                                                        "bg-blue-500/20 text-blue-400 border border-blue-500/20"
+                                                            )}>
+                                                                {log.type}
+                                                            </span>
+                                                            <span className="text-slate-300 break-all whitespace-pre-wrap flex-1 leading-relaxed">
+                                                                {log.content.replace(/%c/g, '')}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="px-8 pb-8 flex-none space-y-6">
+                                            <Separator className="bg-gray-100" />
+                                            <div className="grid grid-cols-2 gap-8 text-xs">
+                                                <div className="space-y-2">
+                                                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-wider">User Agent</p>
+                                                    <p className="text-gray-600 leading-relaxed font-medium break-all">{feedback.metadata.userAgent}</p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-wider">Viewport / Screen</p>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] text-gray-400">Viewport</span>
+                                                            <span className="text-gray-700 font-bold">{feedback.metadata.viewport || 'N/A'}</span>
+                                                        </div>
+                                                        <Separator orientation="vertical" className="h-4" />
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] text-gray-400">Screen</span>
+                                                            <span className="text-gray-700 font-bold">{feedback.metadata.screen}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </SheetContent>
+                                </Sheet>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {feedback.sender && (
                     <div className="pt-5 mt-6 border-t border-gray-50 flex items-center gap-3">
