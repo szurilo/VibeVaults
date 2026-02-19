@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
     const { error: insertError } = await supabase.from('feedbacks').insert({
         content,
-        type: type || 'Feature',
+        type,
         sender,
         project_id: project.id,
         metadata: metadata || {}
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
             to: project.owner_email,
             projectName: project.name,
             content,
-            type: type || 'Feature',
+            type,
             sender,
             metadata
         }).catch(err => console.error("Error sending notification:", err));

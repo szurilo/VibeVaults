@@ -42,10 +42,12 @@ export async function sendFeedbackNotification({
 
                         <div style="margin-bottom: 32px;">
                             <table style="width: 100%; border-collapse: collapse;">
-                                // <tr>
-                                //     <td style="padding: 8px 0; color: #718096; font-size: 14px; width: 100px;">Type:</td>
-                                //     <td style="padding: 8px 0; color: #1a202c; font-size: 14px; font-weight: 600;">${type}</td>
-                                // </tr>
+                                ${type ? `
+                                <tr>
+                                    <td style="padding: 8px 0; color: #718096; font-size: 14px; width: 100px;">Type:</td>
+                                    <td style="padding: 8px 0; color: #1a202c; font-size: 14px; font-weight: 600;">${type}</td>
+                                </tr>
+                                ` : ''}
                                 ${sender ? `
                                 <tr>
                                     <td style="padding: 8px 0; color: #718096; font-size: 14px;">From:</td>

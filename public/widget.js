@@ -398,7 +398,7 @@
         body: JSON.stringify({
           apiKey,
           content: text,
-          type: 'Feature',
+          type: '',
           metadata: getMetadata()
         })
       });
