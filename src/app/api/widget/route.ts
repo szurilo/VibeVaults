@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { sendFeedbackNotification } from "@/lib/notifications";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -47,13 +48,25 @@ export async function POST(request: Request) {
 
     const project = projects[0];
 
-    await supabase.from('feedbacks').insert({
+    const { error: insertError } = await supabase.from('feedbacks').insert({
         content,
         type: type || 'Feature',
         sender,
         project_id: project.id,
         metadata: metadata || {}
     });
+
+    if (!insertError && project.owner_email) {
+        // Send notification asynchronously
+        sendFeedbackNotification({
+            to: project.owner_email,
+            projectName: project.name,
+            content,
+            type: type || 'Feature',
+            sender,
+            metadata
+        }).catch(err => console.error("Error sending notification:", err));
+    }
 
     return NextResponse.json({ success: true }, { headers: corsHeaders });
 }
