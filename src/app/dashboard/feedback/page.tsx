@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { FeedbackCard } from "@/components/feedback-card";
 import { cookies } from "next/headers";
 
@@ -47,7 +46,7 @@ export default async function FeedbackListPage() {
                     <p className="text-gray-500">No feedback received yet.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
                     {feedbacks.map((item: any) => (
                         <FeedbackCard key={item.id} feedback={item} mode="edit" />
                     ))}

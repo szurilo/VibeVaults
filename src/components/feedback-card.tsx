@@ -16,10 +16,14 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import { MessageSquare, Send, User2 } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { sendAgencyReplyAction } from "@/actions/feedback"
+
 import {
     Sheet,
     SheetContent,
@@ -53,9 +57,52 @@ interface FeedbackCardProps {
 
 export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const [isDeleting, setIsDeleting] = useState(false)
+    const [replies, setReplies] = useState<any[]>([])
+    const [isFetchingReplies, setIsFetchingReplies] = useState(false)
+    const [newReply, setNewReply] = useState("")
+    const [isSendingReply, setIsSendingReply] = useState(false)
+    const [showReplies, setShowReplies] = useState(false)
+
     const status = feedback.status || 'open'
     const supabase = createClient()
     const router = useRouter()
+
+    const fetchReplies = useCallback(async () => {
+        setIsFetchingReplies(true)
+        try {
+            const { data, error } = await supabase
+                .from('feedback_replies')
+                .select('*')
+                .eq('feedback_id', feedback.id)
+                .order('created_at', { ascending: true })
+
+            if (error) throw error
+            setReplies(data || [])
+        } catch (err) {
+            console.error("Error fetching replies:", err)
+        } finally {
+            setIsFetchingReplies(false)
+        }
+    }, [feedback.id, supabase])
+
+    useEffect(() => {
+        fetchReplies()
+    }, [fetchReplies])
+
+    const handleSendReply = async () => {
+        if (!newReply.trim()) return
+        setIsSendingReply(true)
+        try {
+            await sendAgencyReplyAction(feedback.id, newReply)
+            setNewReply("")
+            fetchReplies() // Refresh list
+        } catch (err) {
+            console.error("Error sending reply:", err)
+            alert("Failed to send reply")
+        } finally {
+            setIsSendingReply(false)
+        }
+    }
 
     const handleDelete = async () => {
         setIsDeleting(true)
@@ -111,7 +158,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const { browser, os } = parseUA(feedback.metadata?.userAgent)
 
     return (
-        <Card className="group hover:shadow-lg transition-all duration-300 border-gray-200/60 overflow-hidden flex flex-col h-full bg-white/50 backdrop-blur-sm">
+        <Card className="group hover:shadow-lg transition-all duration-300 border-gray-200/60 overflow-hidden flex flex-col bg-white/50 backdrop-blur-sm">
             <CardHeader className="pb-3 pt-5 px-5 space-y-4">
                 <div className="flex justify-between items-center gap-4">
                     <div className="flex items-center gap-2 text-gray-400">
@@ -266,7 +313,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                             <div className="bg-slate-950 rounded-xl p-6 font-mono text-[11px] flex-1 flex flex-col overflow-hidden ring-1 ring-white/10 shadow-2xl">
                                                 <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
                                                     {feedback.metadata.logs.map((log, i) => (
-                                                        <div key={i} className="flex gap-4 border-b border-white/5 py-3 px-3 -mx-2 hover:bg-white/[0.07] transition-all duration-200 group/log rounded-lg border-transparent">
+                                                        <div key={i} className="flex gap-4 border-b border-white/5 py-3 px-3 -mx-2 hover:bg-white/[0.07] transition-all duration-200 group/log rounded-lg">
                                                             <span className="text-slate-500 shrink-0 font-medium tabular-nums text-[10px] pt-0.5">{log.time}</span>
                                                             <span className={cn(
                                                                 "shrink-0 font-bold uppercase tracking-tighter text-[9px] px-1.5 py-0.5 rounded h-fit self-start",
@@ -312,6 +359,99 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                 </Sheet>
                             )}
                         </div>
+                    </div>
+                )}
+
+                {mode === 'edit' && (
+                    <div className="mt-6 pt-5 border-t border-gray-100">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                                "h-8 px-3 text-[11px] font-semibold flex items-center gap-2 mb-4",
+                                showReplies ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "text-gray-500"
+                            )}
+                            onClick={() => setShowReplies(!showReplies)}
+                        >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            {replies.length > 0 ? `${replies.length} Replies` : 'Write Reply'}
+                        </Button>
+
+                        {showReplies && (
+                            <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="space-y-4">
+                                    {replies.length === 0 && !isFetchingReplies ? (
+                                        <div className="text-center py-6 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                                            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">No conversation yet</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {replies.map((reply) => (
+                                                <div
+                                                    key={reply.id}
+                                                    className={cn(
+                                                        "flex flex-col gap-1.5 max-w-[90%]",
+                                                        reply.author_role === 'agency' ? "ml-auto items-end" : "mr-auto items-start"
+                                                    )}
+                                                >
+                                                    <div className="flex items-center gap-2 px-1">
+                                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">
+                                                            {reply.author_role === 'agency' ? 'Support' : (feedback.sender || 'Client')}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-300">•</span>
+                                                        <span className="text-[10px] text-gray-400">
+                                                            {new Date(reply.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </div>
+                                                    <div
+                                                        className={cn(
+                                                            "px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-xs",
+                                                            reply.author_role === 'agency'
+                                                                ? "bg-[#209CEE] text-white rounded-tr-none"
+                                                                : "bg-gray-100 text-gray-700 rounded-tl-none border border-gray-200/50"
+                                                        )}
+                                                    >
+                                                        {reply.content}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {isFetchingReplies && (
+                                                <div className="flex justify-center py-2">
+                                                    <Activity className="w-4 h-4 text-gray-300 animate-spin" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="relative group">
+                                    <Textarea
+                                        placeholder="Type your reply..."
+                                        className="min-h-[80px] pr-12 pt-3 bg-gray-50/50 border-gray-200 focus:bg-white transition-colors resize-none rounded-xl text-[13px]"
+                                        value={newReply}
+                                        onChange={(e) => setNewReply(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault()
+                                                handleSendReply()
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        size="icon"
+                                        className="absolute bottom-2.5 right-2.5 h-8 w-8 rounded-lg shadow-md transition-all hover:scale-105"
+                                        disabled={!newReply.trim() || isSendingReply}
+                                        onClick={handleSendReply}
+                                    >
+                                        {isSendingReply ? (
+                                            <Activity className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Send className="w-4 h-4 ml-0.5" />
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 

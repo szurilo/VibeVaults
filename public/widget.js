@@ -11,6 +11,7 @@
   }
 
   const API_BASE = `${origin}/api/widget`;
+  const API_REPLY = `${origin}/api/widget/reply`;
 
   const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
@@ -19,9 +20,18 @@
     return;
   }
 
+  // --- State Management ---
+  let isOpen = false;
+  const storageKey = `vv_last_feedback_id_${apiKey}`;
+  const tokenKey = `vv_session_token_${apiKey}`;
+  let activeFeedbackId = localStorage.getItem(storageKey);
+  let sessionToken = localStorage.getItem(tokenKey);
+  let pollInterval = null;
+
   // --- Metadata & Logs Collection ---
   const logs = [];
   const MAX_LOGS = 50;
+  // ... (captureLog code)
   const originalConsole = {
     log: console.log,
     warn: console.warn,
@@ -32,14 +42,10 @@
     try {
       const argsArray = Array.from(args);
       let content = '';
-
-      // Aggressively check for %c in any part of the message
       const containsFormatting = argsArray.some(arg => typeof arg === 'string' && arg.includes('%c'));
-
       if (containsFormatting) {
         content = argsArray
           .filter(arg => {
-            // Filter out CSS strings
             if (typeof arg !== 'string') return true;
             const isCss = (arg.includes(':') && (arg.includes('color') || arg.includes('font') || arg.includes('bg'))) ||
               (arg.startsWith('font-') || arg.startsWith('background:'));
@@ -48,394 +54,252 @@
           .map(arg => {
             try {
               let str = typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
-              return str.replace(/%c/g, ''); // Strip %c from the actual text
-            } catch (e) {
-              return '[Object]';
-            }
+              return str.replace(/%c/g, '');
+            } catch (e) { return '[Object]'; }
           })
           .join(' ');
       } else {
         content = argsArray.map(arg => {
-          try {
-            return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
-          } catch (e) {
-            return '[Object]';
-          }
+          try { return typeof arg === 'object' ? JSON.stringify(arg) : String(arg); }
+          catch (e) { return '[Object]'; }
         }).join(' ');
       }
-
-      logs.push({
-        type,
-        time: new Date().toLocaleTimeString(),
-        content: content.trim()
-      });
+      logs.push({ type, time: new Date().toLocaleTimeString(), content: content.trim() });
       if (logs.length > MAX_LOGS) logs.shift();
-    } catch (e) {
-      // Fail silently
-    }
+    } catch (e) { }
   };
 
-  console.log = (...args) => {
-    captureLog('log', args);
-    originalConsole.log.apply(console, args);
-  };
-  console.warn = (...args) => {
-    captureLog('warn', args);
-    originalConsole.warn.apply(console, args);
-  };
-  console.error = (...args) => {
-    captureLog('error', args);
-    originalConsole.error.apply(console, args);
-  };
+  console.log = (...args) => { captureLog('log', args); originalConsole.log.apply(console, args); };
+  console.warn = (...args) => { captureLog('warn', args); originalConsole.warn.apply(console, args); };
+  console.error = (...args) => { captureLog('error', args); originalConsole.error.apply(console, args); };
 
-  const getMetadata = () => {
-    return {
-      url: window.location.href,
-      userAgent: navigator.userAgent,
-      screen: `${window.innerWidth}x${window.innerHeight}`,
-      viewport: `${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`,
-      language: navigator.language,
-      logs: logs
-    };
-  };
-  // ---------------------------------
+  const getMetadata = () => ({
+    url: window.location.href,
+    userAgent: navigator.userAgent,
+    screen: `${window.innerWidth}x${window.innerHeight}`,
+    viewport: `${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`,
+    language: navigator.language,
+    logs: logs
+  });
 
-  // Create Host Element for Shadow DOM
+  // --- UI Construction ---
   const host = document.createElement('div');
   const shadow = host.attachShadow({ mode: 'open' });
   document.body.appendChild(host);
 
-  // Styles
   const style = document.createElement('style');
   style.textContent = `
     :host {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 999999;
+      position: fixed; bottom: 20px; right: 20px; z-index: 999999;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      box-sizing: border-box;
     }
     * { box-sizing: border-box; }
-    
     .trigger-btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #209CEE 0%, #1a8ad4 100%);
-      color: white;
-      border: none;
-      box-shadow: 0 4px 12px rgba(32, 156, 238, 0.4);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #209CEE 0%, #1a8ad4 100%);
+      color: white; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(32, 156, 238, 0.4);
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s; position: relative;
     }
-    .trigger-btn:hover {
-      transform: scale(1.05) translateY(-2px);
-      box-shadow: 0 6px 16px rgba(32, 156, 238, 0.5);
-    }
-    .trigger-btn:active {
-      transform: scale(0.95);
-    }
+    .trigger-btn:hover { transform: scale(1.05) translateY(-2px); }
+    .badge { position: absolute; top: -2px; right: -2px; width: 14px; height: 14px; background: #ef4444; border: 2px solid white; border-radius: 50%; display: none; }
+
     .popup {
-      position: absolute;
-      bottom: 72px;
-      right: 0;
-      width: 360px;
-      max-width: calc(100vw - 40px);
-      max-height: calc(100vh - 110px);
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
-      display: none;
-      flex-direction: column;
-      overflow: hidden;
-      border: 1px solid #e5e7eb;
-      animation: slideUp 0.3s ease-out;
+      position: absolute; bottom: 72px; right: 0; width: 360px; max-width: calc(100vw - 40px); height: 500px;
+      background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+      border: 1px solid #e5e7eb; overflow: hidden; animation: slideUp 0.3s ease-out;
     }
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .popup.open {
-      display: flex;
-    }
-    .header {
-      padding: 16px 20px;
-      background: #209CEE;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      position: relative;
-    }
-    .header h3 {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 700;
-      color: white;
-    }
-    .header p {
-      margin: 0;
-      font-size: 14px;
-      opacity: 0.8;
-    }
-    .close-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: rgba(255, 255, 255, 0.1);
-      border: none;
-      border-radius: 50%;
-      width: 28px;
-      height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      color: white;
-      transition: all 0.2s;
-    }
-    .close-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-    .content {
-      flex: 1;
-      padding: 20px;
-      overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: #e5e7eb transparent;
-    }
-    .content::-webkit-scrollbar {
-      width: 6px;
-    }
-    .content::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .content::-webkit-scrollbar-thumb {
-      background-color: #e5e7eb;
-      border-radius: 10px;
-    }
-    .feedback-form {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    .form-label {
-      font-size: 14px;
-      color: #4b5563;
-      line-height: 1.5;
-    }
-    textarea {
-      width: 100%;
-      height: 140px;
-      padding: 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-family: inherit;
-      font-size: 14px;
-      resize: none;
-      transition: border-color 0.2s, ring 0.2s;
-    }
-    textarea:focus {
-      outline: none;
-      border-color: #209CEE;
-      box-shadow: 0 0 0 3px rgba(32, 156, 238, 0.1);
-    }
-    .submit-btn {
-      background: #209CEE;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 15px;
-      transition: background 0.2s;
-    }
-    .submit-btn:hover {
-      background: #1a8ad4;
-    }
-    .submit-btn:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
-    }
-    .branding {
-      padding: 12px;
-      text-align: center;
-      font-size: 12px;
-      color: #9ca3af;
-      background: #f9fafb;
-      border-top: 1px solid #f3f4f6;
-    }
-    .branding a {
-      color: #209CEE;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .success-view {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 40px 20px;
-      gap: 12px;
-    }
-    .success-view.active {
-      display: flex;
-    }
-    .success-icon {
-      width: 56px;
-      height: 56px;
-      background: #ecfdf5;
-      color: #10b981;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 8px;
-    }
-    @media (max-width: 640px) {
-      :host {
-        bottom: 16px;
-        right: 16px;
-      }
-      .popup {
-        position: fixed;
-        bottom: 88px;
-        left: 16px;
-        right: 16px;
-        width: auto;
-        max-width: none;
-        max-height: calc(100vh - 120px);
-      }
-    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .popup.open { display: flex; }
+    .header { padding: 16px 20px; background: #209CEE; color: white; position: relative; }
+    .header h3 { margin: 0; font-size: 16px; font-weight: 700; }
+    .header p { margin: 4px 0 0; font-size: 13px; opacity: 0.8; }
+    .nav { display: flex; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+    .nav-item { flex: 1; padding: 12px; font-size: 13px; font-weight: 600; color: #6b7280; text-align: center; cursor: pointer; border-bottom: 2px solid transparent; }
+    .nav-item.active { color: #209CEE; border-bottom-color: #209CEE; background: white; }
+    .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 20px; }
+    .view-form { display: flex; flex-direction: column; gap: 16px; }
+    textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; }
+    .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; }
+    .view-convo { display: none; flex-direction: column; height: 100%; }
+    .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .msg-wrapper { display: flex; flex-direction: column; max-width: 85%; gap: 4px; }
+    .msg-wrapper.agency { align-self: flex-start; }
+    .msg-wrapper.client { align-self: flex-end; }
+    .message { padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.4; }
+    .message.agency { background: #f3f4f6; color: #1f2937; border-bottom-left-radius: 2px; }
+    .message.client { background: #209CEE; color: white; border-bottom-right-radius: 2px; }
+    .msg-meta { font-size: 10px; color: #9ca3af; padding: 0 4px; display: flex; gap: 4px; align-items: center; }
+    .msg-meta.agency { justify-content: flex-start; }
+    .msg-meta.client { justify-content: flex-end; }
+    .chat-input { display: flex; gap: 8px; border-top: 1px solid #f3f4f6; padding-top: 16px; }
+    .chat-input input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; }
+    .btn { background: #209CEE; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .success-view { display: none; text-align: center; padding: 40px 0; }
+    .branding { padding: 10px; text-align: center; font-size: 11px; color: #9ca3af; background: #f9fafb; border-top: 1px solid #f3f4f6; }
+    .branding a { color: #209CEE; text-decoration: none; }
+    .close-btn { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   `;
   shadow.appendChild(style);
 
-  // UI Structure
   const wrapper = document.createElement('div');
   wrapper.innerHTML = `
-    <button class="trigger-btn" aria-label="Open feedback widget">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-      </svg>
+    <button class="trigger-btn">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      <div class="badge"></div>
     </button>
     <div class="popup">
       <div class="header">
-        <h3>Send us your feedback</h3>
-        <p>We'd love to hear from you!</p>
-        <button class="close-btn" aria-label="Close">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+        <h3>Send Feedback</h3><p>We'd love to hear from you!</p>
+        <button class="close-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </div>
+      <div class="nav" style="display: ${activeFeedbackId ? 'flex' : 'none'}">
+        <div class="nav-item active" data-view="form">New</div>
+        <div class="nav-item" data-view="conversation">Chat</div>
       </div>
       <div class="content">
-          <div class="feedback-form">
-            <textarea placeholder="Tell us what's on your mind..."></textarea>
-            <button class="submit-btn" type="button">Send Feedback</button>
-          </div>
-          <div class="success-view">
-            <div class="success-icon">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-            </div>
-            <p style="font-weight:700;font-size:20px;color:#111827;margin:0">Message sent!</p>
-            <p style="font-size:15px;color:#6b7280;margin:0">Thank you for helping us improve.</p>
-          </div>
+        <div class="view-form">
+          <textarea id="vv-textarea" placeholder="Describe your issue..."></textarea>
+          <div id="vv-text-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -12px; margin-bottom: 4px; padding-left: 4px;">Please describe your issue.</div>
+          <input type="email" id="vv-sender" class="sender-input" placeholder="Your Email (required)">
+          <div id="vv-email-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -8px; padding-left: 4px;">Please provide a valid email address so we can reply.</div>
+          <button class="btn" id="vv-submit">Send Feedback</button>
+        </div>
+        <div class="view-convo">
+          <div class="chat-messages" id="vv-chat"></div>
+          <div class="chat-input"><input type="text" id="vv-reply-text" placeholder="Type a reply..."><button class="btn" id="vv-send-reply">Send</button></div>
+        </div>
+        <div class="success-view" id="vv-success">
+          <div style="width:40px;height:40px;background:#ecfdf5;color:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+          <p style="font-weight:700;margin:0">Sent!</p><p style="font-size:14px;color:#6b7280;margin:8px 0 0">We'll chat soon.</p>
+        </div>
       </div>
-      <div class="branding">
-        Powered by <a href="https://vibe-vaults.com" target="_blank" rel="noopener">VibeVaults</a>
-      </div>
+      <div class="branding">Powered by <a href="https://vibe-vaults.com" target="_blank">VibeVaults</a></div>
     </div>
   `;
   shadow.appendChild(wrapper);
 
-  // State
-  let isOpen = false;
-
-  // Elements
-  const popup = wrapper.querySelector('.popup');
-  const triggerBtn = wrapper.querySelector('.trigger-btn');
-  const closeBtn = wrapper.querySelector('.close-btn');
-  const form = wrapper.querySelector('.feedback-form');
-  const successView = wrapper.querySelector('.success-view');
-  const textarea = wrapper.querySelector('textarea');
-  const submitBtn = wrapper.querySelector('.submit-btn');
-
-  // Actions
-  const toggleOpen = () => {
-    isOpen = !isOpen;
-    if (isOpen) {
-      popup.classList.add('open');
-      // Reset view to form
-      form.style.display = 'flex';
-      successView.classList.remove('active');
-      setTimeout(() => textarea.focus(), 100);
-    } else {
-      popup.classList.remove('open');
-    }
+  const switchView = (v) => {
+    wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === v));
+    wrapper.querySelector('.view-form').style.display = v === 'form' ? 'flex' : 'none';
+    wrapper.querySelector('.view-convo').style.display = v === 'conversation' ? 'flex' : 'none';
+    wrapper.querySelector('#vv-success').style.display = v === 'success' ? 'block' : 'none';
+    if (v === 'conversation') { fetchReplies(); startPolling(); } else { stopPolling(); }
   };
+
+  const fetchReplies = async () => {
+    if (!activeFeedbackId || !sessionToken) return;
+    try {
+      const res = await fetch(`${API_REPLY}?feedbackId=${activeFeedbackId}`, {
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
+      });
+      const data = await res.json();
+      if (data.replies) {
+        wrapper.querySelector('#vv-chat').innerHTML = data.replies.map(r => `
+          <div class="msg-wrapper ${r.author_role}">
+            <div class="msg-meta ${r.author_role}">
+              <span style="font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:-0.5px;">${r.author_role === 'agency' ? 'Support' : (r.author_name || 'Client')}</span>
+              <span style="color:#d1d5db;">•</span>
+              <span>${new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <div class="message ${r.author_role}">
+              ${r.content}
+            </div>
+          </div>
+        `).join('');
+        const chatBox = wrapper.querySelector('#vv-chat');
+        if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+        const last = data.replies[data.replies.length - 1];
+        if (last && last.author_role === 'agency' && !isOpen) wrapper.querySelector('.badge').style.display = 'block';
+      }
+    } catch (e) { }
+  };
+
+  const startPolling = () => { stopPolling(); pollInterval = setInterval(fetchReplies, 5000); };
+  const stopPolling = () => { if (pollInterval) clearInterval(pollInterval); };
 
   const sendFeedback = async () => {
-    const text = textarea.value.trim();
-    if (!text) return;
+    const text = wrapper.querySelector('#vv-textarea').value.trim();
+    const email = wrapper.querySelector('#vv-sender').value.trim();
+    const textErrorMsg = wrapper.querySelector('#vv-text-error');
+    if (!text) {
+      textErrorMsg.style.display = 'block';
+      return;
+    }
+    textErrorMsg.style.display = 'none';
 
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = 'Sending...';
-    submitBtn.disabled = true;
-
+    const errorMsg = wrapper.querySelector('#vv-email-error');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errorMsg.style.display = 'block';
+      return;
+    }
+    errorMsg.style.display = 'none';
+    const btn = wrapper.querySelector('#vv-submit');
+    btn.disabled = true;
     try {
-      const response = await fetch(API_BASE, {
+      const res = await fetch(API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey,
-          content: text,
-          type: '',
-          metadata: getMetadata()
-        })
+        body: JSON.stringify({ apiKey, content: text, sender: email, metadata: getMetadata() })
       });
+      const data = await res.json();
+      if (data.success && data.feedback_id) {
+        activeFeedbackId = data.feedback_id;
+        sessionToken = data.token;
+        localStorage.setItem(storageKey, activeFeedbackId);
+        localStorage.setItem(tokenKey, sessionToken);
+        wrapper.querySelector('.nav').style.display = 'flex';
+        switchView('success');
+      } else {
+        alert(data.error || 'Error sending feedback.');
+      }
+    } catch (e) { alert('Network error.'); } finally { btn.disabled = false; }
+  };
 
-      if (!response.ok) throw new Error('Failed to send');
-
-      // Transition to success view
-      form.style.display = 'none';
-      successView.classList.add('active');
-      textarea.value = '';
-
-      // Auto-close after 5 seconds
-      setTimeout(() => {
-        if (isOpen && successView.classList.contains('active')) {
-          toggleOpen();
-        }
-      }, 5000);
-
+  const sendReply = async () => {
+    const text = wrapper.querySelector('#vv-reply-text').value.trim();
+    if (!text || !activeFeedbackId || !sessionToken) return;
+    const btn = wrapper.querySelector('#vv-send-reply');
+    btn.disabled = true;
+    try {
+      const res = await fetch(API_REPLY, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({ feedbackId: activeFeedbackId, content: text })
+      });
+      if (res.ok) {
+        wrapper.querySelector('#vv-reply-text').value = '';
+        fetchReplies();
+      } else {
+        const err = await res.json();
+        console.error('VibeVaults: Failed to send reply', err);
+      }
     } catch (e) {
-      console.error('VibeVaults: Error sending feedback', e);
-      alert('Error sending feedback. Please try again.');
+      console.error('VibeVaults: Network error sending reply', e);
     } finally {
-      submitBtn.textContent = originalText;
-      submitBtn.disabled = false;
+      btn.disabled = false;
     }
   };
 
-  // Listeners
-  triggerBtn.onclick = toggleOpen;
-  closeBtn.onclick = toggleOpen;
-  submitBtn.onclick = sendFeedback;
+  const triggerBtn = wrapper.querySelector('.trigger-btn');
 
-  // Handle Escape key
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isOpen) {
-      toggleOpen();
+  triggerBtn.onclick = () => {
+    isOpen = !isOpen;
+    wrapper.querySelector('.popup').classList.toggle('open', isOpen);
+    if (isOpen) {
+      wrapper.querySelector('.badge').style.display = 'none';
+      if (activeFeedbackId) wrapper.querySelector('.nav').style.display = 'flex';
+    } else {
+      stopPolling();
     }
-  });
-
+  };
+  wrapper.querySelector('.close-btn').onclick = () => triggerBtn.onclick();
+  wrapper.querySelector('#vv-submit').onclick = sendFeedback;
+  wrapper.querySelector('#vv-send-reply').onclick = sendReply;
+  wrapper.querySelector('#vv-reply-text').onkeydown = (e) => {
+    if (e.key === 'Enter') sendReply();
+  };
+  wrapper.querySelectorAll('.nav-item').forEach(i => i.onclick = () => switchView(i.dataset.view));
 })();
