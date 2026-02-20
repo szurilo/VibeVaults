@@ -164,10 +164,12 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                     <div className="flex items-center gap-2 text-gray-400">
                         <Calendar className="w-3.5 h-3.5" />
                         <span className="text-[11px] uppercase font-bold tracking-wider">
-                            {new Date(feedback.created_at).toLocaleDateString(undefined, {
+                            {new Date(feedback.created_at).toLocaleString(undefined, {
                                 month: 'short',
                                 day: 'numeric',
-                                year: 'numeric'
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
                             })}
                         </span>
                     </div>

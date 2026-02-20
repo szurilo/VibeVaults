@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { DeleteAccountCard } from "@/components/DeleteAccountCard";
 import { EditProjectCard } from "@/components/EditProjectCard";
+import { ProjectModeCard } from "@/components/ProjectModeCard";
 import { ShareProjectCard } from "@/components/ShareProjectCard";
 import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
 
@@ -32,6 +33,7 @@ export default async function SettingsPage() {
                     {currentProject && (
                         <>
                             <EditProjectCard project={currentProject} />
+                            <ProjectModeCard project={currentProject} />
                             <EmbedWidgetCard project={currentProject} />
                             <ShareProjectCard project={currentProject} />
                         </>

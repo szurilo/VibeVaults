@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { sendFeedbackNotification } from "@/lib/notifications";
+import { sendFeedbackNotification, sendLiveFeedbackNotification } from "@/lib/notifications";
 import { SignJWT } from "jose";
 
 const corsHeaders = {
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
     const project = projects[0];
 
-    return NextResponse.json({ project: { name: project.name } }, { headers: corsHeaders });
+    return NextResponse.json({ project: { name: project.name, mode: project.mode } }, { headers: corsHeaders });
 }
 
 export async function POST(request: Request) {
@@ -38,10 +38,6 @@ export async function POST(request: Request) {
 
     if (!apiKey) {
         return NextResponse.json({ error: "Missing API Key" }, { status: 400, headers: corsHeaders });
-    }
-
-    if (!sender || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender)) {
-        return NextResponse.json({ error: "Please provide a valid email address so we can reply to you." }, { status: 400, headers: corsHeaders });
     }
 
     const supabase = await createClient();
@@ -53,6 +49,12 @@ export async function POST(request: Request) {
 
     const project = projects[0];
 
+    // Email is required in both modes so we can reply via Chat
+    if (!sender || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender)) {
+        return NextResponse.json({ error: "Please provide a valid email address so we can reply to you." }, { status: 400, headers: corsHeaders });
+    }
+
+    // ALWAYS save to database to enable Chat Functionality
     const { data: inserted, error: insertError } = await supabase.from('feedbacks').insert({
         content,
         type: type || 'Feature',
@@ -65,8 +67,18 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: insertError.message }, { status: 500, headers: corsHeaders });
     }
 
-    if (project.owner_email) {
-        // Send notification asynchronously
+    // Route notifications based on Widget Mode
+    if (project.mode === 'live' && project.support_email) {
+        // Live Mode: Notify the configured support email
+        sendLiveFeedbackNotification({
+            to: project.support_email,
+            projectName: project.name,
+            content,
+            sender,
+            metadata: metadata || {}
+        }).catch(err => console.error("Error sending live feedback email:", err));
+    } else if (project.owner_email) {
+        // Staging Mode (Default): Notify the agency owner
         sendFeedbackNotification({
             to: project.owner_email,
             projectName: project.name,
@@ -83,5 +95,5 @@ export async function POST(request: Request) {
         .setExpirationTime('30d')
         .sign(secretKey);
 
-    return NextResponse.json({ success: true, feedback_id: inserted.id, token }, { headers: corsHeaders });
+    return NextResponse.json({ success: true, feedback_id: inserted.id, token, mode: 'staging' }, { headers: corsHeaders });
 }

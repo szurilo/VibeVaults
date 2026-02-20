@@ -178,6 +178,9 @@
   `;
   shadow.appendChild(wrapper);
 
+  // Fetch project setting context asynchronously
+  fetch(`${API_BASE}?key=${apiKey}`).catch(() => { });
+
   const switchView = (v) => {
     wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === v));
     wrapper.querySelector('.view-form').style.display = v === 'form' ? 'flex' : 'none';
@@ -229,6 +232,7 @@
 
     const errorMsg = wrapper.querySelector('#vv-email-error');
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errorMsg.textContent = 'Please provide a valid email address so we can reply.';
       errorMsg.style.display = 'block';
       return;
     }
@@ -243,6 +247,7 @@
       });
       const data = await res.json();
       if (data.success && data.feedback_id) {
+        // Staging and Live modes both use chat features now
         activeFeedbackId = data.feedback_id;
         sessionToken = data.token;
         localStorage.setItem(storageKey, activeFeedbackId);
