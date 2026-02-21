@@ -5,6 +5,7 @@ import { EditProjectCard } from "@/components/EditProjectCard";
 import { ProjectModeCard } from "@/components/ProjectModeCard";
 import { ShareProjectCard } from "@/components/ShareProjectCard";
 import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
+import { ProjectModeBadge } from "@/components/ProjectModeBadge";
 
 export default async function SettingsPage() {
     const supabase = await createClient();
@@ -23,8 +24,13 @@ export default async function SettingsPage() {
     return (
         <div>
             <div className="flex justify-between items-center mb-8">
-                <h1 className="text-2xl font-semibold text-gray-900">
-                    Settings {currentProject && <span className="text-gray-400 font-normal">/ {currentProject.name}</span>}
+                <h1 className="text-2xl font-semibold text-gray-900 flex items-center flex-wrap gap-2">
+                    Settings {currentProject && (
+                        <>
+                            <span className="text-gray-400 font-normal">/ {currentProject.name}</span>
+                            <ProjectModeBadge mode={currentProject.mode} className="text-[10px] px-2 py-0.5 translate-y-0.5" />
+                        </>
+                    )}
                 </h1>
             </div>
 

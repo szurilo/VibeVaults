@@ -48,7 +48,7 @@ interface FeedbackCardProps {
         id: string
         content: string
         created_at: string
-        sender?: string
+        sender: string
         status?: string
         metadata?: FeedbackMetadata
     }
@@ -158,23 +158,33 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const { browser, os } = parseUA(feedback.metadata?.userAgent)
 
     return (
-        <Card className="group hover:shadow-lg transition-all duration-300 border-gray-200/60 overflow-hidden flex flex-col bg-white/50 backdrop-blur-sm">
-            <CardHeader className="pb-3 pt-5 px-5 space-y-4">
-                <div className="flex justify-between items-center gap-4">
-                    <div className="flex items-center gap-2 text-gray-400">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span className="text-[11px] uppercase font-bold tracking-wider">
-                            {new Date(feedback.created_at).toLocaleString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            })}
-                        </span>
+        <Card className="group hover:shadow-lg transition-all duration-300 border-gray-200/60 overflow-hidden flex flex-col bg-white/50 backdrop-blur-sm @container">
+            <CardHeader className="pt-5 px-5 space-y-4">
+                <div className="flex flex-wrap justify-between items-start sm:items-center gap-4">
+                    <div className="flex items-center gap-3 min-w-[200px] flex-1">
+                        <div className="relative shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[11px] font-bold text-white uppercase shadow-sm">
+                                {feedback.sender.charAt(0)}
+                            </div>
+                            <div className="absolute -bottom-0.5 -right-0.5 w-[9px] h-[9px] bg-green-500 border-2 border-white rounded-full"></div>
+                        </div>
+                        <div className="flex flex-col min-w-0 justify-center gap-0.5">
+                            <span className="text-sm font-semibold text-gray-900 truncate" title={feedback.sender}>
+                                {feedback.sender}
+                            </span>
+                            <span className="text-gray-400 font-normal text-xs truncate">
+                                {new Date(feedback.created_at).toLocaleString(undefined, {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </span>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                         {mode === 'edit' ? (
                             <>
                                 <FeedbackStatusSelect id={feedback.id} initialStatus={status} />
@@ -231,7 +241,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                 </div>
             </CardHeader>
 
-            <CardContent className="px-5 pb-6 flex-1 flex flex-col">
+            <CardContent className="px-5 flex-1 flex flex-col">
                 <div className="flex-1">
                     <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap font-medium">
                         {feedback.content}
@@ -251,7 +261,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                         href={feedback.metadata.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-[11px] text-blue-600 font-medium truncate hover:underline"
+                                        className="text-[11px] text-blue-600 font-medium hover:underline"
                                         title={feedback.metadata.url}
                                     >
                                         {feedback.metadata.url ? new URL(feedback.metadata.url).hostname : 'N/A'}
@@ -265,7 +275,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                 </div>
                                 <div className="flex flex-col min-w-0">
                                     <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">System</span>
-                                    <span className="text-[11px] text-gray-600 font-medium truncate">
+                                    <span className="text-[11px] text-gray-600 font-medium">
                                         {browser} on {os}
                                     </span>
                                 </div>
@@ -375,7 +385,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                             variant="ghost"
                             size="sm"
                             className={cn(
-                                "h-8 px-3 text-[11px] font-semibold flex items-center gap-2 mb-4",
+                                "h-8 px-3 text-[11px] font-semibold flex items-center gap-2",
                                 showReplies ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "text-gray-500"
                             )}
                             onClick={() => setShowReplies(!showReplies)}
@@ -403,7 +413,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                 >
                                                     <div className="flex items-center gap-2 px-1">
                                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">
-                                                            {reply.author_role === 'agency' ? 'Support' : (feedback.sender || 'Client')}
+                                                            {reply.author_role === 'agency' ? 'Support' : feedback.sender}
                                                         </span>
                                                         <span className="text-[10px] text-gray-300">•</span>
                                                         <span className="text-[10px] text-gray-400">
@@ -462,22 +472,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                     </div>
                 )}
 
-                {feedback.sender && (
-                    <div className="pt-5 mt-6 border-t border-gray-50 flex items-center gap-3">
-                        <div className="relative">
-                            <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[11px] font-bold text-white uppercase shadow-sm">
-                                {feedback.sender.charAt(0)}
-                            </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-semibold text-gray-900 truncate" title={feedback.sender}>
-                                {feedback.sender}
-                            </span>
-                            <span className="text-[10px] text-gray-500">Sender</span>
-                        </div>
-                    </div>
-                )}
+
             </CardContent>
         </Card>
     )

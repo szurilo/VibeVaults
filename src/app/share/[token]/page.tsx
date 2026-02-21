@@ -8,7 +8,7 @@ type Feedback = {
     id: string
     content: string
     created_at: string
-    sender?: string
+    sender: string
     status?: string
 }
 
@@ -98,7 +98,7 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
                         </p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                         {feedbacks.map((f) => (
                             <FeedbackCard key={f.id} feedback={f} mode="view" />
                         ))}

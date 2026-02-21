@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { FeedbackCard } from "@/components/feedback-card";
 import { cookies } from "next/headers";
+import { ProjectModeBadge } from "@/components/ProjectModeBadge";
 
 export default async function FeedbackListPage() {
     const supabase = await createClient();
@@ -36,8 +37,13 @@ export default async function FeedbackListPage() {
     return (
         <div>
             <div className="flex justify-between items-center mb-8">
-                <h1 className="text-2xl font-semibold text-gray-900">
-                    Feedbacks {currentProject && <span className="text-gray-400 font-normal">/ {currentProject.name}</span>}
+                <h1 className="text-2xl font-semibold text-gray-900 flex items-center flex-wrap gap-2">
+                    Feedbacks {currentProject && (
+                        <>
+                            <span className="text-gray-400 font-normal">/ {currentProject.name}</span>
+                            <ProjectModeBadge mode={currentProject.mode} className="text-[10px] px-2 py-0.5 translate-y-0.5" />
+                        </>
+                    )}
                 </h1>
             </div>
 
@@ -46,7 +52,7 @@ export default async function FeedbackListPage() {
                     <p className="text-gray-500">No feedback received yet.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
                     {feedbacks.map((item: any) => (
                         <FeedbackCard key={item.id} feedback={item} mode="edit" />
                     ))}

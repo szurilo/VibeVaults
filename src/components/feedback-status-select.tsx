@@ -30,7 +30,7 @@ export function FeedbackStatusSelect({ id, initialStatus }: FeedbackStatusSelect
 
     return (
         <Select value={status} onValueChange={handleStatusChange}>
-            <SelectTrigger className="w-[140px] h-8 text-xs">
+            <SelectTrigger className="w-[110px] h-8 text-xs">
                 <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>

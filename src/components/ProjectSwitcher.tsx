@@ -13,6 +13,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { PlusIcon } from 'lucide-react';
+import { ProjectModeBadge } from '@/components/ProjectModeBadge';
 
 export default function ProjectSwitcher({
     projects,
@@ -83,7 +84,10 @@ export default function ProjectSwitcher({
                     <SelectContent>
                         {projects.map((project) => (
                             <SelectItem key={project.id} value={project.id}>
-                                {project.name}
+                                <div className="flex items-center justify-between gap-3 w-full pr-1">
+                                    <span className="truncate">{project.name}</span>
+                                    <ProjectModeBadge mode={project.mode} className="text-[9px] px-1.5 py-0.5 shrink-0" />
+                                </div>
                             </SelectItem>
                         ))}
                     </SelectContent>

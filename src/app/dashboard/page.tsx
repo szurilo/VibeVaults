@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 
+import { ProjectModeBadge } from "@/components/ProjectModeBadge";
+
 export default async function DashboardPage() {
     const supabase = await createClient();
 
@@ -43,8 +45,13 @@ export default async function DashboardPage() {
     return (
         <div>
             <div className="flex justify-between items-center mb-8">
-                <h1 className="text-2xl font-semibold text-gray-900">
-                    Overview {currentProject && <span className="text-gray-400 font-normal">/ {currentProject.name}</span>}
+                <h1 className="text-2xl font-semibold text-gray-900 flex items-center flex-wrap gap-2">
+                    Overview {currentProject && (
+                        <>
+                            <span className="text-gray-400 font-normal">/ {currentProject.name}</span>
+                            <ProjectModeBadge mode={currentProject.mode} className="text-[10px] px-2 py-0.5 translate-y-0.5" />
+                        </>
+                    )}
                 </h1>
             </div>
 

@@ -65,19 +65,19 @@ export function EditProjectCard({ project }: EditProjectCardProps) {
 
     return (
         <Card className="shadow-sm border-gray-200">
-            <CardHeader>
-                <CardTitle className="font-semibold text-gray-900 flex items-center gap-2">
-                    <Settings className="w-5 h-5" />
-                    Project Settings
-                </CardTitle>
-                <CardDescription>
-                    Update your project details and name.
-                </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleUpdateName}>
-                <CardContent className="space-y-4">
-                    <div className="flex justify-between items-end gap-4">
-                        <div className="space-y-2 flex-1">
+            <form onSubmit={handleUpdateName} className="flex flex-col sm:flex-row sm:items-center justify-between w-full">
+                <div className="flex-1">
+                    <CardHeader>
+                        <CardTitle className="font-semibold text-gray-900 flex items-center gap-2">
+                            <Settings className="w-5 h-5" />
+                            Project Settings
+                        </CardTitle>
+                        <CardDescription>
+                            Update your project details and name.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2 pt-6">
                             <Label htmlFor="projectName">Project Name</Label>
                             <Input
                                 id="projectName"
@@ -87,23 +87,25 @@ export function EditProjectCard({ project }: EditProjectCardProps) {
                                 className="max-w-md focus-visible:ring-primary"
                             />
                         </div>
-                        <Button
-                            type="submit"
-                            disabled={loading || !name.trim() || name === project.name}
-                            className="cursor-pointer min-w-[100px]"
-                        >
-                            {loading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : success ? (
-                                <span className="flex items-center gap-2">
-                                    <Check className="h-4 w-4" /> Saved
-                                </span>
-                            ) : (
-                                'Save Changes'
-                            )}
-                        </Button>
-                    </div>
-                </CardContent>
+                    </CardContent>
+                </div>
+                <div className="px-6 mt-4 sm:mt-0 sm:px-0 sm:pr-6 shrink-0">
+                    <Button
+                        type="submit"
+                        disabled={loading || !name.trim() || name === project.name}
+                        className="cursor-pointer min-w-[100px]"
+                    >
+                        {loading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : success ? (
+                            <span className="flex items-center gap-2">
+                                <Check className="h-4 w-4" /> Saved
+                            </span>
+                        ) : (
+                            'Save Changes'
+                        )}
+                    </Button>
+                </div>
             </form>
         </Card>
     );
