@@ -4,25 +4,41 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 export default function RegisterPage() {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [captchaToken, setCaptchaToken] = useState<string>();
+
+    const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITEKEY;
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         setLoading(true);
         setError(null);
 
+        if (turnstileSiteKey && !captchaToken) {
+            setError('Please wait for the security check to complete.');
+            setLoading(false);
+            return;
+        }
+
         const supabase = createClient();
+
+        const options: { emailRedirectTo: string; captchaToken?: string } = {
+            emailRedirectTo: `${location.origin}/auth/confirm`,
+        };
+
+        if (turnstileSiteKey && captchaToken) {
+            options.captchaToken = captchaToken;
+        }
 
         const { error } = await supabase.auth.signInWithOtp({
             email,
-            options: {
-                emailRedirectTo: `${location.origin}/auth/confirm`,
-            },
+            options,
         });
 
         if (error) {
@@ -94,6 +110,16 @@ export default function RegisterPage() {
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                                 />
                             </div>
+                            {turnstileSiteKey && (
+                                <div className="flex justify-center w-full min-h-[65px]">
+                                    <Turnstile
+                                        siteKey={turnstileSiteKey}
+                                        onSuccess={(token) => setCaptchaToken(token)}
+                                        onError={() => setError('Security check failed. Please refresh the page.')}
+                                        onExpire={() => setCaptchaToken(undefined)}
+                                    />
+                                </div>
+                            )}
                             <button
                                 type="submit"
                                 disabled={loading}
