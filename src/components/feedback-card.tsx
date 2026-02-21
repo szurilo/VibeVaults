@@ -284,7 +284,12 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                             </div>
 
                             {feedback.metadata.logs && feedback.metadata.logs.length > 0 && (
-                                <Sheet>
+                                <Sheet onOpenChange={(open) => {
+                                    const widget = document.getElementById('vibe-vaults-widget-host');
+                                    if (widget) {
+                                        widget.style.display = open ? 'none' : '';
+                                    }
+                                }}>
                                     <SheetTrigger asChild>
                                         <button className="flex items-center gap-2.5 min-w-0 group cursor-pointer text-left">
                                             <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">

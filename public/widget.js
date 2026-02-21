@@ -84,6 +84,7 @@
 
   // --- UI Construction ---
   const host = document.createElement('div');
+  host.id = 'vibe-vaults-widget-host';
   const shadow = host.attachShadow({ mode: 'open' });
   document.body.appendChild(host);
 
