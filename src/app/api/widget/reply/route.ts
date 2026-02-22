@@ -1,56 +1,65 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { sendAgencyReplyNotification } from "@/lib/notifications";
-import { jwtVerify } from "jose";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers": "Content-Type",
 };
 
 export async function OPTIONS() {
     return NextResponse.json({}, { headers: corsHeaders });
 }
 
-async function verifyToken(request: Request, feedbackId: string) {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return { error: "Missing or invalid authorization token" };
+// Verify that the API key is valid and the feedback belongs to the project
+async function verifyApiKeyForFeedback(apiKey: string, feedbackId: string) {
+    const supabase = await createClient();
+    const { data: projects, error: projectError } = await supabase.rpc('get_project_by_api_key', { key_param: apiKey });
+
+    if (projectError || !projects || projects.length === 0) {
+        return { error: "Invalid API Key" };
     }
 
-    const token = authHeader.split(" ")[1];
-    const secretKey = new TextEncoder().encode(process.env.SUPABASE_SECRET_KEY || 'default-secret');
+    const project = projects[0];
 
-    try {
-        const { payload } = await jwtVerify(token, secretKey);
+    const adminSupabase = createAdminClient();
+    const { data: feedback, error: feedbackError } = await adminSupabase
+        .from('feedbacks')
+        .select('id, project_id')
+        .eq('id', feedbackId)
+        .eq('project_id', project.id)
+        .single();
 
-        if (payload.feedbackId !== feedbackId) {
-            return { error: "Token does not match feedback ID" };
-        }
-
-        return { payload };
-    } catch (e) {
-        return { error: "Invalid or expired token" };
+    if (feedbackError || !feedback) {
+        return { error: "Feedback not found for this project" };
     }
+
+    return { projectId: project.id };
 }
 
-export async function POST(request: Request) {
-    const { feedbackId, content } = await request.json();
+// --- POST: Send a reply (API key + email auth) ---
 
-    if (!feedbackId || !content) {
+export async function POST(request: Request) {
+    const { feedbackId, content, apiKey, senderEmail } = await request.json();
+
+    if (!feedbackId || !content || !apiKey || !senderEmail) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: corsHeaders });
     }
 
-    const verification = await verifyToken(request, feedbackId);
-    if (verification.error || !verification.payload) {
-        return NextResponse.json({ error: verification.error }, { status: 401, headers: corsHeaders });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
+        return NextResponse.json({ error: "Invalid email address" }, { status: 400, headers: corsHeaders });
     }
 
-    const clientEmail = verification.payload.email as string;
+    const apiKeyResult = await verifyApiKeyForFeedback(apiKey, feedbackId);
+    if (apiKeyResult.error) {
+        return NextResponse.json({ error: apiKeyResult.error }, { status: 401, headers: corsHeaders });
+    }
+
     const adminSupabase = createAdminClient();
 
-    // 1. Get Feedback & Project ID (essential)
+    // 1. Get Feedback & Project ID
     const { data: feedback, error: feedbackError } = await adminSupabase
         .from('feedbacks')
         .select('id, sender, project_id')
@@ -62,14 +71,14 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Feedback not found" }, { status: 404, headers: corsHeaders });
     }
 
-    // 2. Insert the reply securely using admin client
+    // 2. Insert the reply
     const { error: replyError } = await adminSupabase
         .from('feedback_replies')
         .insert({
             feedback_id: feedbackId,
             content,
             author_role: 'client',
-            author_name: clientEmail
+            author_name: senderEmail
         });
 
     if (replyError) {
@@ -77,7 +86,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: replyError.message }, { status: 500, headers: corsHeaders });
     }
 
-    // 3. Attempt to fetch owner email for notification (background)
+    // 3. Notify agency owner (background)
     (async () => {
         try {
             const { data: projectData } = await adminSupabase
@@ -105,7 +114,7 @@ export async function POST(request: Request) {
                         to: targetEmail,
                         projectName: projectData.name,
                         replyContent: content,
-                        senderName: clientEmail
+                        senderName: senderEmail
                     });
                 }
             }
@@ -117,17 +126,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true }, { headers: corsHeaders });
 }
 
+// --- GET: Fetch replies for a feedback (API key auth) ---
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const feedbackId = searchParams.get('feedbackId');
+    const apiKey = searchParams.get('key');
 
-    if (!feedbackId) {
-        return NextResponse.json({ error: "Missing feedbackId" }, { status: 400, headers: corsHeaders });
+    if (!feedbackId || !apiKey) {
+        return NextResponse.json({ error: "Missing feedbackId or key" }, { status: 400, headers: corsHeaders });
     }
 
-    const verification = await verifyToken(request, feedbackId);
-    if (verification.error) {
-        return NextResponse.json({ error: verification.error }, { status: 401, headers: corsHeaders });
+    const apiKeyResult = await verifyApiKeyForFeedback(apiKey, feedbackId);
+    if (apiKeyResult.error) {
+        return NextResponse.json({ error: apiKeyResult.error }, { status: 401, headers: corsHeaders });
     }
 
     const adminSupabase = createAdminClient();

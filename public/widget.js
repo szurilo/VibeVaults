@@ -12,6 +12,7 @@
 
   const API_BASE = `${origin}/api/widget`;
   const API_REPLY = `${origin}/api/widget/reply`;
+  const API_FEEDBACKS = `${origin}/api/widget/feedbacks`;
 
   const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
@@ -22,16 +23,23 @@
 
   // --- State Management ---
   let isOpen = false;
-  const storageKey = `vv_last_feedback_id_${apiKey}`;
-  const tokenKey = `vv_session_token_${apiKey}`;
-  let activeFeedbackId = localStorage.getItem(storageKey);
-  let sessionToken = localStorage.getItem(tokenKey);
+  const emailKey = `vv_email_${apiKey}`;
+
+  // Clean up legacy storage
+  const legacyStorageKey = `vv_last_feedback_id_${apiKey}`;
+  const legacyTokenKey = `vv_session_token_${apiKey}`;
+  localStorage.removeItem(legacyStorageKey);
+  localStorage.removeItem(legacyTokenKey);
+  localStorage.removeItem(`vv_tokens_${apiKey}`);
+
+  let clientEmail = localStorage.getItem(emailKey) || '';
+  let selectedFeedbackId = null;
+  let cachedFeedbacks = [];
   let pollInterval = null;
 
   // --- Metadata & Logs Collection ---
   const logs = [];
   const MAX_LOGS = 50;
-  // ... (captureLog code)
   const originalConsole = {
     log: console.log,
     warn: console.warn,
@@ -104,7 +112,7 @@
     .badge { position: absolute; top: -2px; right: -2px; width: 14px; height: 14px; background: #ef4444; border: 2px solid white; border-radius: 50%; display: none; }
 
     .popup {
-      position: absolute; bottom: 72px; right: 0; width: 360px; max-width: calc(100vw - 40px); height: 500px;
+      position: absolute; bottom: 72px; right: 0; width: 380px; max-width: calc(100vw - 40px); height: 520px;
       background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
       border: 1px solid #e5e7eb; overflow: hidden; animation: slideUp 0.3s ease-out;
     }
@@ -114,14 +122,55 @@
     .header h3 { margin: 0; font-size: 16px; font-weight: 700; }
     .header p { margin: 4px 0 0; font-size: 13px; opacity: 0.8; }
     .nav { display: flex; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
-    .nav-item { flex: 1; padding: 12px; font-size: 13px; font-weight: 600; color: #6b7280; text-align: center; cursor: pointer; border-bottom: 2px solid transparent; }
+    .nav-item { flex: 1; padding: 12px; font-size: 13px; font-weight: 600; color: #6b7280; text-align: center; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
     .nav-item.active { color: #209CEE; border-bottom-color: #209CEE; background: white; }
-    .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 20px; }
-    .view-form { display: flex; flex-direction: column; gap: 16px; }
+    .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+    .view-form { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
     textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; }
     .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; }
-    .view-convo { display: none; flex-direction: column; height: 100%; }
-    .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+
+    /* Feedbacks list */
+    .view-feedbacks { display: none; flex-direction: column; height: 100%; }
+    .feedbacks-list { flex: 1; overflow-y: auto; }
+    .feedback-item {
+      padding: 14px 20px; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: background 0.15s;
+    }
+    .feedback-item:hover { background: #f9fafb; }
+    .feedback-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .feedback-status {
+      font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+      padding: 2px 8px; border-radius: 10px; line-height: 1.4;
+    }
+    .feedback-status.open { background: #f1f5f9; color: #64748b; }
+    .feedback-status.in-progress { background: #eff6ff; color: #3b82f6; }
+    .feedback-status.in-review { background: #fffbeb; color: #d97706; }
+    .feedback-status.completed { background: #ecfdf5; color: #10b981; }
+    .feedback-time { font-size: 11px; color: #9ca3af; }
+    .feedback-preview {
+      font-size: 13px; color: #374151; line-height: 1.4; margin: 0 0 8px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .feedback-footer { display: flex; align-items: center; justify-content: space-between; }
+    .feedback-sender { font-size: 11px; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+    .feedback-replies { font-size: 11px; color: #6b7280; display: flex; align-items: center; gap: 4px; }
+    .feedbacks-empty { padding: 40px 20px; text-align: center; color: #9ca3af; }
+    .feedbacks-empty-icon { width: 40px; height: 40px; background: #f3f4f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+    .feedbacks-loading { padding: 40px 20px; text-align: center; color: #9ca3af; font-size: 13px; }
+
+    /* Conversation detail */
+    .view-detail { display: none; flex-direction: column; height: 100%; }
+    .back-btn {
+      display: flex; align-items: center; gap: 6px; padding: 10px 20px; font-size: 12px; font-weight: 600;
+      color: #6b7280; background: #f9fafb; border: none; border-bottom: 1px solid #e5e7eb;
+      cursor: pointer; transition: color 0.15s;
+    }
+    .back-btn:hover { color: #209CEE; }
+    .detail-header { padding: 14px 20px; border-bottom: 1px solid #f3f4f6; }
+    .detail-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .detail-sender { font-size: 12px; color: #6b7280; font-weight: 500; }
+    .detail-content { font-size: 13px; color: #1f2937; line-height: 1.5; margin: 0; white-space: pre-wrap; }
+
+    .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; }
     .msg-wrapper { display: flex; flex-direction: column; max-width: 85%; gap: 4px; }
     .msg-wrapper.agency { align-self: flex-start; }
     .msg-wrapper.client { align-self: flex-end; }
@@ -131,14 +180,23 @@
     .msg-meta { font-size: 10px; color: #9ca3af; padding: 0 4px; display: flex; gap: 4px; align-items: center; }
     .msg-meta.agency { justify-content: flex-start; }
     .msg-meta.client { justify-content: flex-end; }
-    .chat-input { display: flex; gap: 8px; border-top: 1px solid #f3f4f6; padding-top: 16px; }
+    .chat-input { display: flex; gap: 8px; border-top: 1px solid #f3f4f6; padding: 12px 20px; }
     .chat-input input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; }
+    .chat-no-replies { padding: 30px 20px; text-align: center; color: #9ca3af; font-size: 12px; }
+
     .btn { background: #209CEE; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; }
     .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .success-view { display: none; text-align: center; padding: 40px 0; }
+    .btn-sm { padding: 8px 12px; font-size: 12px; }
+    .success-view { display: none; text-align: center; padding: 40px 20px; }
     .branding { padding: 10px; text-align: center; font-size: 11px; color: #9ca3af; background: #f9fafb; border-top: 1px solid #f3f4f6; }
     .branding a { color: #209CEE; text-decoration: none; }
     .close-btn { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+    /* Email prompt for replying */
+    .email-prompt { display: flex; flex-direction: column; gap: 8px; padding: 12px 20px; border-top: 1px solid #f3f4f6; background: #f9fafb; }
+    .email-prompt label { font-size: 11px; color: #6b7280; font-weight: 600; }
+    .email-prompt input { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; font-family: inherit; }
+    .email-prompt-row { display: flex; gap: 8px; }
   `;
   shadow.appendChild(style);
 
@@ -153,9 +211,9 @@
         <h3>Send Feedback</h3><p>We'd love to hear from you!</p>
         <button class="close-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
       </div>
-      <div class="nav" style="display: ${activeFeedbackId ? 'flex' : 'none'}">
+      <div class="nav">
         <div class="nav-item active" data-view="form">New</div>
-        <div class="nav-item" data-view="conversation">Chat</div>
+        <div class="nav-item" data-view="feedbacks">Feedbacks</div>
       </div>
       <div class="content">
         <div class="view-form">
@@ -165,9 +223,19 @@
           <div id="vv-email-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -8px; padding-left: 4px;">Please provide a valid email address so we can reply.</div>
           <button class="btn" id="vv-submit">Send Feedback</button>
         </div>
-        <div class="view-convo">
+        <div class="view-feedbacks">
+          <div class="feedbacks-list" id="vv-feedbacks-list">
+            <div class="feedbacks-loading">Loading feedbacks...</div>
+          </div>
+        </div>
+        <div class="view-detail">
+          <button class="back-btn" id="vv-back-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            All Feedbacks
+          </button>
+          <div class="detail-header" id="vv-detail-header"></div>
           <div class="chat-messages" id="vv-chat"></div>
-          <div class="chat-input"><input type="text" id="vv-reply-text" placeholder="Type a reply..."><button class="btn" id="vv-send-reply">Send</button></div>
+          <div id="vv-reply-section"></div>
         </div>
         <div class="success-view" id="vv-success">
           <div style="width:40px;height:40px;background:#ecfdf5;color:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
@@ -182,45 +250,181 @@
   // Fetch project setting context asynchronously
   fetch(`${API_BASE}?key=${apiKey}`).catch(() => { });
 
+  // --- View switching ---
   const switchView = (v) => {
     wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === v));
     wrapper.querySelector('.view-form').style.display = v === 'form' ? 'flex' : 'none';
-    wrapper.querySelector('.view-convo').style.display = v === 'conversation' ? 'flex' : 'none';
+    wrapper.querySelector('.view-feedbacks').style.display = v === 'feedbacks' ? 'flex' : 'none';
+    wrapper.querySelector('.view-detail').style.display = v === 'detail' ? 'flex' : 'none';
     wrapper.querySelector('#vv-success').style.display = v === 'success' ? 'block' : 'none';
-    if (v === 'conversation') { fetchReplies(); startPolling(); } else { stopPolling(); }
+    if (v === 'feedbacks') { fetchAllFeedbacks(); }
+    if (v === 'detail') { startPolling(); } else { stopPolling(); }
   };
 
-  const fetchReplies = async () => {
-    if (!activeFeedbackId || !sessionToken) return;
+  // --- Feedbacks list ---
+  const getStatusClass = (status) => {
+    const s = (status || 'open').toLowerCase();
+    if (s === 'in progress') return 'in-progress';
+    if (s === 'in review') return 'in-review';
+    return s;
+  };
+
+  const formatDate = (dateStr) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  const fetchAllFeedbacks = async () => {
+    const listEl = wrapper.querySelector('#vv-feedbacks-list');
+    listEl.innerHTML = '<div class="feedbacks-loading">Loading feedbacks...</div>';
     try {
-      const res = await fetch(`${API_REPLY}?feedbackId=${activeFeedbackId}`, {
-        headers: { 'Authorization': `Bearer ${sessionToken}` }
-      });
+      const res = await fetch(`${API_FEEDBACKS}?key=${apiKey}`);
       const data = await res.json();
-      if (data.replies) {
-        wrapper.querySelector('#vv-chat').innerHTML = data.replies.map(r => `
+      if (data.feedbacks && data.feedbacks.length > 0) {
+        cachedFeedbacks = data.feedbacks;
+        renderFeedbacksList(data.feedbacks);
+      } else {
+        listEl.innerHTML = `
+          <div class="feedbacks-empty">
+            <div class="feedbacks-empty-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <p style="font-weight:600;margin:0 0 4px;font-size:13px;color:#6b7280">No feedbacks yet</p>
+            <p style="font-size:12px;margin:0">Switch to "New" to submit your first one.</p>
+          </div>
+        `;
+      }
+    } catch (e) {
+      listEl.innerHTML = '<div class="feedbacks-loading">Failed to load feedbacks.</div>';
+    }
+  };
+
+  const renderFeedbacksList = (feedbacks) => {
+    const listEl = wrapper.querySelector('#vv-feedbacks-list');
+    listEl.innerHTML = feedbacks.map(f => `
+      <div class="feedback-item" data-id="${f.id}">
+        <div class="feedback-item-header">
+          <span class="feedback-status ${getStatusClass(f.status)}">${f.status || 'open'}</span>
+          <span class="feedback-time">${formatDate(f.created_at)}</span>
+        </div>
+        <p class="feedback-preview">${escapeHtml(f.content)}</p>
+        <div class="feedback-footer">
+          <span class="feedback-sender">${escapeHtml(f.sender)}</span>
+          <span class="feedback-replies">${f.reply_count > 0 ? '💬 ' + f.reply_count : ''}</span>
+        </div>
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('.feedback-item').forEach(item => {
+      item.onclick = () => openFeedbackDetail(item.dataset.id);
+    });
+  };
+
+  // --- Feedback detail / conversation ---
+  const openFeedbackDetail = (feedbackId) => {
+    selectedFeedbackId = feedbackId;
+    const feedback = cachedFeedbacks.find(f => f.id === feedbackId);
+
+    // Render detail header
+    const headerEl = wrapper.querySelector('#vv-detail-header');
+    if (feedback) {
+      headerEl.innerHTML = `
+        <div class="detail-header-top">
+          <span class="feedback-status ${getStatusClass(feedback.status)}">${feedback.status || 'open'}</span>
+          <span class="detail-sender">${escapeHtml(feedback.sender)}</span>
+        </div>
+        <p class="detail-content">${escapeHtml(feedback.content)}</p>
+      `;
+    }
+
+    // Render reply section (email prompt if no email stored, or chat input)
+    renderReplySection();
+
+    // Switch to detail view and fetch replies
+    wrapper.querySelector('.view-feedbacks').style.display = 'none';
+    wrapper.querySelector('.view-detail').style.display = 'flex';
+    // Highlight feedbacks tab in nav
+    wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === 'feedbacks'));
+    fetchReplies();
+    startPolling();
+  };
+
+  const renderReplySection = () => {
+    const section = wrapper.querySelector('#vv-reply-section');
+    if (clientEmail) {
+      section.innerHTML = `
+        <div class="chat-input">
+          <input type="text" id="vv-reply-text" placeholder="Type a reply...">
+          <button class="btn btn-sm" id="vv-send-reply">Send</button>
+        </div>
+      `;
+      section.querySelector('#vv-send-reply').onclick = sendReply;
+      section.querySelector('#vv-reply-text').onkeydown = (e) => {
+        if (e.key === 'Enter') sendReply();
+      };
+    } else {
+      section.innerHTML = `
+        <div class="email-prompt">
+          <label>Enter your email to join the conversation</label>
+          <div class="email-prompt-row">
+            <input type="email" id="vv-reply-email" placeholder="you@example.com" style="flex:1">
+            <button class="btn btn-sm" id="vv-save-email">Go</button>
+          </div>
+        </div>
+      `;
+      section.querySelector('#vv-save-email').onclick = () => {
+        const email = section.querySelector('#vv-reply-email').value.trim();
+        if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          clientEmail = email;
+          localStorage.setItem(emailKey, email);
+          renderReplySection();
+        }
+      };
+      section.querySelector('#vv-reply-email').onkeydown = (e) => {
+        if (e.key === 'Enter') section.querySelector('#vv-save-email').onclick();
+      };
+    }
+  };
+
+  const goBackToList = () => {
+    selectedFeedbackId = null;
+    stopPolling();
+    wrapper.querySelector('.view-detail').style.display = 'none';
+    wrapper.querySelector('.view-feedbacks').style.display = 'flex';
+    fetchAllFeedbacks(); // Refresh list
+  };
+
+  // --- Replies ---
+  const fetchReplies = async () => {
+    if (!selectedFeedbackId) return;
+    try {
+      const res = await fetch(`${API_REPLY}?feedbackId=${selectedFeedbackId}&key=${apiKey}`);
+      const data = await res.json();
+      const chatEl = wrapper.querySelector('#vv-chat');
+      if (data.replies && data.replies.length > 0) {
+        chatEl.innerHTML = data.replies.map(r => `
           <div class="msg-wrapper ${r.author_role}">
             <div class="msg-meta ${r.author_role}">
-              <span style="font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:-0.5px;">${r.author_role === 'agency' ? 'Support' : (r.author_name || 'Client')}</span>
+              <span style="font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:-0.5px;">${r.author_role === 'agency' ? 'Support' : escapeHtml(r.author_name || 'Client')}</span>
               <span style="color:#d1d5db;">•</span>
               <span>${new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             <div class="message ${r.author_role}">
-              ${r.content}
+              ${escapeHtml(r.content)}
             </div>
           </div>
         `).join('');
-        const chatBox = wrapper.querySelector('#vv-chat');
-        if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
-        const last = data.replies[data.replies.length - 1];
-        if (last && last.author_role === 'agency' && !isOpen) wrapper.querySelector('.badge').style.display = 'block';
+        chatEl.scrollTop = chatEl.scrollHeight;
+      } else {
+        chatEl.innerHTML = '<div class="chat-no-replies">No replies yet. Start the conversation!</div>';
       }
     } catch (e) { }
   };
 
   const startPolling = () => { stopPolling(); pollInterval = setInterval(fetchReplies, 5000); };
-  const stopPolling = () => { if (pollInterval) clearInterval(pollInterval); };
+  const stopPolling = () => { if (pollInterval) clearInterval(pollInterval); pollInterval = null; };
 
+  // --- Send feedback ---
   const sendFeedback = async () => {
     const text = wrapper.querySelector('#vv-textarea').value.trim();
     const email = wrapper.querySelector('#vv-sender').value.trim();
@@ -248,12 +452,13 @@
       });
       const data = await res.json();
       if (data.success && data.feedback_id) {
-        // Staging and Live modes both use chat features now
-        activeFeedbackId = data.feedback_id;
-        sessionToken = data.token;
-        localStorage.setItem(storageKey, activeFeedbackId);
-        localStorage.setItem(tokenKey, sessionToken);
-        wrapper.querySelector('.nav').style.display = 'flex';
+        // Remember email
+        clientEmail = email;
+        localStorage.setItem(emailKey, email);
+
+        // Pre-fill the sender field for next time
+        wrapper.querySelector('#vv-sender').value = email;
+
         switchView('success');
       } else {
         alert(data.error || 'Error sending feedback.');
@@ -261,22 +466,22 @@
     } catch (e) { alert('Network error.'); } finally { btn.disabled = false; }
   };
 
+  // --- Send reply ---
   const sendReply = async () => {
-    const text = wrapper.querySelector('#vv-reply-text').value.trim();
-    if (!text || !activeFeedbackId || !sessionToken) return;
+    const textEl = wrapper.querySelector('#vv-reply-text');
+    if (!textEl) return;
+    const text = textEl.value.trim();
+    if (!text || !selectedFeedbackId || !clientEmail) return;
     const btn = wrapper.querySelector('#vv-send-reply');
     btn.disabled = true;
     try {
       const res = await fetch(API_REPLY, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
-        body: JSON.stringify({ feedbackId: activeFeedbackId, content: text })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedbackId: selectedFeedbackId, content: text, apiKey, senderEmail: clientEmail })
       });
       if (res.ok) {
-        wrapper.querySelector('#vv-reply-text').value = '';
+        textEl.value = '';
         fetchReplies();
       } else {
         const err = await res.json();
@@ -289,6 +494,14 @@
     }
   };
 
+  // --- Utility ---
+  const escapeHtml = (str) => {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  };
+
+  // --- Event bindings ---
   const triggerBtn = wrapper.querySelector('.trigger-btn');
 
   triggerBtn.onclick = () => {
@@ -296,16 +509,23 @@
     wrapper.querySelector('.popup').classList.toggle('open', isOpen);
     if (isOpen) {
       wrapper.querySelector('.badge').style.display = 'none';
-      if (activeFeedbackId) wrapper.querySelector('.nav').style.display = 'flex';
+      // Pre-fill email if stored
+      if (clientEmail) {
+        const senderInput = wrapper.querySelector('#vv-sender');
+        if (senderInput && !senderInput.value) senderInput.value = clientEmail;
+      }
     } else {
       stopPolling();
     }
   };
   wrapper.querySelector('.close-btn').onclick = () => triggerBtn.onclick();
   wrapper.querySelector('#vv-submit').onclick = sendFeedback;
-  wrapper.querySelector('#vv-send-reply').onclick = sendReply;
-  wrapper.querySelector('#vv-reply-text').onkeydown = (e) => {
-    if (e.key === 'Enter') sendReply();
-  };
-  wrapper.querySelectorAll('.nav-item').forEach(i => i.onclick = () => switchView(i.dataset.view));
+  wrapper.querySelector('#vv-back-btn').onclick = goBackToList;
+  wrapper.querySelectorAll('.nav-item').forEach(i => i.onclick = () => {
+    if (i.dataset.view === 'feedbacks' && selectedFeedbackId) {
+      // If user is in detail view and clicks "Feedbacks" tab, go back to list
+      goBackToList();
+    }
+    switchView(i.dataset.view);
+  });
 })();

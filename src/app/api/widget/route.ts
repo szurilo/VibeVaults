@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { sendFeedbackNotification, sendLiveFeedbackNotification } from "@/lib/notifications";
-import { SignJWT } from "jose";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -88,12 +87,5 @@ export async function POST(request: Request) {
         }).catch(err => console.error("Error sending notification:", err));
     }
 
-    const secretKey = new TextEncoder().encode(process.env.SUPABASE_SECRET_KEY || 'default-secret');
-    const token = await new SignJWT({ feedbackId: inserted.id, email: sender, projectId: project.id })
-        .setProtectedHeader({ alg: 'HS256' })
-        .setIssuedAt()
-        .setExpirationTime('30d')
-        .sign(secretKey);
-
-    return NextResponse.json({ success: true, feedback_id: inserted.id, token, mode: 'staging' }, { headers: corsHeaders });
+    return NextResponse.json({ success: true, feedback_id: inserted.id }, { headers: corsHeaders });
 }
