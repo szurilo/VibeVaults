@@ -13,6 +13,7 @@
   const API_BASE = `${origin}/api/widget`;
   const API_REPLY = `${origin}/api/widget/reply`;
   const API_FEEDBACKS = `${origin}/api/widget/feedbacks`;
+  const API_STREAM = `${origin}/api/widget/stream`;
 
   const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
@@ -36,6 +37,8 @@
   let selectedFeedbackId = null;
   let cachedFeedbacks = [];
   let pollInterval = null;
+  let eventSource = null;
+  let sseSupported = typeof EventSource !== 'undefined';
 
   // --- Metadata & Logs Collection ---
   const logs = [];
@@ -258,7 +261,7 @@
     wrapper.querySelector('.view-detail').style.display = v === 'detail' ? 'flex' : 'none';
     wrapper.querySelector('#vv-success').style.display = v === 'success' ? 'block' : 'none';
     if (v === 'feedbacks') { fetchAllFeedbacks(); }
-    if (v === 'detail') { startPolling(); } else { stopPolling(); }
+    if (v === 'detail') { startStream(); } else { stopAll(); }
   };
 
   // --- Feedbacks list ---
@@ -346,7 +349,7 @@
     // Highlight feedbacks tab in nav
     wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === 'feedbacks'));
     fetchReplies();
-    startPolling();
+    startStream();
   };
 
   const renderReplySection = () => {
@@ -388,13 +391,50 @@
 
   const goBackToList = () => {
     selectedFeedbackId = null;
-    stopPolling();
+    stopAll();
     wrapper.querySelector('.view-detail').style.display = 'none';
     wrapper.querySelector('.view-feedbacks').style.display = 'flex';
     fetchAllFeedbacks(); // Refresh list
   };
 
   // --- Replies ---
+  const renderReplyBubble = (r) => `
+    <div class="msg-wrapper ${r.author_role}">
+      <div class="msg-meta ${r.author_role}">
+        <span style="font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:-0.5px;">${r.author_role === 'agency' ? 'Support' : escapeHtml(r.author_name || 'Client')}</span>
+        <span style="color:#d1d5db;">•</span>
+        <span>${new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
+      <div class="message ${r.author_role}">
+        ${escapeHtml(r.content)}
+      </div>
+    </div>
+  `;
+
+  const appendReply = (reply) => {
+    const chatEl = wrapper.querySelector('#vv-chat');
+    if (!chatEl) return;
+
+    // Check if user is near the bottom before appending
+    const wasAtBottom = chatEl.scrollHeight - chatEl.scrollTop - chatEl.clientHeight < 60;
+
+    // Remove the "no replies" placeholder if present
+    const noReplies = chatEl.querySelector('.chat-no-replies');
+    if (noReplies) noReplies.remove();
+
+    // Avoid duplicates (same reply ID)
+    if (reply.id && chatEl.querySelector(`[data-reply-id="${reply.id}"]`)) return;
+
+    const div = document.createElement('div');
+    div.setAttribute('data-reply-id', reply.id || '');
+    div.innerHTML = renderReplyBubble(reply);
+    chatEl.appendChild(div.firstElementChild);
+
+    if (wasAtBottom) {
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+  };
+
   const fetchReplies = async () => {
     if (!selectedFeedbackId) return;
     try {
@@ -402,18 +442,9 @@
       const data = await res.json();
       const chatEl = wrapper.querySelector('#vv-chat');
       if (data.replies && data.replies.length > 0) {
-        chatEl.innerHTML = data.replies.map(r => `
-          <div class="msg-wrapper ${r.author_role}">
-            <div class="msg-meta ${r.author_role}">
-              <span style="font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:-0.5px;">${r.author_role === 'agency' ? 'Support' : escapeHtml(r.author_name || 'Client')}</span>
-              <span style="color:#d1d5db;">•</span>
-              <span>${new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-            <div class="message ${r.author_role}">
-              ${escapeHtml(r.content)}
-            </div>
-          </div>
-        `).join('');
+        chatEl.innerHTML = data.replies.map(r =>
+          `<div data-reply-id="${r.id || ''}">${renderReplyBubble(r)}</div>`
+        ).join('');
         chatEl.scrollTop = chatEl.scrollHeight;
       } else {
         chatEl.innerHTML = '<div class="chat-no-replies">No replies yet. Start the conversation!</div>';
@@ -421,8 +452,50 @@
     } catch (e) { }
   };
 
+  // --- SSE Realtime (primary) with polling fallback ---
+  const startStream = () => {
+    stopStream();
+    if (!selectedFeedbackId) return;
+
+    if (sseSupported) {
+      const url = `${API_STREAM}?feedbackId=${selectedFeedbackId}&key=${apiKey}`;
+      eventSource = new EventSource(url);
+
+      eventSource.addEventListener('new_reply', (e) => {
+        try {
+          const reply = JSON.parse(e.data);
+          appendReply(reply);
+        } catch (err) { }
+      });
+
+      eventSource.addEventListener('connected', () => {
+        // SSE connected — stop any polling fallback
+        stopPolling();
+      });
+
+      eventSource.onerror = () => {
+        // SSE failed — fall back to polling
+        stopStream();
+        sseSupported = false;
+        startPolling();
+      };
+    } else {
+      // SSE not available — use polling
+      startPolling();
+    }
+  };
+
+  const stopStream = () => {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+  };
+
   const startPolling = () => { stopPolling(); pollInterval = setInterval(fetchReplies, 5000); };
   const stopPolling = () => { if (pollInterval) clearInterval(pollInterval); pollInterval = null; };
+
+  const stopAll = () => { stopStream(); stopPolling(); };
 
   // --- Send feedback ---
   const sendFeedback = async () => {
@@ -515,7 +588,7 @@
         if (senderInput && !senderInput.value) senderInput.value = clientEmail;
       }
     } else {
-      stopPolling();
+      stopAll();
     }
   };
   wrapper.querySelector('.close-btn').onclick = () => triggerBtn.onclick();

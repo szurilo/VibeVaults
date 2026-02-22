@@ -87,7 +87,34 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
 
     useEffect(() => {
         fetchReplies()
-    }, [fetchReplies])
+
+        // Subscribe to Realtime for new replies on this feedback
+        const channel = supabase
+            .channel(`replies-${feedback.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'feedback_replies',
+                    filter: `feedback_id=eq.${feedback.id}`,
+                },
+                (payload) => {
+                    const newReply = payload.new as any
+                    setReplies((prev) => {
+                        // Avoid duplicates
+                        if (prev.some((r) => r.id === newReply.id)) return prev
+                        return [...prev, newReply]
+                    })
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [feedback.id])
 
     const handleSendReply = async () => {
         if (!newReply.trim()) return
