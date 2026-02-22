@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -17,7 +17,7 @@ import {
 
 type ConfirmState = 'verifying' | 'success' | 'error'
 
-export default function ConfirmPage() {
+function ConfirmContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const [state, setState] = useState<ConfirmState>('verifying')
@@ -146,5 +146,33 @@ export default function ConfirmPage() {
                 </Card>
             )}
         </div>
+    )
+}
+
+export default function ConfirmPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+                    <Card className="w-full max-w-md text-center shadow-lg">
+                        <CardHeader className="space-y-4">
+                            <div className="flex justify-center">
+                                <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                            </div>
+                            <div className="space-y-2">
+                                <CardTitle className="text-2xl font-extrabold tracking-tight">
+                                    Verifying your link
+                                </CardTitle>
+                                <CardDescription className="text-base">
+                                    Please wait while we confirm your identity...
+                                </CardDescription>
+                            </div>
+                        </CardHeader>
+                    </Card>
+                </div>
+            }
+        >
+            <ConfirmContent />
+        </Suspense>
     )
 }
