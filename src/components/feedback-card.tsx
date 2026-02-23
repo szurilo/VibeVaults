@@ -199,7 +199,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                             <span className="text-sm font-semibold text-gray-900 truncate" title={feedback.sender}>
                                 {feedback.sender}
                             </span>
-                            <span className="text-gray-400 font-normal text-xs truncate">
+                            <span className="text-gray-400 font-normal text-xs truncate" suppressHydrationWarning>
                                 {new Date(feedback.created_at).toLocaleString(undefined, {
                                     month: 'short',
                                     day: 'numeric',
@@ -443,7 +443,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                             {reply.author_role === 'agency' ? 'Support' : feedback.sender}
                                                         </span>
                                                         <span className="text-[10px] text-gray-300">•</span>
-                                                        <span className="text-[10px] text-gray-400">
+                                                        <span className="text-[10px] text-gray-400" suppressHydrationWarning>
                                                             {new Date(reply.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                     </div>
