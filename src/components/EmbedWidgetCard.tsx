@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 export function EmbedWidgetCard({ project }: { project: any }) {
     const [copied, setCopied] = useState(false)
-    const scriptTag = `<script src="https://www.vibe-vaults.com/widget.js" data-key="${project.api_key}" defer></script>`
+    const scriptTag = `<script src="https://www.vibe-vaults.com/widget.js" data-key="${project.api_key}" async></script>`
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(scriptTag)

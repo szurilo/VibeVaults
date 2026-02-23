@@ -43,6 +43,11 @@
   // --- Metadata & Logs Collection ---
   const logs = [];
   const MAX_LOGS = 50;
+  const originalConsole = {
+    log: console.log,
+    warn: console.warn,
+    error: console.error
+  };
 
   const captureLog = (type, args) => {
     try {
@@ -75,13 +80,10 @@
     } catch (e) { }
   };
 
-  const origLog = console.log;
-  const origWarn = console.warn;
-  const origError = console.error;
+  console.log = (...args) => { captureLog('log', args); originalConsole.log.apply(console, args); };
+  console.warn = (...args) => { captureLog('warn', args); originalConsole.warn.apply(console, args); };
+  console.error = (...args) => { captureLog('error', args); originalConsole.error.apply(console, args); };
 
-  console.log = (...args) => { captureLog('log', args); origLog.apply(console, args); };
-  console.warn = (...args) => { captureLog('warn', args); origWarn.apply(console, args); };
-  console.error = (...args) => { captureLog('error', args); origError.apply(console, args); };
   const getMetadata = () => ({
     url: window.location.href,
     userAgent: navigator.userAgent,
