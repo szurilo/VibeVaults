@@ -53,14 +53,19 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Please provide a valid email address so we can reply to you." }, { status: 400, headers: corsHeaders });
     }
 
-    // ALWAYS save to database to enable Chat Functionality
-    const { data: inserted, error: insertError } = await supabase.from('feedbacks').insert({
+    // Generate the ID upfront so we don't need .select() after insert.
+    // Using .select('id').single() would require the RETURNING row to pass
+    // the SELECT RLS policy, which fails for anonymous widget users.
+    const feedbackId = crypto.randomUUID();
+
+    const { error: insertError } = await supabase.from('feedbacks').insert({
+        id: feedbackId,
         content,
         type: type || 'Feature',
         sender,
         project_id: project.id,
         metadata: metadata || {}
-    }).select('id').single();
+    });
 
     if (insertError) {
         return NextResponse.json({ error: insertError.message }, { status: 500, headers: corsHeaders });
@@ -87,5 +92,5 @@ export async function POST(request: Request) {
         }).catch(err => console.error("Error sending notification:", err));
     }
 
-    return NextResponse.json({ success: true, feedback_id: inserted.id }, { headers: corsHeaders });
+    return NextResponse.json({ success: true, feedback_id: feedbackId }, { headers: corsHeaders });
 }

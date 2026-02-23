@@ -44,11 +44,10 @@
   const logs = [];
   const MAX_LOGS = 50;
 
-  // Store the truly native console methods once, before anything can override them
-  const nativeConsole = {
-    log: console.log.bind(console),
-    warn: console.warn.bind(console),
-    error: console.error.bind(console)
+  const originalConsole = {
+    log: console.log,
+    warn: console.warn,
+    error: console.error
   };
 
   const captureLog = (type, args) => {
@@ -82,32 +81,9 @@
     } catch (e) { }
   };
 
-  // Tag our wrapper functions so we can detect if they get replaced
-  const VV_TAG = '__vv_capture__';
-
-  const applyConsoleOverrides = () => {
-    const wrapLog = (...args) => { captureLog('log', args); nativeConsole.log(...args); };
-    const wrapWarn = (...args) => { captureLog('warn', args); nativeConsole.warn(...args); };
-    const wrapError = (...args) => { captureLog('error', args); nativeConsole.error(...args); };
-    wrapLog[VV_TAG] = true;
-    wrapWarn[VV_TAG] = true;
-    wrapError[VV_TAG] = true;
-    console.log = wrapLog;
-    console.warn = wrapWarn;
-    console.error = wrapError;
-  };
-
-  // Apply immediately
-  applyConsoleOverrides();
-
-  // Self-healing: re-apply if another script (e.g. Next.js hydration) replaces console methods.
-  // Checks every 500ms for 15 seconds after load, then stops.
-  const overrideWatchdog = setInterval(() => {
-    if (!console.log[VV_TAG] || !console.warn[VV_TAG] || !console.error[VV_TAG]) {
-      applyConsoleOverrides();
-    }
-  }, 500);
-  setTimeout(() => clearInterval(overrideWatchdog), 15000);
+  console.log = (...args) => { captureLog('log', args); originalConsole.log.apply(console, args); };
+  console.warn = (...args) => { captureLog('warn', args); originalConsole.warn.apply(console, args); };
+  console.error = (...args) => { captureLog('error', args); originalConsole.error.apply(console, args); };
 
   const getMetadata = () => ({
     url: window.location.href,
