@@ -1,3 +1,4 @@
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -29,9 +30,10 @@ export async function GET(request: Request) {
     }
 
     const project = projects[0];
+    const adminSupabase = createAdminClient();
 
     // Fetch all feedbacks for the project with reply counts
-    const { data: feedbacks, error: feedbackError } = await supabase
+    const { data: feedbacks, error: feedbackError } = await adminSupabase
         .from('feedbacks')
         .select(`
             id,
