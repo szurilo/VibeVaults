@@ -12,7 +12,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { FeedbackStatusSelect } from "./feedback-status-select"
 import { cn } from "@/lib/utils"
-import { Calendar, Trash2, Globe, Monitor, Terminal, Info, ChevronRight, Activity, Cpu } from "lucide-react"
+import { Calendar, Trash2, Globe, Monitor, Terminal, Info, ChevronRight, Activity, Cpu, MousePointer2 } from "lucide-react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -50,6 +50,8 @@ interface FeedbackMetadata {
     viewport?: string
     language?: string
     logs?: Array<{ type: string; time: string; content: string }>
+    screenshot?: string
+    dom_selector?: string
 }
 
 interface FeedbackCardProps {
@@ -278,10 +280,34 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
             </CardHeader>
 
             <CardContent className="px-5 flex-1 flex flex-col">
-                <div className="flex-1">
-                    <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                <div className="flex-1 min-w-0">
+                    <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap font-medium break-all">
                         {feedback.content}
                     </p>
+                    {feedback.metadata?.screenshot && (
+                        <div className="mt-4 pb-2">
+                            <Sheet>
+                                <SheetTrigger asChild>
+                                    <div className="relative rounded-lg overflow-hidden border border-gray-200 cursor-pointer group w-[240px] max-w-full shadow-sm">
+                                        <img src={feedback.metadata.screenshot} alt="Screenshot" className="w-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                            <div className="bg-white/95 shadow-md text-gray-800 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 duration-200">
+                                                View Attachment
+                                            </div>
+                                        </div>
+                                    </div>
+                                </SheetTrigger>
+                                <SheetContent side="right" className="sm:max-w-5xl w-[90vw] p-0 flex flex-col bg-slate-950 border-slate-800">
+                                    <div className="p-5 border-b border-white/10 flex items-center justify-between">
+                                        <SheetTitle className="text-white font-medium text-sm flex items-center gap-2 m-0"><MousePointer2 className="w-4 h-4 text-slate-400" /> Screenshot Attachment</SheetTitle>
+                                    </div>
+                                    <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-black/50 custom-scrollbar">
+                                        <img src={feedback.metadata.screenshot} alt="Screenshot Full" className="max-w-full object-contain drop-shadow-2xl border border-white/10 rounded-lg" />
+                                    </div>
+                                </SheetContent>
+                            </Sheet>
+                        </div>
+                    )}
                 </div>
 
                 {mode === 'edit' && feedback.metadata && (
@@ -328,6 +354,20 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                     </span>
                                 </div>
                             </div>
+
+                            {feedback.metadata.dom_selector && (
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                                        <MousePointer2 className="w-3.5 h-3.5 text-gray-400" />
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Target Element</span>
+                                        <span className="text-[11px] text-gray-600 font-medium truncate" title={feedback.metadata.dom_selector}>
+                                            {feedback.metadata.dom_selector}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
 
                             {feedback.metadata.logs && feedback.metadata.logs.length > 0 && (
                                 <Sheet>

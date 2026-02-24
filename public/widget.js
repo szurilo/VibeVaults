@@ -39,6 +39,7 @@
   let pollInterval = null;
   let eventSource = null;
   let sseSupported = typeof EventSource !== 'undefined';
+  let domSelector = null;
 
   // --- Metadata & Logs Collection ---
   const logs = [];
@@ -220,6 +221,14 @@
       </div>
       <div class="content">
         <div class="view-form">
+          <button type="button" class="btn btn-sm" id="vv-capture-btn" style="background:#f3f4f6; color:#1f2937; margin-bottom: 12px; border: 1px solid #d1d5db; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            Attach Screenshot
+          </button>
+          <div id="vv-screenshot-preview-container" style="display:none; margin-bottom: 12px; position: relative;">
+            <img id="vv-screenshot-preview" style="width: 100%; border-radius: 8px; border: 1px solid #e5e7eb;" />
+            <button type="button" id="vv-remove-screenshot" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px;">✕</button>
+          </div>
           <textarea id="vv-textarea" placeholder="Describe your issue..."></textarea>
           <div id="vv-text-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -12px; margin-bottom: 4px; padding-left: 4px;">Please describe your issue.</div>
           <input type="email" id="vv-sender" class="sender-input" placeholder="Your Email (required)">
@@ -518,10 +527,17 @@
     const btn = wrapper.querySelector('#vv-submit');
     btn.disabled = true;
     try {
+      const metadata = getMetadata();
+      const previewImg = wrapper.querySelector('#vv-screenshot-preview');
+      if (previewImg && previewImg.src && !previewImg.src.endsWith('undefined')) {
+        metadata.screenshot = previewImg.src;
+        metadata.dom_selector = domSelector;
+      }
+
       const res = await fetch(API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, content: text, sender: email, metadata: getMetadata() })
+        body: JSON.stringify({ apiKey, content: text, sender: email, metadata })
       });
       const data = await res.json();
       if (data.success && data.feedback_id) {
@@ -537,6 +553,128 @@
         alert(data.error || 'Error sending feedback.');
       }
     } catch (e) { alert('Network error.'); } finally { btn.disabled = false; }
+  };
+
+  // --- Inspector Mode ---
+  const captureScreenshotAndElement = () => {
+    wrapper.querySelector('.popup').classList.remove('open');
+    wrapper.querySelector('.badge').style.display = 'block';
+
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.zIndex = '999998';
+    overlay.style.cursor = 'crosshair';
+
+    const highlightBox = document.createElement('div');
+    highlightBox.style.position = 'absolute';
+    highlightBox.style.border = '2px solid #209CEE';
+    highlightBox.style.background = 'rgba(32, 156, 238, 0.1)';
+    highlightBox.style.pointerEvents = 'none';
+    highlightBox.style.transition = 'all 0.1s ease-out';
+    highlightBox.style.zIndex = '999999';
+    overlay.appendChild(highlightBox);
+    document.body.appendChild(overlay);
+
+    const banner = document.createElement('div');
+    banner.innerHTML = `
+      <div style="background: #1f2937; color: white; padding: 12px 20px; font-family: sans-serif; font-size: 14px; font-weight: 500; border-radius: 8px; display: flex; align-items: center; gap: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
+        <span>Hover over an element and click to capture</span>
+        <button id="vv-cancel-capture" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">Cancel</button>
+      </div>
+    `;
+    banner.style.position = 'fixed';
+    banner.style.top = '20px';
+    banner.style.left = '50%';
+    banner.style.transform = 'translateX(-50%)';
+    banner.style.zIndex = '999999';
+    document.body.appendChild(banner);
+
+    let currentTarget = null;
+
+    const handleMouseMove = (e) => {
+      overlay.style.pointerEvents = 'none';
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      overlay.style.pointerEvents = 'auto';
+
+      if (!target || target === document.body || target === document.documentElement) return;
+      if (target.closest('#vibe-vaults-widget-host') || target.closest('[id^="vv-"]')) return;
+
+      currentTarget = target;
+      const rect = target.getBoundingClientRect();
+      highlightBox.style.top = (rect.top + window.scrollY) + 'px';
+      highlightBox.style.left = (rect.left + window.scrollX) + 'px';
+      highlightBox.style.width = rect.width + 'px';
+      highlightBox.style.height = rect.height + 'px';
+    };
+
+    const cleanup = () => {
+      overlay.remove();
+      banner.remove();
+      wrapper.querySelector('.popup').classList.add('open');
+      wrapper.querySelector('.badge').style.display = 'none';
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') cleanup();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    overlay.addEventListener('mousemove', handleMouseMove);
+    overlay.addEventListener('click', async (e) => {
+      e.preventDefault(); e.stopPropagation();
+      banner.remove();
+      overlay.removeEventListener('mousemove', handleMouseMove);
+
+      if (currentTarget) {
+        if (currentTarget.id) domSelector = '#' + currentTarget.id;
+        else if (currentTarget.className && typeof currentTarget.className === 'string') domSelector = '.' + currentTarget.className.split(' ').filter(Boolean).join('.');
+        else domSelector = currentTarget.tagName.toLowerCase();
+      }
+
+      const capBtn = wrapper.querySelector('#vv-capture-btn');
+      const originalText = capBtn.innerHTML;
+      capBtn.innerHTML = 'Capturing...';
+      capBtn.disabled = true;
+
+      const finishCapture = (dataUrl) => {
+        wrapper.querySelector('#vv-screenshot-preview').src = dataUrl;
+        wrapper.querySelector('#vv-screenshot-preview-container').style.display = 'block';
+        wrapper.querySelector('#vv-capture-btn').style.display = 'none';
+        cleanup();
+        capBtn.innerHTML = originalText;
+        capBtn.disabled = false;
+      };
+
+      const captureOptions = {
+        quality: 0.6,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        style: {
+          transform: `translate(${-window.scrollX}px, ${-window.scrollY}px)`,
+          overflow: 'hidden'
+        },
+        filter: (node) => {
+          // exclude the widget host from screenshot
+          return node.id !== 'vibe-vaults-widget-host';
+        }
+      };
+
+      if (!window.htmlToImage) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';
+        script.onload = () => window.htmlToImage.toJpeg(document.body, captureOptions).then(finishCapture);
+        document.head.appendChild(script);
+      } else {
+        window.htmlToImage.toJpeg(document.body, captureOptions).then(finishCapture);
+      }
+    });
+
+    banner.querySelector('#vv-cancel-capture').onclick = (e) => { e.preventDefault(); e.stopPropagation(); cleanup(); };
   };
 
   // --- Send reply ---
@@ -593,6 +731,13 @@
   };
   wrapper.querySelector('.close-btn').onclick = () => triggerBtn.onclick();
   wrapper.querySelector('#vv-submit').onclick = sendFeedback;
+  wrapper.querySelector('#vv-capture-btn').onclick = captureScreenshotAndElement;
+  wrapper.querySelector('#vv-remove-screenshot').onclick = () => {
+    wrapper.querySelector('#vv-screenshot-preview').src = '';
+    wrapper.querySelector('#vv-screenshot-preview-container').style.display = 'none';
+    wrapper.querySelector('#vv-capture-btn').style.display = 'flex';
+    domSelector = null;
+  };
   wrapper.querySelector('#vv-back-btn').onclick = goBackToList;
   wrapper.querySelectorAll('.nav-item').forEach(i => i.onclick = () => {
     if (i.dataset.view === 'feedbacks' && selectedFeedbackId) {

@@ -102,6 +102,7 @@ export default function RootLayout({
         {children}
         <Analytics />
         <SpeedInsights />
+        <script src="/widget.js" data-key="e3917e214418009aea8b7a2712cb0059" async></script>
       </body>
     </html>
   );
