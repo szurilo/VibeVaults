@@ -66,12 +66,12 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
 
     // Send notification to client if they provided an email
     if (feedback.sender && feedback.sender.includes('@')) {
-        sendReplyNotification({
+        await sendReplyNotification({
             to: feedback.sender,
             projectName: project.name,
             replyContent: content,
             originalFeedback: feedback.content
-        }).catch(err => console.error("Error sending client notification:", err));
+        });
     }
 
     revalidatePath('/dashboard/feedback');

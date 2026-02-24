@@ -15,9 +15,17 @@ export async function sendFeedbackNotification({
     sender,
     metadata
 }: SendFeedbackEmailParams) {
-    const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+    // We strictly use metadata.url's origin if available to ensure we link to the correct domain (staging/live).
+    // Otherwise, we fallback to the main production URL. We avoid process.env.VERCEL_URL as it points to the preview deployment.
+    let baseUrl = 'https://vibe-vaults.com';
+
+    if (metadata?.url) {
+        try {
+            baseUrl = new URL(metadata.url).origin;
+        } catch (e) {
+            console.error('Failed to parse metadata.url:', metadata.url);
+        }
+    }
 
     try {
         const { data, error } = await resend.emails.send({

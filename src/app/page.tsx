@@ -62,7 +62,7 @@ export default function Home() {
               The feedback tool for <span className="text-primary font-black italic">modern agencies.</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-500 max-w-3xl mb-12 leading-relaxed mx-auto">
-              Stop the endless email chains. Collect visual feedback, share progress with clients, and ship faster with VibeVaults.
+              Stop the endless email chains. Collect visual feedback, chat in real-time with clients, and ship faster with VibeVaults.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20">
               <Link href="/auth/register" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 bg-secondary text-white hover:bg-secondary/90 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
@@ -82,7 +82,7 @@ export default function Home() {
             <p className="text-xl text-gray-500 max-w-2xl mx-auto mb-16">
               VibeVaults is designed specifically for freelancers and agencies who need to manage client feedback without the overhead.
             </p>
-            <div className="grid md:grid-cols-3 gap-12 max-w-6xl mx-auto text-left">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto text-left">
               <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
                 <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 text-primary">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
@@ -90,6 +90,23 @@ export default function Home() {
                 <h3 className="text-xl font-bold mb-4">One-Click Install</h3>
                 <p className="text-gray-500 flex-1">Drop a single script tag into any site—WordPress, Webflow, or custom React—and start collecting feedback in seconds.</p>
               </div>
+
+              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
+                <div className="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center mb-6 text-green-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" /></svg>
+                </div>
+                <h3 className="text-xl font-bold mb-4">Real-Time Discussions</h3>
+                <p className="text-gray-500 flex-1">Chat with clients contextually. Replies and updates sync instantly without reloading, keeping the conversation flowing seamlessly.</p>
+              </div>
+
+              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
+                <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center mb-6 text-purple-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                </div>
+                <h3 className="text-xl font-bold mb-4">Interactive Feedbacks Tab</h3>
+                <p className="text-gray-500 flex-1">Clients can view all project feedback and participate directly from the widget. Prevent duplicate reports and keep everyone on the same page.</p>
+              </div>
+
               <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
                 <div className="w-12 h-12 bg-secondary/10 rounded-2xl flex items-center justify-center mb-6 text-secondary">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
@@ -97,6 +114,15 @@ export default function Home() {
                 <h3 className="text-xl font-bold mb-4">Client Share Links</h3>
                 <p className="text-gray-500 flex-1">Send a private URL to your clients. They can see all feedback and track the status of revisions without needing an account.</p>
               </div>
+
+              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
+                <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center mb-6 text-orange-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                </div>
+                <h3 className="text-xl font-bold mb-4">Staging & Live Modes</h3>
+                <p className="text-gray-500 flex-1">Adapt the widget to your environment. Require detailed context during staging, and offer a frictionless experience when your project goes live.</p>
+              </div>
+
               <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
                 <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 text-blue-600">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>

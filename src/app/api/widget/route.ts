@@ -74,22 +74,22 @@ export async function POST(request: Request) {
     // Route notifications based on Widget Mode
     if (project.mode === 'live' && project.support_email) {
         // Live Mode: Notify the configured support email
-        sendLiveFeedbackNotification({
+        await sendLiveFeedbackNotification({
             to: project.support_email,
             projectName: project.name,
             content,
             sender,
             metadata: metadata || {}
-        }).catch(err => console.error("Error sending live feedback email:", err));
+        });
     } else if (project.owner_email) {
         // Staging Mode (Default): Notify the agency owner
-        sendFeedbackNotification({
+        await sendFeedbackNotification({
             to: project.owner_email,
             projectName: project.name,
             content,
             sender,
             metadata
-        }).catch(err => console.error("Error sending notification:", err));
+        });
     }
 
     return NextResponse.json({ success: true, feedback_id: feedbackId }, { headers: corsHeaders });

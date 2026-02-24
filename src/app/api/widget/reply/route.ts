@@ -86,42 +86,40 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: replyError.message }, { status: 500, headers: corsHeaders });
     }
 
-    // 3. Notify agency owner (background)
-    (async () => {
-        try {
-            const { data: projectData } = await adminSupabase
-                .from('projects')
-                .select('name, user_id, mode, support_email')
-                .eq('id', feedback.project_id)
-                .single();
+    // 3. Notify agency owner
+    try {
+        const { data: projectData } = await adminSupabase
+            .from('projects')
+            .select('name, user_id, mode, support_email')
+            .eq('id', feedback.project_id)
+            .single();
 
-            if (projectData) {
-                let targetEmail = null;
+        if (projectData) {
+            let targetEmail = null;
 
-                if (projectData.mode === 'live' && projectData.support_email) {
-                    targetEmail = projectData.support_email;
-                } else {
-                    const { data: profileData } = await adminSupabase
-                        .from('profiles')
-                        .select('email')
-                        .eq('id', projectData.user_id)
-                        .single();
-                    targetEmail = profileData?.email;
-                }
-
-                if (targetEmail) {
-                    await sendAgencyReplyNotification({
-                        to: targetEmail,
-                        projectName: projectData.name,
-                        replyContent: content,
-                        senderName: senderEmail
-                    });
-                }
+            if (projectData.mode === 'live' && projectData.support_email) {
+                targetEmail = projectData.support_email;
+            } else {
+                const { data: profileData } = await adminSupabase
+                    .from('profiles')
+                    .select('email')
+                    .eq('id', projectData.user_id)
+                    .single();
+                targetEmail = profileData?.email;
             }
-        } catch (e) {
-            console.error("VibeVaults: Async notification error", e);
+
+            if (targetEmail) {
+                await sendAgencyReplyNotification({
+                    to: targetEmail,
+                    projectName: projectData.name,
+                    replyContent: content,
+                    senderName: senderEmail
+                });
+            }
         }
-    })();
+    } catch (e) {
+        console.error("VibeVaults: Email notification error", e);
+    }
 
     return NextResponse.json({ success: true }, { headers: corsHeaders });
 }
