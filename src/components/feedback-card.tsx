@@ -1,3 +1,12 @@
+/**
+ * Main Responsibility: Displays and manages individual feedback cards, including status updates, 
+ * feedback deletion, metadata visualization (logs, system info), and real-time reply threads.
+ * 
+ * Sensitive Dependencies: 
+ * - Supabase Client (@/lib/supabase/client) for real-time subscriptions and CRUD operations.
+ * - Server Actions (@/actions/feedback) for sending agency replies.
+ * - Next.js Router for UI synchronization.
+ */
 'use client';
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
