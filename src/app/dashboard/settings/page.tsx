@@ -2,10 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { DeleteAccountCard } from "@/components/DeleteAccountCard";
 import { EditProjectCard } from "@/components/EditProjectCard";
-import { ProjectModeCard } from "@/components/ProjectModeCard";
+
 import { ShareProjectCard } from "@/components/ShareProjectCard";
 import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
-import { ProjectModeBadge } from "@/components/ProjectModeBadge";
+
 
 export default async function SettingsPage() {
     const supabase = await createClient();
@@ -28,7 +28,6 @@ export default async function SettingsPage() {
                     Settings {currentProject && (
                         <>
                             <span className="text-gray-400 font-normal">/ {currentProject.name}</span>
-                            <ProjectModeBadge mode={currentProject.mode} className="text-[10px] px-2 py-0.5 translate-y-0.5" />
                         </>
                     )}
                 </h1>
@@ -39,7 +38,6 @@ export default async function SettingsPage() {
                     {currentProject && (
                         <>
                             <EditProjectCard project={currentProject} />
-                            <ProjectModeCard project={currentProject} />
                             <EmbedWidgetCard project={currentProject} />
                             <ShareProjectCard project={currentProject} />
                         </>

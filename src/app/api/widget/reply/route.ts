@@ -90,23 +90,19 @@ export async function POST(request: Request) {
     try {
         const { data: projectData } = await adminSupabase
             .from('projects')
-            .select('name, user_id, mode, support_email')
+            .select('name, user_id')
             .eq('id', feedback.project_id)
             .single();
 
         if (projectData) {
             let targetEmail = null;
 
-            if (projectData.mode === 'live' && projectData.support_email) {
-                targetEmail = projectData.support_email;
-            } else {
-                const { data: profileData } = await adminSupabase
-                    .from('profiles')
-                    .select('email')
-                    .eq('id', projectData.user_id)
-                    .single();
-                targetEmail = profileData?.email;
-            }
+            const { data: profileData } = await adminSupabase
+                .from('profiles')
+                .select('email')
+                .eq('id', projectData.user_id)
+                .single();
+            targetEmail = profileData?.email;
 
             if (targetEmail) {
                 await sendAgencyReplyNotification({

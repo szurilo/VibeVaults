@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { sendFeedbackNotification, sendLiveFeedbackNotification } from "@/lib/notifications";
+import { sendFeedbackNotification } from "@/lib/notifications";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     const project = projects[0];
 
-    return NextResponse.json({ project: { name: project.name, mode: project.mode } }, { headers: corsHeaders });
+    return NextResponse.json({ project: { name: project.name } }, { headers: corsHeaders });
 }
 
 export async function POST(request: Request) {
@@ -71,18 +71,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: insertError.message }, { status: 500, headers: corsHeaders });
     }
 
-    // Route notifications based on Widget Mode
-    if (project.mode === 'live' && project.support_email) {
-        // Live Mode: Notify the configured support email
-        await sendLiveFeedbackNotification({
-            to: project.support_email,
-            projectName: project.name,
-            content,
-            sender,
-            metadata: metadata || {}
-        });
-    } else if (project.owner_email) {
-        // Staging Mode (Default): Notify the agency owner
+    // Notify the agency owner
+    if (project.owner_email) {
         await sendFeedbackNotification({
             to: project.owner_email,
             projectName: project.name,

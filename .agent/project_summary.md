@@ -2,7 +2,7 @@
 
 ## 1. Project Overview & State
 **VibeVaults** is a B2B SaaS application providing an embeddable feedback widget (`public/widget.js`) for clients to seamlessly collect user feedback and engage in real-time chat directly from their websites. 
-**Current State**: In active development (mostly functional) currently focusing on handling widget environments (Staging vs. Live), tightening bot prevention mechanisms, stabilizing real-time chat loops, and continuous UI/UX dashboard refinement.
+**Current State**: In active development (mostly functional) currently focusing on tightening bot prevention mechanisms, stabilizing real-time chat loops, and continuous UI/UX dashboard refinement.
 
 ## 2. Architecture & Tech Stack
 - **Frontend**: Next.js 16.1.4 (App Router) combined with React 19.
@@ -21,7 +21,6 @@
 - **Information Retrieval**: Always proactively leverage Context7 MCP to double-check API documentation, setup flows, or code configurations immediately—no user prompting sequence needed.
 
 ## 4. Current Direction & Recent Epics
-- **Widget Environment Access**: Strategizing and building solutions to restrict widget viewability when switched to "Live mode," ensuring security without compromising ease of use for the client.
 - **Onboarding and Bot Filtering**: Increasing required parameters on User/Project creation and dealing comprehensively with bot signup spam loops through rigorous checking or CAPTCHA implementation.
 - **Dashboard Feedbacks Page**: Consolidating view schemas so clients can answer individual threads smoothly out from structured "Feedback Cards," maintaining real-time parity and fixing layout overlaps (z-index problems).
 - **Copywriting / Promotional Expansion**: Translating core dashboard benefits back into the `src/app/page.tsx` landing page effectively for optimal SaaS metric conversions.

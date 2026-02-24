@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { FeedbackCard } from "@/components/feedback-card";
 import { cookies } from "next/headers";
-import { ProjectModeBadge } from "@/components/ProjectModeBadge";
+
 
 export default async function FeedbackListPage() {
     const supabase = await createClient();
@@ -41,7 +41,6 @@ export default async function FeedbackListPage() {
                     Feedbacks {currentProject && (
                         <>
                             <span className="text-gray-400 font-normal">/ {currentProject.name}</span>
-                            <ProjectModeBadge mode={currentProject.mode} className="text-[10px] px-2 py-0.5 translate-y-0.5" />
                         </>
                     )}
                 </h1>
