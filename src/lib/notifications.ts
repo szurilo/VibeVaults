@@ -1,5 +1,9 @@
 import { resend } from './resend';
 
+const BASE_URL = process.env.NODE_ENV === 'development'
+    ? 'http://localhost:3000'
+    : 'https://www.vibe-vaults.com';
+
 interface SendFeedbackEmailParams {
     to: string;
     projectName: string;
@@ -15,18 +19,6 @@ export async function sendFeedbackNotification({
     sender,
     metadata
 }: SendFeedbackEmailParams) {
-    // We strictly use metadata.url's origin if available to ensure we link to the correct domain (staging/live).
-    // Otherwise, we fallback to the main production URL. We avoid process.env.VERCEL_URL as it points to the preview deployment.
-    let baseUrl = 'https://vibe-vaults.com';
-
-    if (metadata?.url) {
-        try {
-            baseUrl = new URL(metadata.url).origin;
-        } catch (e) {
-            console.error('Failed to parse metadata.url:', metadata.url);
-        }
-    }
-
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
@@ -65,7 +57,7 @@ export async function sendFeedbackNotification({
                             </table>
                         </div>
                         
-                        <a href="${baseUrl}/dashboard/feedback" 
+                        <a href="${BASE_URL}/dashboard/feedback" 
                            style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
                            View in Dashboard
                         </a>
@@ -138,7 +130,7 @@ export async function sendReplyNotification({
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
-                                Powered by <a href="https://vibe-vaults.com" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.<br>
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.<br>
                                 If you didn't leave this feedback, please ignore this email.
                             </p>
                         </div>
@@ -174,7 +166,7 @@ export async function sendAgencyReplyNotification({
                             <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${replyContent}"</p>
                         </div>
                         <div style="margin-top: 32px;">
-                            <a href="https://vibe-vaults.com/dashboard/feedback" style="display: inline-block; padding: 12px 24px; background-color: #209CEE; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Reply in Dashboard</a>
+                            <a href="${BASE_URL}/dashboard/feedback" style="display: inline-block; padding: 12px 24px; background-color: #209CEE; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Reply in Dashboard</a>
                         </div>
                     </div>
                 </div>
@@ -237,7 +229,7 @@ export async function sendLiveFeedbackNotification({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This project is currently operating in <strong>Live Mode</strong>.<br>
-                                Powered by <a href="https://vibe-vaults.com" style="color: #10b981; text-decoration: none; font-weight: 600;">VibeVaults</a>.
+                                Powered by <a href="${BASE_URL}" style="color: #10b981; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
                         </div>
                         
