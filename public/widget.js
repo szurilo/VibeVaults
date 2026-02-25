@@ -124,6 +124,7 @@
     :host {
       position: fixed; bottom: 20px; right: 20px; z-index: 999999;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1f2937;
     }
     * { box-sizing: border-box; }
     .trigger-btn {
@@ -139,18 +140,23 @@
       background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
       border: 1px solid #e5e7eb; overflow: hidden; animation: slideUp 0.3s ease-out;
     }
+    .popup ::-webkit-scrollbar { width: 6px; height: 6px; }
+    .popup ::-webkit-scrollbar-track { background: transparent; }
+    .popup ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+    .popup ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+    
     @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .popup.open { display: flex; }
     .header { padding: 16px 20px; background: #209CEE; color: white; position: relative; }
     .header h3 { margin: 0; font-size: 16px; font-weight: 700; }
     .header p { margin: 4px 0 0; font-size: 13px; opacity: 0.8; }
-    .nav { display: flex; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
-    .nav-item { flex: 1; padding: 12px; font-size: 13px; font-weight: 600; color: #6b7280; text-align: center; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
-    .nav-item.active { color: #209CEE; border-bottom-color: #209CEE; background: white; }
+    .nav { display: flex; background: #f1f5f9; padding: 4px; margin: 16px 20px 4px; border-radius: 8px; gap: 4px; flex-shrink: 0; }
+    .nav-item { flex: 1; padding: 8px 12px; font-size: 13px; font-weight: 600; color: #64748b; text-align: center; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
+    .nav-item.active { color: #0f172a; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
     .view-form { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
-    textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; }
-    .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; }
+    textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; background: white; color: #1f2937; }
+    .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
 
     /* Feedbacks list */
     .view-feedbacks { display: none; flex-direction: column; height: 100%; }
@@ -202,7 +208,7 @@
     .message.client { background: #209CEE; color: white; border-top-right-radius: 0; }
     .msg-meta { font-size: 10px; color: #9ca3af; padding: 0 4px; display: flex; gap: 8px; align-items: center; }
     .chat-input { display: flex; gap: 8px; border-top: 1px solid #f3f4f6; padding: 12px 20px; }
-    .chat-input input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; }
+    .chat-input input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
     .chat-no-replies { padding: 30px 20px; text-align: center; color: #9ca3af; font-size: 12px; }
 
     .btn { background: #209CEE; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; }
@@ -260,7 +266,7 @@
         </div>
         <div class="success-view" id="vv-success">
           <div style="width:40px;height:40px;background:#ecfdf5;color:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
-          <p style="font-weight:700;margin:0">Sent!</p><p style="font-size:14px;color:#6b7280;margin:8px 0 0">We'll chat soon.</p>
+          <p style="font-weight:700;color:#1f2937;margin:0">Sent!</p><p style="font-size:14px;color:#6b7280;margin:8px 0 0">We'll chat soon.</p>
         </div>
       </div>
       <div class="branding">Powered by <a href="https://vibe-vaults.com" target="_blank">VibeVaults</a></div>
@@ -529,6 +535,12 @@
       });
       const data = await res.json();
       if (data.success && data.feedback_id) {
+        wrapper.querySelector('#vv-textarea').value = '';
+        wrapper.querySelector('#vv-screenshot-preview').src = '';
+        wrapper.querySelector('#vv-screenshot-preview-container').style.display = 'none';
+        wrapper.querySelector('#vv-capture-btn').style.display = 'flex';
+        domSelector = null;
+
         switchView('success');
       } else {
         alert(data.error || 'Error sending feedback.');
