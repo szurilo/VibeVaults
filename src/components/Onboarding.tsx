@@ -16,12 +16,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { completeOnboardingAction } from '@/actions/onboarding';
 import Link from 'next/link';
 
-export default function Onboarding() {
+export default function Onboarding({ initialStep = 1 }: { initialStep?: number }) {
     const router = useRouter();
     const [projectName, setProjectName] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
     const [error, setError] = useState('');
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(initialStep);
     const [loading, setLoading] = useState(false);
 
     const handleCreateProject = async (e: React.FormEvent) => {
@@ -46,6 +46,7 @@ export default function Onboarding() {
             if (res.ok) {
                 const newProject = await res.json();
                 document.cookie = `selectedProjectId=${newProject.id}; path=/; max-age=31536000`;
+                router.refresh();
                 setStep(2);
             }
         } catch (error) {
@@ -153,9 +154,9 @@ export default function Onboarding() {
                                 <Share2 className="w-5 h-5 text-primary" />
                             </div>
                             <div>
-                                <h3 className="font-semibold text-foreground mb-1">Share Project</h3>
+                                <h3 className="font-semibold text-foreground mb-1">Share read-only Project Board</h3>
                                 <p className="text-sm text-muted-foreground">
-                                    Enable sharing to let others view your project's feedback live.
+                                    Enable sharing in settings to let others view your project's feedback live.
                                 </p>
                             </div>
                         </div>

@@ -65,7 +65,7 @@ export function ShareProjectCard({ project }: { project: any }) {
                     <div className="space-y-1">
                         <CardTitle className="text-blue-900 flex items-center gap-2">
                             <LinkIcon className="w-5 h-5" />
-                            Share Project
+                            Share read-only Project Board
                         </CardTitle>
                         <CardDescription className="text-blue-700/80">
                             Allow anyone with the link to view this project's feedback.
