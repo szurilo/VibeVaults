@@ -20,11 +20,13 @@ interface EditProjectCardProps {
     project: {
         id: string;
         name: string;
+        website_url?: string;
     };
 }
 
 export function EditProjectCard({ project }: EditProjectCardProps) {
     const [name, setName] = useState(project.name);
+    const [websiteUrl, setWebsiteUrl] = useState(project.website_url || '');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const router = useRouter();
@@ -33,11 +35,12 @@ export function EditProjectCard({ project }: EditProjectCardProps) {
     // Sync state with props when project changes
     useEffect(() => {
         setName(project.name);
-    }, [project.name]);
+        setWebsiteUrl(project.website_url || '');
+    }, [project.name, project.website_url]);
 
     const handleUpdateName = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name.trim() || name === project.name) return;
+        if (!name.trim() || !websiteUrl.trim() || (name === project.name && websiteUrl === (project.website_url || ''))) return;
 
         setLoading(true);
         setSuccess(false);
@@ -45,7 +48,10 @@ export function EditProjectCard({ project }: EditProjectCardProps) {
         try {
             const { error } = await supabase
                 .from('projects')
-                .update({ name: name.trim() })
+                .update({
+                    name: name.trim(),
+                    website_url: websiteUrl.trim()
+                })
                 .eq('id', project.id);
 
             if (error) throw error;
@@ -77,22 +83,35 @@ export function EditProjectCard({ project }: EditProjectCardProps) {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="space-y-2 pt-6">
-                            <Label htmlFor="projectName">Project Name</Label>
-                            <Input
-                                id="projectName"
-                                placeholder="e.g. My Awesome App"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="max-w-md focus-visible:ring-primary"
-                            />
+                        <div className="space-y-4 pt-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="projectName">Project Name</Label>
+                                <Input
+                                    id="projectName"
+                                    placeholder="e.g. My Client's App"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="max-w-md focus-visible:ring-primary"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="websiteUrl">Website URL</Label>
+                                <Input
+                                    id="websiteUrl"
+                                    type="url"
+                                    placeholder="https://client-site.com"
+                                    value={websiteUrl}
+                                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                                    className="max-w-md focus-visible:ring-primary"
+                                />
+                            </div>
                         </div>
                     </CardContent>
                 </div>
                 <div className="px-6 mt-4 sm:mt-0 sm:px-0 sm:pr-6 shrink-0">
                     <Button
                         type="submit"
-                        disabled={loading || !name.trim() || name === project.name}
+                        disabled={loading || !name.trim() || !websiteUrl.trim() || (name === project.name && websiteUrl === (project.website_url || ''))}
                         className="cursor-pointer min-w-[100px]"
                     >
                         {loading ? (

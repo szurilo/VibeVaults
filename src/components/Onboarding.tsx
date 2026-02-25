@@ -19,19 +19,28 @@ import Link from 'next/link';
 export default function Onboarding() {
     const router = useRouter();
     const [projectName, setProjectName] = useState('');
+    const [websiteUrl, setWebsiteUrl] = useState('');
+    const [error, setError] = useState('');
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
 
     const handleCreateProject = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!projectName.trim() || loading) return;
+        setError('');
+
+        if (!projectName.trim() || !websiteUrl.trim()) {
+            setError('Project name and Website url are both required.');
+            return;
+        }
+
+        if (loading) return;
 
         setLoading(true);
         try {
             const res = await fetch('/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: projectName }),
+                body: JSON.stringify({ name: projectName, website_url: websiteUrl }),
             });
 
             if (res.ok) {
@@ -62,22 +71,33 @@ export default function Onboarding() {
                     <CardHeader className="max-w-2xl px-8 pt-8 pb-4">
                         <CardTitle className="text-2xl">Welcome to VibeVaults! 🚀</CardTitle>
                         <CardDescription className="text-lg text-muted-foreground/80">
-                            Let's get started by creating your first project. Enter a project name below to generate your API key and start collecting feedback.
+                            Let's get started by creating your first project. Enter a project name and a website URL below.
                         </CardDescription>
                     </CardHeader>
 
                     <CardContent className="max-w-2xl px-8 pb-8">
-                        <form onSubmit={handleCreateProject} className="flex flex-col sm:flex-row gap-3">
-                            <Input
-                                type="text"
-                                placeholder="e.g. My Awesome App"
-                                className="flex-1 bg-white"
-                                value={projectName}
-                                onChange={(e) => setProjectName(e.target.value)}
-                                autoFocus
-                                disabled={loading}
-                            />
-                            <Button type="submit" disabled={!projectName.trim() || loading} className="px-8 shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer">
+                        <form onSubmit={handleCreateProject} className="flex flex-col gap-4">
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <Input
+                                    type="text"
+                                    placeholder="Project Name (e.g. My Client's App)"
+                                    className="flex-1 bg-white"
+                                    value={projectName}
+                                    onChange={(e) => setProjectName(e.target.value)}
+                                    autoFocus
+                                    disabled={loading}
+                                />
+                                <Input
+                                    type="url"
+                                    placeholder="Website URL (e.g. https://client-site.com)"
+                                    className="flex-1 bg-white"
+                                    value={websiteUrl}
+                                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                                    disabled={loading}
+                                />
+                            </div>
+                            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+                            <Button type="submit" disabled={loading} className="w-full sm:w-auto self-start px-8 shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer">
                                 {loading ? 'Creating...' : 'Create Project'}
                             </Button>
                         </form>
@@ -109,9 +129,9 @@ export default function Onboarding() {
                 </div>
 
                 <CardHeader className="max-w-2xl px-8 pt-8 pb-4">
-                    <CardTitle className="text-2xl">Your project is ready! 🎊</CardTitle>
+                    <CardTitle className="text-2xl">Your are almost ready! 🎊</CardTitle>
                     <CardDescription className="text-lg text-muted-foreground/80">
-                        You're all set to start collecting feedback. Here's how to get the most out of VibeVaults:
+                        Embed the widget in your project website and invite your users to share their feedback. Optionally you can already share your read-only project dashboard with anyone.
                     </CardDescription>
                 </CardHeader>
 

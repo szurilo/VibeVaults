@@ -25,6 +25,7 @@ export default function ProjectSwitcher({
     const router = useRouter();
     const [isCreating, setIsCreating] = useState(false);
     const [projectName, setProjectName] = useState('');
+    const [websiteUrl, setWebsiteUrl] = useState('');
 
     useEffect(() => {
         // If we have projects and no selected ID from prop (shouldn't happen with layout fix but good for safety)
@@ -46,19 +47,20 @@ export default function ProjectSwitcher({
 
     const handleCreateProject = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!projectName.trim()) return;
+        if (!projectName.trim() || !websiteUrl.trim()) return;
 
         try {
             const res = await fetch('/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: projectName }),
+                body: JSON.stringify({ name: projectName, website_url: websiteUrl }),
             });
 
             if (res.ok) {
                 const newProject = await res.json();
                 document.cookie = `selectedProjectId=${newProject.id}; path=/; max-age=31536000`;
                 setProjectName('');
+                setWebsiteUrl('');
                 setIsCreating(false);
                 router.refresh();
             }
@@ -103,8 +105,14 @@ export default function ProjectSwitcher({
                             onChange={(e) => setProjectName(e.target.value)}
                             autoFocus
                         />
+                        <Input
+                            type="url"
+                            placeholder="Website URL"
+                            value={websiteUrl}
+                            onChange={(e) => setWebsiteUrl(e.target.value)}
+                        />
                         <div className="flex gap-2">
-                            <Button type="submit" className="flex-1 cursor-pointer" size="sm" disabled={!projectName.trim()}>
+                            <Button type="submit" className="flex-1 cursor-pointer" size="sm" disabled={!projectName.trim() || !websiteUrl.trim()}>
                                 Create
                             </Button>
                             <Button

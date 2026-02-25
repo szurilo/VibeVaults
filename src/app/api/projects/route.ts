@@ -17,10 +17,14 @@ export async function GET() {
 
 export async function POST(req: Request) {
     const body = await req.json();
-    const { name } = body;
+    const { name, website_url } = body;
 
     if (!name) {
         return new NextResponse("Project name is required", { status: 400 });
+    }
+
+    if (!website_url) {
+        return new NextResponse("Website URL is required", { status: 400 });
     }
 
     const supabase = await createClient();
@@ -35,6 +39,7 @@ export async function POST(req: Request) {
         .from("projects")
         .insert({
             name,
+            website_url,
             user_id: user.sub
         })
         .select()

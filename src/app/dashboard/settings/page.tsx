@@ -5,6 +5,7 @@ import { EditProjectCard } from "@/components/EditProjectCard";
 
 import { ShareProjectCard } from "@/components/ShareProjectCard";
 import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
+import { InviteClientCard } from "@/components/InviteClientCard";
 
 
 export default async function SettingsPage() {
@@ -38,6 +39,7 @@ export default async function SettingsPage() {
                     {currentProject && (
                         <>
                             <EditProjectCard project={currentProject} />
+                            <InviteClientCard project={currentProject} />
                             <EmbedWidgetCard project={currentProject} />
                             <ShareProjectCard project={currentProject} />
                         </>

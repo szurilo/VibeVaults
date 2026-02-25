@@ -48,9 +48,11 @@ export async function POST(request: Request) {
 
     const project = projects[0];
 
-    // Email is required in both modes so we can reply via Chat
-    if (!sender || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender)) {
-        return NextResponse.json({ error: "Please provide a valid email address so we can reply to you." }, { status: 400, headers: corsHeaders });
+    // Email validation for client email provided by the widget
+    if (sender) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender)) {
+            return NextResponse.json({ error: "Invalid email format." }, { status: 400, headers: corsHeaders });
+        }
     }
 
     // Generate the ID upfront so we don't need .select() after insert.

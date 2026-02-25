@@ -34,6 +34,25 @@
   localStorage.removeItem(`vv_tokens_${apiKey}`);
 
   let clientEmail = localStorage.getItem(emailKey) || '';
+
+  // Extract identity if passed via invite link URL parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const invitedEmail = urlParams.get('vv_email');
+  if (invitedEmail) {
+    clientEmail = invitedEmail;
+    localStorage.setItem(emailKey, clientEmail);
+    // Remove it from the URL so it's clean and doesn't get shared accidentally
+    urlParams.delete('vv_email');
+    const newParams = urlParams.toString();
+    const cleanUrl = window.location.pathname + (newParams ? '?' + newParams : '') + window.location.hash;
+    window.history.replaceState({}, '', cleanUrl);
+  }
+
+  // Hide the widget completely if the user has no identity (hasn't used an invite link)
+  if (!clientEmail) {
+    return;
+  }
+
   let selectedFeedbackId = null;
   let cachedFeedbacks = [];
   let pollInterval = null;
@@ -195,12 +214,6 @@
     .branding { padding: 10px; text-align: center; font-size: 11px; color: #9ca3af; background: #f9fafb; border-top: 1px solid #f3f4f6; }
     .branding a { color: #209CEE; text-decoration: none; }
     .close-btn { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-
-    /* Email prompt for replying */
-    .email-prompt { display: flex; flex-direction: column; gap: 8px; padding: 12px 20px; border-top: 1px solid #f3f4f6; background: #f9fafb; }
-    .email-prompt label { font-size: 11px; color: #6b7280; font-weight: 600; }
-    .email-prompt input { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; font-family: inherit; }
-    .email-prompt-row { display: flex; gap: 8px; }
   `;
   shadow.appendChild(style);
 
@@ -231,8 +244,6 @@
           </div>
           <textarea id="vv-textarea" placeholder="Describe your issue..."></textarea>
           <div id="vv-text-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -12px; margin-bottom: 4px; padding-left: 4px;">Please describe your issue.</div>
-          <input type="email" id="vv-sender" class="sender-input" placeholder="Your Email (required)">
-          <div id="vv-email-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -8px; padding-left: 4px;">Please provide a valid email address so we can reply.</div>
           <button class="btn" id="vv-submit">Send Feedback</button>
         </div>
         <div class="view-feedbacks">
@@ -376,25 +387,10 @@
       };
     } else {
       section.innerHTML = `
-        <div class="email-prompt">
-          <label>Enter your email to join the conversation</label>
-          <div class="email-prompt-row">
-            <input type="email" id="vv-reply-email" placeholder="you@example.com" style="flex:1">
-            <button class="btn btn-sm" id="vv-save-email">Go</button>
-          </div>
+        <div style="padding: 16px; text-align: center; font-size: 12px; color: #6b7280; background: #f9fafb; border-top: 1px solid #f3f4f6;">
+          You must be invited via a VibeVaults tracking link to reply.
         </div>
       `;
-      section.querySelector('#vv-save-email').onclick = () => {
-        const email = section.querySelector('#vv-reply-email').value.trim();
-        if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          clientEmail = email;
-          localStorage.setItem(emailKey, email);
-          renderReplySection();
-        }
-      };
-      section.querySelector('#vv-reply-email').onkeydown = (e) => {
-        if (e.key === 'Enter') section.querySelector('#vv-save-email').onclick();
-      };
     }
   };
 
@@ -509,7 +505,6 @@
   // --- Send feedback ---
   const sendFeedback = async () => {
     const text = wrapper.querySelector('#vv-textarea').value.trim();
-    const email = wrapper.querySelector('#vv-sender').value.trim();
     const textErrorMsg = wrapper.querySelector('#vv-text-error');
     if (!text) {
       textErrorMsg.style.display = 'block';
@@ -517,13 +512,11 @@
     }
     textErrorMsg.style.display = 'none';
 
-    const errorMsg = wrapper.querySelector('#vv-email-error');
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errorMsg.textContent = 'Please provide a valid email address so we can reply.';
-      errorMsg.style.display = 'block';
+    if (!clientEmail) {
+      alert("Missing identity: Please use the VibeVaults invite link provided by your agency to leave feedback.");
       return;
     }
-    errorMsg.style.display = 'none';
+
     const btn = wrapper.querySelector('#vv-submit');
     btn.disabled = true;
     try {
@@ -537,17 +530,10 @@
       const res = await fetch(API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, content: text, sender: email, metadata })
+        body: JSON.stringify({ apiKey, content: text, sender: clientEmail, metadata })
       });
       const data = await res.json();
       if (data.success && data.feedback_id) {
-        // Remember email
-        clientEmail = email;
-        localStorage.setItem(emailKey, email);
-
-        // Pre-fill the sender field for next time
-        wrapper.querySelector('#vv-sender').value = email;
-
         switchView('success');
       } else {
         alert(data.error || 'Error sending feedback.');
@@ -720,11 +706,6 @@
     wrapper.querySelector('.popup').classList.toggle('open', isOpen);
     if (isOpen) {
       wrapper.querySelector('.badge').style.display = 'none';
-      // Pre-fill email if stored
-      if (clientEmail) {
-        const senderInput = wrapper.querySelector('#vv-sender');
-        if (senderInput && !senderInput.value) senderInput.value = clientEmail;
-      }
     } else {
       stopAll();
     }

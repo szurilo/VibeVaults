@@ -158,16 +158,82 @@ export async function sendAgencyReplyNotification({
             to,
             subject: `New reply from ${senderName} (${projectName})`,
             html: `
-                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, sans-serif;">
-                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7;">
-                        <h2 style="margin: 0 0 20px; color: #1a202c;">New client reply!</h2>
-                        <p style="margin-bottom: 24px;"><strong>${senderName}</strong> replied to your feedback thread in <strong>${projectName}</strong>.</p>
-                        <div style="background-color: #f0f9ff; padding: 24px; border-radius: 12px; border: 1px solid #e0f2fe;">
+                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                        
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">New client reply!</h2>
+                        
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
+                            <strong>${senderName}</strong> replied to your feedback thread in <strong>${projectName}</strong>.
+                        </p>
+
+                        <div style="background-color: #f0f9ff; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #e0f2fe;">
+                            <p style="margin: 0; font-weight: 600; color: #0369a1; font-size: 14px; margin-bottom: 8px;">${senderName} Says:</p>
                             <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${replyContent}"</p>
                         </div>
+
                         <div style="margin-top: 32px;">
-                            <a href="${BASE_URL}/dashboard/feedback" style="display: inline-block; padding: 12px 24px; background-color: #209CEE; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Reply in Dashboard</a>
+                            <a href="${BASE_URL}/dashboard/feedback" 
+                               style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
+                               Reply in Dashboard
+                            </a>
                         </div>
+                        
+                        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.<br>
+                                This is an automatically generated email, please do not reply.
+                            </p>
+                        </div>
+                        
+                    </div>
+                </div>
+            `
+        });
+        return { data, error };
+    } catch (e) {
+        return { data: null, error: e };
+    }
+}
+
+export async function sendClientInviteNotification({
+    to,
+    projectName,
+    inviteLink
+}: { to: string, projectName: string, inviteLink: string }) {
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            to,
+            subject: `You've been invited to review ${projectName}`,
+            html: `
+                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                        
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">Feedback Invite</h2>
+                        
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
+                            You have been invited to provide structural and visual feedback for <strong>${projectName}</strong>.
+                        </p>
+                        
+                        <p style="margin-bottom: 32px; font-size: 16px; color: #4a5568;">
+                            Click the button below to open the website securely. A feedback widget will appear in the bottom right corner, ready to record your notes.
+                        </p>
+                        
+                        <div style="margin-top: 32px;">
+                            <a href="${inviteLink}" 
+                               style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
+                               Open & Review Site
+                            </a>
+                        </div>
+                        
+                        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.<br>
+                                If you didn't expect this invitation, please ignore this email.
+                            </p>
+                        </div>
+                        
                     </div>
                 </div>
             `

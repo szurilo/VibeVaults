@@ -13,13 +13,13 @@ const steps = [
     },
     {
         title: "Embed the widget",
-        description: "Copy and paste our lightweight script into your website's code.",
+        description: "Copy and paste our lightweight script into your client's website code.",
         icon: Code2,
         isCode: true,
     },
     {
-        title: "Share with clients",
-        description: "Generate a private link for your clients to see the feedback board and follow your progress.",
+        title: "Invite clients to review",
+        description: "Invite your clients from your project dashboard and they can review your website and leave feedback. No sign up required for them!",
         icon: ArrowRight,
     },
 ];
@@ -154,7 +154,7 @@ export const HowItWorks = () => {
                         <div>
                             <h4 className="text-xl font-bold text-gray-900 mb-1">Direct Senior Support</h4>
                             <p className="text-gray-600 max-w-md">
-                                Skip the chatbots. As a solo founder with 20+ years of experience, I personally handle every support request to ensure your agency stays at top speed.
+                                Skip the chatbots. With 20+ years of experience, we personally handle every support request to ensure your agency stays at top speed.
                             </p>
                         </div>
                     </div>
