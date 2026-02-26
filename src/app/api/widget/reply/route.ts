@@ -59,6 +59,18 @@ export async function POST(request: Request) {
 
     const adminSupabase = createAdminClient();
 
+    // Verify sender is in project_invites
+    const { data: invite, error: inviteError } = await adminSupabase
+        .from('project_invites')
+        .select('id')
+        .eq('project_id', apiKeyResult.projectId)
+        .eq('email', senderEmail)
+        .single();
+
+    if (inviteError || !invite) {
+        return NextResponse.json({ error: "Unauthorized email address. Access may have been revoked." }, { status: 403, headers: corsHeaders });
+    }
+
     // 1. Get Feedback & Project ID
     const { data: feedback, error: feedbackError } = await adminSupabase
         .from('feedbacks')

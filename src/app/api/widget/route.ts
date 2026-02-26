@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { sendFeedbackNotification } from "@/lib/notifications";
 
@@ -53,6 +54,20 @@ export async function POST(request: Request) {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender)) {
             return NextResponse.json({ error: "Invalid email format." }, { status: 400, headers: corsHeaders });
         }
+
+        const adminSupabase = createAdminClient();
+        const { data: invite, error: inviteError } = await adminSupabase
+            .from('project_invites')
+            .select('id')
+            .eq('project_id', project.id)
+            .eq('email', sender)
+            .single();
+
+        if (inviteError || !invite) {
+            return NextResponse.json({ error: "Unauthorized email address. Access may have been revoked." }, { status: 403, headers: corsHeaders });
+        }
+    } else {
+        return NextResponse.json({ error: "Missing sender email." }, { status: 400, headers: corsHeaders });
     }
 
     // Generate the ID upfront so we don't need .select() after insert.
