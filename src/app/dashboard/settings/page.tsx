@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { DeleteAccountCard } from "@/components/DeleteAccountCard";
+import { DeleteProjectCard } from "@/components/DeleteProjectCard";
 import { EditProjectCard } from "@/components/EditProjectCard";
 
 import { ShareProjectCard } from "@/components/ShareProjectCard";
@@ -45,7 +45,7 @@ export default async function SettingsPage() {
                         </>
                     )}
 
-                    <DeleteAccountCard project={currentProject} />
+                    <DeleteProjectCard project={currentProject} />
                 </div>
             </div>
         </div>

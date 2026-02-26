@@ -88,7 +88,7 @@ export default function Home() {
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 </div>
                 <h3 className="text-xl font-bold mb-4">One-Click Install</h3>
-                <p className="text-gray-500 flex-1">Drop a single script tag into WordPress, Webflow, Shopify, or React. Zero complex setup, and your clients don't even need to create an account.</p>
+                <p className="text-gray-500 flex-1">Drop a single script tag into WordPress, Webflow, Shopify, React or any site. Zero complex setup, and your clients don't even need to create an account.</p>
               </div>
 
               <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">

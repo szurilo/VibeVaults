@@ -21,6 +21,7 @@
 - **Information Retrieval**: Always proactively leverage Context7 MCP to double-check API documentation, setup flows, or code configurations immediately—no user prompting sequence needed.
 
 ## 4. Current Direction & Recent Epics
-- **Onboarding and Bot Filtering**: Increasing required parameters on User/Project creation and dealing comprehensively with bot signup spam loops through rigorous checking or CAPTCHA implementation.
-- **Dashboard Feedbacks Page**: Consolidating view schemas so clients can answer individual threads smoothly out from structured "Feedback Cards," maintaining real-time parity and fixing layout overlaps (z-index problems).
-- **Copywriting / Promotional Expansion**: Translating core dashboard benefits back into the `src/app/page.tsx` landing page effectively for optimal SaaS metric conversions.
+- **UI/UX & Notification Refinements**: Continuous focus on maintaining a premium, consistent aesthetic. Recent updates include solving visual overflows in the notification center, standardizing the widget's send button fonts, and aligning various cards (like `InviteClientCard`) to a unified design language.
+- **Client & Project Management**: Fortified the onboarding architecture with dynamic form validations. Restructured the project workflow by removing deprecated staging/live environment switches, and standardized the client invitation revocation process using `AlertDialog` components.
+- **Widget Form Reliability**: Polished the feedback widget UX by ensuring clean resets of text areas and screenshot attachments post-submission.
+- **Copywriting / Promotional Expansion**: Refining the landing page (`src/app/page.tsx`) to effectively promote product selling points and encourage sign-ups.

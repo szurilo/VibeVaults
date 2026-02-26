@@ -41,7 +41,7 @@ export default async function DashboardLayout({
                 <AppSidebar
                     projects={projects || []}
                     selectedProjectId={selectedProjectId}
-                    userId={user.id}
+                    user={user}
                 />
                 <main className="flex-1 overflow-y-auto bg-gray-50 flex flex-col">
                     <div className="p-4 bg-white border-b border-gray-200 md:hidden flex items-center gap-2">
