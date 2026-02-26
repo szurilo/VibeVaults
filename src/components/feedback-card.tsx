@@ -384,7 +384,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                             </div>
                                         </button>
                                     </SheetTrigger>
-                                    <SheetContent className="sm:max-w-2xl h-full flex flex-col p-0">
+                                    <SheetContent className="w-full sm:max-w-2xl h-full flex flex-col p-0">
                                         <div className="px-8 pt-8 flex-none">
                                             <SheetHeader>
                                                 <SheetTitle className="flex items-center gap-2 text-xl">

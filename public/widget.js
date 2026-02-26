@@ -211,7 +211,7 @@
     .chat-input input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
     .chat-no-replies { padding: 30px 20px; text-align: center; color: #9ca3af; font-size: 12px; }
 
-    .btn { background: #209CEE; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; }
+    .btn { background: #209CEE; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; font-family: inherit; }
     .btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-sm { padding: 8px 12px; font-size: 12px; }
     .success-view { display: none; text-align: center; padding: 40px 20px; }

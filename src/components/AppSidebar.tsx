@@ -14,13 +14,16 @@ import {
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { LayoutDashboard, MessageSquare, Settings, LogOut } from "lucide-react"
+import { NotificationBell } from "@/components/NotificationBell"
 
 export function AppSidebar({
     projects,
     selectedProjectId,
+    userId,
 }: {
     projects: any[]
     selectedProjectId?: string
+    userId: string
 }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -34,9 +37,12 @@ export function AppSidebar({
     return (
         <Sidebar>
             <SidebarHeader className="bg-white border-b border-gray-100 p-4">
-                <Link href="/dashboard" className="px-2 cursor-pointer mb-4 block">
-                    <span className="font-bold text-xl text-primary">VibeVaults</span>
-                </Link>
+                <div className="flex items-center justify-between mb-4 px-2">
+                    <Link href="/dashboard" className="cursor-pointer block">
+                        <span className="font-bold text-xl text-primary">VibeVaults</span>
+                    </Link>
+                    <NotificationBell userId={userId} />
+                </div>
                 <ProjectSwitcher
                     projects={projects || []}
                     selectedProjectId={selectedProjectId}
