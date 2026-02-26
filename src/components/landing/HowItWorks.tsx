@@ -152,9 +152,9 @@ export const HowItWorks = () => {
                             <UserPlus size={32} />
                         </div>
                         <div>
-                            <h4 className="text-xl font-bold text-gray-900 mb-1">Direct Senior Support</h4>
+                            <h4 className="text-xl font-bold text-gray-900 mb-1">Your SaaS Partner, Not Just a Vendor</h4>
                             <p className="text-gray-600 max-w-md">
-                                Skip the chatbots. With 20+ years of experience, we personally handle every support request to ensure your agency stays at top speed.
+                                Skip the tier-1 chatbots. With decades of agency experience, we work directly with you to implement features you actually need and keep your pipeline moving.
                             </p>
                         </div>
                     </div>
