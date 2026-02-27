@@ -80,6 +80,12 @@ export default async function DashboardPage() {
                     <CardTitle className="text-lg">Questions or Problems?</CardTitle>
                 </CardHeader>
                 <CardContent>
+                    <h2 className="font-semibold text-sm mb-1">Regarding setup:</h2>
+                    <p className="text-muted-foreground mb-6">
+                        <a href="https://calendly.com/szurilo/30min" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
+                            Book a free 15-minute setup call with the founder.
+                        </a>
+                    </p>
                     <h2 className="font-semibold text-sm mb-1">Regarding billing:</h2>
                     <p className="text-muted-foreground mb-6">
                         Send us an email at <a href="mailto:support@vibe-vaults.com" className="text-primary hover:underline">support@vibe-vaults.com</a>

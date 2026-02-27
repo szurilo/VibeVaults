@@ -22,6 +22,8 @@
     return;
   }
 
+  const isVibeVaults = apiKey === 'e3917e214418009aea8b7a2712cb0059';
+
   // --- State Management ---
   let isOpen = false;
   const emailKey = `vv_email_${apiKey}`;
@@ -128,15 +130,19 @@
     }
     * { box-sizing: border-box; }
     .trigger-btn {
-      width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #209CEE 0%, #1a8ad4 100%);
+      width: 80px; height: 80px; border-radius: 16px; background: linear-gradient(135deg, #209CEE 0%, #1a8ad4 100%);
       color: white; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(32, 156, 238, 0.4);
-      display: flex; align-items: center; justify-content: center; transition: all 0.2s; position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.2s; position: relative;
+      padding: 8px; line-height: 1.2;
     }
+    .trigger-btn div { pointer-events: none; width: 100%; text-align: center; }
+    .trigger-btn .top-text { font-size: 7px; font-weight: 800; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .trigger-btn .bottom-text { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; }
     .trigger-btn:hover { transform: scale(1.05) translateY(-2px); }
     .badge { position: absolute; top: -2px; right: -2px; width: 14px; height: 14px; background: #ef4444; border: 2px solid white; border-radius: 50%; display: none; }
 
     .popup {
-      position: absolute; bottom: 72px; right: 0; width: 380px; max-width: calc(100vw - 40px); height: 520px;
+      position: absolute; bottom: 100px; right: 0; width: 380px; max-width: calc(100vw - 40px); height: 520px;
       background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
       border: 1px solid #e5e7eb; overflow: hidden; animation: slideUp 0.3s ease-out;
     }
@@ -224,7 +230,8 @@
   const wrapper = document.createElement('div');
   wrapper.innerHTML = `
     <button class="trigger-btn">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      ${isVibeVaults ? '<div class="top-text">VibeVaults</div>' : ''}
+      <div class="bottom-text">Feedback</div>
       <div class="badge"></div>
     </button>
     <div class="popup">

@@ -55,8 +55,8 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
             <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link href="/" className="bg-primary/10 p-2 rounded-lg hover:bg-primary/20 transition-colors">
-                            <span className="font-bold text-lg text-primary block leading-none">VibeVaults</span>
+                        <Link href="/" className="cursor-pointer block">
+                            <span className="font-bold text-xl text-primary">VibeVaults</span>
                         </Link>
                         <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
                         <h1 className="font-semibold text-gray-900 truncate max-w-[200px] sm:max-w-md flex items-center gap-2">

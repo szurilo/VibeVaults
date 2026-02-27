@@ -244,4 +244,47 @@ export async function sendClientInviteNotification({
     }
 }
 
+export async function sendWelcomeNotification({
+    to,
+    name = 'there'
+}: { to: string, name?: string }) {
+    try {
+        const sendAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
+        const { data, error } = await resend.emails.send({
+            from: 'József <jozsef@mail.vibe-vaults.com>',
+            replyTo: 'jozsef@vibe-vaults.com',
+            to,
+            subject: 'Quick question about VibeVaults',
+            scheduledAt: sendAt,
+            html: `
+                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                        
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
+                            Hi ${name},
+                        </p>
+
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
+                            I'm József, the founder of VibeVaults. Thanks for joining the beta! Quick question: what is the #1 problem you're hoping VibeVaults will solve for you today?
+                        </p>
+
+                        <p style="margin-bottom: 32px; font-size: 16px; color: #4a5568;">
+                            Just reply to this email, I read every single one.
+                        </p>
+                        
+                        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
+                            </p>
+                        </div>
+                        
+                    </div>
+                </div>
+            `
+        });
+        return { data, error };
+    } catch (e) {
+        return { data: null, error: e };
+    }
+}

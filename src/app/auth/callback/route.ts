@@ -10,9 +10,36 @@ export async function GET(request: Request) {
     // Handle OAuth PKCE flow (used by OAuth providers like Google, GitHub, etc.)
     if (code) {
         const supabase = await createClient()
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (!error) {
+            // Attempt to schedule welcome email if new user
+            if (data?.user) {
+                try {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('welcome_email_sent')
+                        .eq('id', data.user.id)
+                        .single();
+
+                    if (profile && !profile.welcome_email_sent) {
+                        // Mark as sent
+                        await supabase
+                            .from('profiles')
+                            .update({ welcome_email_sent: true })
+                            .eq('id', data.user.id);
+
+                        const { sendWelcomeNotification } = await import('@/lib/notifications')
+                        const email = data.user.email || 'friend';
+                        const nameStr = email.split('@')[0];
+                        const formattedName = nameStr.charAt(0).toUpperCase() + nameStr.slice(1);
+                        await sendWelcomeNotification({ to: email, name: formattedName })
+                    }
+                } catch (e) {
+                    console.error('Failed to trigger welcome email check on callback', e)
+                }
+            }
+
             return NextResponse.redirect(`${origin}${next}`)
         }
 
