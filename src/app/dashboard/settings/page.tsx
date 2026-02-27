@@ -42,10 +42,9 @@ export default async function SettingsPage() {
                             <InviteClientCard project={currentProject} />
                             <EmbedWidgetCard project={currentProject} />
                             <ShareProjectCard project={currentProject} />
+                            <DeleteProjectCard project={currentProject} />
                         </>
                     )}
-
-                    <DeleteProjectCard project={currentProject} />
                 </div>
             </div>
         </div>

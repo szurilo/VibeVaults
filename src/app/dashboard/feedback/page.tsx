@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { FeedbackCard } from "@/components/feedback-card";
 import { cookies } from "next/headers";
+import { AddFeedbackDialog } from "@/components/AddFeedbackDialog";
 
 
 export default async function FeedbackListPage() {
@@ -44,6 +45,9 @@ export default async function FeedbackListPage() {
                         </>
                     )}
                 </h1>
+                {currentProject && (
+                    <AddFeedbackDialog projectId={currentProject.id} />
+                )}
             </div>
 
             {feedbacks.length === 0 ? (

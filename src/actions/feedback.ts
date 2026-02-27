@@ -76,3 +76,39 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
 
     revalidatePath('/dashboard/feedback');
 }
+
+export async function addManualFeedbackAction(projectId: string, content: string) {
+    const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    // Verify ownership
+    const { data: project, error: checkError } = await supabase
+        .from('projects')
+        .select('user_id')
+        .eq('id', projectId)
+        .single();
+
+    if (checkError || !project) throw new Error("Project not found");
+    if (project.user_id !== user.id) throw new Error("Unauthorized");
+
+    const feedbackId = crypto.randomUUID();
+
+    const { error: insertError } = await supabase.from('feedbacks').insert({
+        id: feedbackId,
+        content,
+        type: 'Bug', // or 'Feature', default value
+        sender: user.email || 'Agency Member',
+        project_id: projectId,
+        status: 'open',
+        metadata: {
+            is_manual: true
+        }
+    });
+
+    if (insertError) throw new Error(insertError.message);
+
+    revalidatePath('/dashboard/feedback');
+    return { success: true, feedback_id: feedbackId };
+}
