@@ -297,12 +297,23 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                         </div>
                                     </div>
                                 </SheetTrigger>
-                                <SheetContent side="right" className="sm:max-w-5xl w-[90vw] p-0 flex flex-col bg-slate-950 border-slate-800">
-                                    <div className="p-5 border-b border-white/10 flex items-center justify-between">
-                                        <SheetTitle className="text-white font-medium text-sm flex items-center gap-2 m-0"><MousePointer2 className="w-4 h-4 text-slate-400" /> Screenshot Attachment</SheetTitle>
+                                <SheetContent className="w-full sm:max-w-5xl h-full flex flex-col p-0">
+                                    <div className="px-8 pt-8 flex-none">
+                                        <SheetHeader>
+                                            <SheetTitle className="flex items-center gap-2 text-xl">
+                                                <MousePointer2 className="w-5 h-5 text-blue-600" />
+                                                Screenshot attachment
+                                            </SheetTitle>
+                                            <SheetDescription>
+                                                Captured during the feedback session on {feedback.metadata.url}
+                                            </SheetDescription>
+                                        </SheetHeader>
                                     </div>
-                                    <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-black/50 custom-scrollbar">
-                                        <img src={feedback.metadata.screenshot} alt="Screenshot Full" className="max-w-full object-contain drop-shadow-2xl border border-white/10 rounded-lg" />
+
+                                    <div className="flex-1 min-h-0 flex flex-col px-8 pb-8 mt-6">
+                                        <div className="bg-slate-950 rounded-xl flex-1 flex flex-col overflow-hidden ring-1 ring-white/10 shadow-2xl items-center justify-center p-2 sm:p-6">
+                                            <img src={feedback.metadata.screenshot} alt="Screenshot Full" className="max-w-full max-h-full object-contain rounded-lg border border-white/10 drop-shadow-2xl" />
+                                        </div>
                                     </div>
                                 </SheetContent>
                             </Sheet>
