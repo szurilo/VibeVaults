@@ -18,6 +18,9 @@ export async function updateFeedbackStatus(id: string, status: string) {
         throw new Error('Failed to update feedback status');
     }
 
+    // Mark associated notifications as read
+    await supabase.from('notifications').update({ is_read: true }).eq('feedback_id', id);
+
     revalidatePath('/dashboard/feedback');
 }
 
@@ -64,6 +67,9 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
         });
 
     if (replyError) throw replyError;
+
+    // Mark associated notifications as read
+    await supabase.from('notifications').update({ is_read: true }).eq('feedback_id', feedbackId);
 
     // Send notification to client if they provided an email
     if (feedback.sender && feedback.sender.includes('@')) {
@@ -139,6 +145,9 @@ export async function addManualFeedbackAction(projectId: string, content: string
     });
 
     if (insertError) throw new Error(insertError.message);
+
+    // Mark associated notifications as read since the agency member created it themselves
+    await supabase.from('notifications').update({ is_read: true }).eq('feedback_id', feedbackId);
 
     revalidatePath('/dashboard/feedback');
     return { success: true, feedback_id: feedbackId };

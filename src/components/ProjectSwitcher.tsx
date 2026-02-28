@@ -12,7 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { PlusIcon } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 
 export default function ProjectSwitcher({
@@ -128,12 +128,11 @@ export default function ProjectSwitcher({
                     </form>
                 ) : (
                     <Button
-                        variant="outline"
                         onClick={() => setIsCreating(true)}
-                        className="w-full border-dashed justify-center gap-2 cursor-pointer"
+                        className="w-full justify-center gap-2 cursor-pointer"
                     >
-                        <PlusIcon className="w-4 h-4" />
-                        Create Project
+                        <Plus className="w-4 h-4" />
+                        Create project
                     </Button>
                 )}
             </div>

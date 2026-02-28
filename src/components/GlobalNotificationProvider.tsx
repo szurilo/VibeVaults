@@ -19,30 +19,32 @@ export function GlobalNotificationProvider({ children, userId }: { children: Rea
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*',
                     schema: 'public',
                     table: 'notifications',
                     filter: `user_id=eq.${userId}`,
                 },
                 (payload) => {
-                    const notification = payload.new;
-
                     // Dispatch custom event to tell NotificationBell to refresh
-                    window.dispatchEvent(new CustomEvent('vibe-new-notification', { detail: notification }))
+                    window.dispatchEvent(new CustomEvent('vibe-new-notification', { detail: payload.new }))
 
-                    toast(notification.title, {
-                        description: notification.message,
-                        action: {
-                            label: "View",
-                            onClick: () => {
-                                // Navigate to the project dashboard
-                                document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
-                                router.push("/dashboard/feedback");
-                                router.refresh();
-                            }
-                        },
-                        duration: 8000,
-                    })
+                    // Only show toast notification for new INSERTS
+                    if (payload.eventType === 'INSERT') {
+                        const notification = payload.new;
+                        toast(notification.title, {
+                            description: notification.message,
+                            action: {
+                                label: "View",
+                                onClick: () => {
+                                    // Navigate to the project dashboard
+                                    document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
+                                    router.push("/dashboard/feedback");
+                                    router.refresh();
+                                }
+                            },
+                            duration: 8000,
+                        })
+                    }
                 }
             )
             .subscribe()

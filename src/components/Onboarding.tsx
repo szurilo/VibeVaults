@@ -11,7 +11,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { XIcon, Settings, Share2, ArrowRight } from 'lucide-react';
+import { XIcon, Settings, Share2, ArrowRight, Plus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { completeOnboardingAction } from '@/actions/onboarding';
 import Link from 'next/link';
@@ -98,8 +98,9 @@ export default function Onboarding({ initialStep = 1 }: { initialStep?: number }
                                 />
                             </div>
                             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-                            <Button type="submit" disabled={loading} className="w-full sm:w-auto self-start px-8 shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer">
-                                {loading ? 'Creating...' : 'Create Project'}
+                            <Button type="submit" disabled={loading} className="w-full sm:w-auto self-start cursor-pointer flex items-center gap-2">
+                                {loading ? null : <Plus className="w-4 h-4" />}
+                                {loading ? 'Creating...' : 'Create project'}
                             </Button>
                         </form>
                     </CardContent>
