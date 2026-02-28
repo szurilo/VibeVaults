@@ -28,12 +28,6 @@
   let isOpen = false;
   const emailKey = `vv_email_${apiKey}`;
 
-  // Clean up legacy storage
-  const legacyStorageKey = `vv_last_feedback_id_${apiKey}`;
-  const legacyTokenKey = `vv_session_token_${apiKey}`;
-  localStorage.removeItem(legacyStorageKey);
-  localStorage.removeItem(legacyTokenKey);
-  localStorage.removeItem(`vv_tokens_${apiKey}`);
 
   let clientEmail = localStorage.getItem(emailKey) || '';
 
@@ -49,6 +43,10 @@
     const cleanUrl = window.location.pathname + (newParams ? '?' + newParams : '') + window.location.hash;
     window.history.replaceState({}, '', cleanUrl);
   }
+
+  const prefsKey = `vv_prefs_${apiKey}`;
+  let notifyRepliesSetting = localStorage.getItem(prefsKey) !== 'false';
+
 
   // Hide the widget completely if the user has no identity (hasn't used an invite link)
   if (!clientEmail) {
@@ -224,6 +222,25 @@
     .branding { padding: 10px; text-align: center; font-size: 11px; color: #9ca3af; background: #f9fafb; border-top: 1px solid #f3f4f6; }
     .branding a { color: #209CEE; text-decoration: none; }
     .close-btn { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+    /* Custom Checkbox */
+    .checkbox-wrapper { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; margin-top: 4px; }
+    .checkbox-input {
+      appearance: none; -webkit-appearance: none; margin: 0;
+      width: 16px; height: 16px; border: 1px solid #d1d5db; border-radius: 4px;
+      background-color: white; cursor: pointer; position: relative;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: all 0.2s; box-shadow: none; outline: none; padding: 0;
+    }
+    .checkbox-input:checked {
+      background-color: #209CEE; border-color: #209CEE;
+    }
+    .checkbox-input:checked::after {
+      content: ''; position: absolute; width: 4px; height: 8px;
+      border: solid white; border-width: 0 2px 2px 0;
+      transform: rotate(45deg); margin-top: -2px;
+    }
+    .checkbox-label { font-size: 13px; color: #4a5568; cursor: pointer; user-select: none; margin: 0; padding: 0; line-height: 1.4; }
   `;
   shadow.appendChild(style);
 
@@ -255,6 +272,10 @@
           </div>
           <textarea id="vv-textarea" placeholder="Describe your issue..."></textarea>
           <div id="vv-text-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -12px; margin-bottom: 4px; padding-left: 4px;">Please describe your issue.</div>
+          <div class="checkbox-wrapper">
+            <input type="checkbox" id="vv-notify-replies" class="checkbox-input" ${notifyRepliesSetting ? 'checked' : ''} />
+            <label for="vv-notify-replies" class="checkbox-label">Notify me when someone replies</label>
+          </div>
           <button class="btn" id="vv-submit">Send Feedback</button>
         </div>
         <div class="view-feedbacks">
@@ -282,7 +303,18 @@
   shadow.appendChild(wrapper);
 
   // Fetch project setting context asynchronously
-  fetch(`${API_BASE}?key=${apiKey}`).catch(() => { });
+  const fetchUrl = `${API_BASE}?key=${apiKey}${clientEmail ? '&sender=' + encodeURIComponent(clientEmail) : ''}`;
+  fetch(fetchUrl)
+    .then(r => r.json())
+    .then(data => {
+      if (data.notifyReplies !== undefined) {
+        notifyRepliesSetting = data.notifyReplies;
+        localStorage.setItem(prefsKey, data.notifyReplies.toString());
+        const checkbox = wrapper.querySelector('#vv-notify-replies');
+        if (checkbox) checkbox.checked = notifyRepliesSetting;
+      }
+    })
+    .catch(() => { });
 
   // --- View switching ---
   const switchView = (v) => {
@@ -535,10 +567,14 @@
         metadata.dom_selector = domSelector;
       }
 
+      const notifyRepliesCheckbox = wrapper.querySelector('#vv-notify-replies');
+      const notifyReplies = notifyRepliesCheckbox ? notifyRepliesCheckbox.checked : true;
+      localStorage.setItem(prefsKey, notifyReplies.toString());
+
       const res = await fetch(API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, content: text, sender: clientEmail, metadata })
+        body: JSON.stringify({ apiKey, content: text, sender: clientEmail, metadata, notifyReplies })
       });
       const data = await res.json();
       if (data.success && data.feedback_id) {
@@ -741,4 +777,12 @@
     }
     switchView(i.dataset.view);
   });
+
+  const notifyCheckbox = wrapper.querySelector('#vv-notify-replies');
+  if (notifyCheckbox) {
+    notifyCheckbox.addEventListener('change', (e) => {
+      localStorage.setItem(prefsKey, e.target.checked.toString());
+      notifyRepliesSetting = e.target.checked;
+    });
+  }
 })();

@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { cookies } from "next/headers";
 import { DeleteProjectCard } from "@/components/DeleteProjectCard";
 import { EditProjectCard } from "@/components/EditProjectCard";
+import { NotificationsCard } from "@/components/NotificationsCard";
 
 import { ShareProjectCard } from "@/components/ShareProjectCard";
 import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
@@ -22,6 +24,18 @@ export default async function SettingsPage() {
     // Use selected project or default to the first one
     const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
 
+    const { data: { user } } = await supabase.auth.getUser();
+    let emailPreferences = {};
+    if (user?.email) {
+        const adminSupabase = createAdminClient();
+        const { data: pref } = await adminSupabase
+            .from('email_preferences')
+            .select('*')
+            .eq('email', user.email)
+            .single();
+        if (pref) emailPreferences = pref;
+    }
+
     return (
         <div>
             <div className="flex justify-between items-center mb-8">
@@ -39,6 +53,7 @@ export default async function SettingsPage() {
                     {currentProject && (
                         <>
                             <EditProjectCard project={currentProject} />
+                            <NotificationsCard initialPreferences={emailPreferences} />
                             <InviteClientCard project={currentProject} />
                             <EmbedWidgetCard project={currentProject} />
                             <ShareProjectCard project={currentProject} />

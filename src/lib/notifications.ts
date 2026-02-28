@@ -10,6 +10,7 @@ interface SendFeedbackEmailParams {
     content: string;
     sender?: string;
     metadata?: any;
+    unsubscribeToken?: string;
 }
 
 export async function sendFeedbackNotification({
@@ -17,7 +18,8 @@ export async function sendFeedbackNotification({
     projectName,
     content,
     sender,
-    metadata
+    metadata,
+    unsubscribeToken
 }: SendFeedbackEmailParams) {
     try {
         const { data, error } = await resend.emails.send({
@@ -65,6 +67,7 @@ export async function sendFeedbackNotification({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled for <strong>${projectName}</strong>.
+                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
                             </p>
                             
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
@@ -95,13 +98,15 @@ interface SendReplyEmailParams {
     projectName: string;
     replyContent: string;
     originalFeedback: string;
+    unsubscribeToken?: string;
 }
 
 export async function sendReplyNotification({
     to,
     projectName,
     replyContent,
-    originalFeedback
+    originalFeedback,
+    unsubscribeToken
 }: SendReplyEmailParams) {
     try {
         const { data, error } = await resend.emails.send({
@@ -129,6 +134,11 @@ export async function sendReplyNotification({
                         </div>
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
+                                You received this because you have notifications enabled for <strong>${projectName}</strong>.
+                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                            </p>
+                            
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.<br>
                                 If you didn't leave this feedback, please ignore this email.
@@ -150,8 +160,9 @@ export async function sendAgencyReplyNotification({
     to,
     projectName,
     replyContent,
-    senderName
-}: { to: string, projectName: string, replyContent: string, senderName: string }) {
+    senderName,
+    unsubscribeToken
+}: { to: string, projectName: string, replyContent: string, senderName: string, unsubscribeToken?: string }) {
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
@@ -180,6 +191,11 @@ export async function sendAgencyReplyNotification({
                         </div>
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
+                                You received this because you have notifications enabled for <strong>${projectName}</strong>.
+                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                            </p>
+                            
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.<br>
                                 This is an automatically generated email, please do not reply.

@@ -117,12 +117,37 @@ export async function POST(request: Request) {
             targetEmail = profileData?.email;
 
             if (targetEmail) {
-                await sendAgencyReplyNotification({
-                    to: targetEmail,
-                    projectName: projectData.name,
-                    replyContent: content,
-                    senderName: senderEmail
-                });
+                const { data: prefData } = await adminSupabase
+                    .from('email_preferences')
+                    .select('notify_replies, unsubscribe_token')
+                    .eq('email', targetEmail)
+                    .single();
+
+                let shouldNotify = true;
+                let unsubscribeToken = prefData?.unsubscribe_token;
+
+                if (!prefData) {
+                    const { data: newPref } = await adminSupabase
+                        .from('email_preferences')
+                        .upsert({ email: targetEmail }, { onConflict: 'email' })
+                        .select('unsubscribe_token')
+                        .single();
+                    if (newPref) {
+                        unsubscribeToken = newPref.unsubscribe_token;
+                    }
+                } else {
+                    shouldNotify = prefData.notify_replies;
+                }
+
+                if (shouldNotify) {
+                    await sendAgencyReplyNotification({
+                        to: targetEmail,
+                        projectName: projectData.name,
+                        replyContent: content,
+                        senderName: senderEmail,
+                        unsubscribeToken
+                    });
+                }
             }
         }
     } catch (e) {

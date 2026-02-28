@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendReplyNotification } from "@/lib/notifications";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 
 export async function updateFeedbackStatus(id: string, status: string) {
@@ -66,16 +67,46 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
 
     // Send notification to client if they provided an email
     if (feedback.sender && feedback.sender.includes('@')) {
-        await sendReplyNotification({
-            to: feedback.sender,
-            projectName: project.name,
-            replyContent: content,
-            originalFeedback: feedback.content
-        });
+        const adminSupabase = createAdminClient();
+
+        // Ensure preference exists and get token
+        const { data: prefData } = await adminSupabase
+            .from('email_preferences')
+            .select('notify_replies, unsubscribe_token')
+            .eq('email', feedback.sender)
+            .single();
+
+        let shouldSend = true;
+        let unsubscribeToken = prefData?.unsubscribe_token;
+
+        if (!prefData) {
+            // Upsert using default values
+            const { data: newPref } = await adminSupabase
+                .from('email_preferences')
+                .upsert({ email: feedback.sender }, { onConflict: 'email' })
+                .select('unsubscribe_token')
+                .single();
+            if (newPref) {
+                unsubscribeToken = newPref.unsubscribe_token;
+            }
+        } else {
+            shouldSend = prefData.notify_replies;
+        }
+
+        if (shouldSend) {
+            await sendReplyNotification({
+                to: feedback.sender,
+                projectName: project.name,
+                replyContent: content,
+                originalFeedback: feedback.content,
+                unsubscribeToken
+            });
+        }
     }
 
     revalidatePath('/dashboard/feedback');
 }
+
 
 export async function addManualFeedbackAction(projectId: string, content: string) {
     const supabase = await createClient();
