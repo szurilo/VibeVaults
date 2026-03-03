@@ -13,13 +13,15 @@ import { InviteClientCard } from "@/components/InviteClientCard";
 export default async function SettingsPage() {
     const supabase = await createClient();
 
-    // Fetch all projects to find selected
-    const { data: projects } = await supabase
-        .from('projects')
-        .select('*');
-
     const cookieStore = await cookies();
+    const selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
     const selectedProjectId = cookieStore.get("selectedProjectId")?.value;
+
+    let projectsQuery = supabase.from('projects').select('*');
+    if (selectedWorkspaceId) {
+        projectsQuery = projectsQuery.eq('workspace_id', selectedWorkspaceId);
+    }
+    const { data: projects } = await projectsQuery;
 
     // Use selected project or default to the first one
     const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
@@ -50,7 +52,7 @@ export default async function SettingsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="col-span-full space-y-6">
-                    {currentProject && (
+                    {currentProject ? (
                         <>
                             <EditProjectCard project={currentProject} />
                             <NotificationsCard initialPreferences={emailPreferences} />
@@ -59,6 +61,10 @@ export default async function SettingsPage() {
                             <ShareProjectCard project={currentProject} />
                             <DeleteProjectCard project={currentProject} />
                         </>
+                    ) : (
+                        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-12 text-center">
+                            <p className="text-gray-500">Create a project first to manage settings.</p>
+                        </div>
                     )}
                 </div>
             </div>

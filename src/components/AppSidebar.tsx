@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import WorkspaceSwitcher from "@/components/WorkspaceSwitcher"
 import ProjectSwitcher from "@/components/ProjectSwitcher"
 import {
     Sidebar,
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/sidebar"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { LayoutDashboard, MessageSquare, Settings, LogOut } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Settings, LogOut, Users } from "lucide-react"
 import { NotificationBell } from "@/components/NotificationBell"
 import { User } from "@supabase/supabase-js"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -27,10 +28,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function AppSidebar({
+    workspaces,
+    selectedWorkspaceId,
     projects,
     selectedProjectId,
     user,
 }: {
+    workspaces: any[]
+    selectedWorkspaceId?: string
     projects: any[]
     selectedProjectId?: string
     user: User
@@ -53,9 +58,15 @@ export function AppSidebar({
                     </Link>
                     <NotificationBell userId={user.id} />
                 </div>
+                <WorkspaceSwitcher
+                    workspaces={workspaces || []}
+                    selectedWorkspaceId={selectedWorkspaceId}
+                    user={user}
+                />
                 <ProjectSwitcher
                     projects={projects || []}
                     selectedProjectId={selectedProjectId}
+                    selectedWorkspaceId={selectedWorkspaceId}
                 />
             </SidebarHeader>
 
@@ -75,6 +86,15 @@ export function AppSidebar({
                             <Link href="/dashboard/feedback" className="font-medium flex items-center gap-2">
                                 <MessageSquare className="w-4 h-4" />
                                 <span>Feedback</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings/team"}>
+                            <Link href="/dashboard/settings/team" className="font-medium flex items-center gap-2">
+                                <Users className="w-4 h-4" />
+                                <span>Team</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>

@@ -21,7 +21,8 @@
 - **Information Retrieval**: Always proactively leverage Context7 MCP to double-check API documentation, setup flows, or code configurations immediately—no user prompting sequence needed.
 
 ## 4. Current Direction & Recent Epics
-- **UI/UX & Notification Refinements**: Continuous focus on maintaining a premium, consistent aesthetic. Recent updates include solving visual overflows in the notification center, standardizing the widget's send button fonts, and aligning various cards (like `InviteClientCard`) to a unified design language.
-- **Client & Project Management**: Fortified the onboarding architecture with dynamic form validations. Restructured the project workflow by removing deprecated staging/live environment switches, and standardized the client invitation revocation process using `AlertDialog` components.
-- **Widget Form Reliability**: Polished the feedback widget UX by ensuring clean resets of text areas and screenshot attachments post-submission.
+- **Workspace Architecture (Single-Owned, Multi-Joined)**: Established a Workspace and Project hierarchy where each agency user is restricted to owning exactly 1 workspace, but can join unlimited additional workspaces via invitation. Added cookie-based state persistence (`selectedWorkspaceId`, `selectedProjectId`) across the dashboard to navigate these environments.
+- **RLS & Database Security**: Handled infinite recursion (`42P17`) bugs in Supabase Row Level Security by refactoring policies to use `SECURITY DEFINER` helper functions (`get_user_workspaces()`). This securely resolves client/agency authorizations without circular foreign key table locks.
+- **Onboarding Reliability**: Fortified the onboarding architecture (`Onboarding.tsx`) with server-side validations in `dashboard/page.tsx` to handle cookie desyncs (e.g., after DB resets), preventing `500` server errors during project creation.
+- **UI/UX & Notification Refinements**: Continuous focus on maintaining a premium, consistent aesthetic. Polished the feedback widget UX (clean resets of text/screenshots), solved visual overflows in notifications, and standardized components.
 - **Copywriting / Promotional Expansion**: Refining the landing page (`src/app/page.tsx`) to effectively promote product selling points and encourage sign-ups.

@@ -1,3 +1,13 @@
+/**
+ * Main Responsibility: Wraps the entire dashboard architecture. Fetches and validates the user's active 
+ * workspaces and projects based on stored cookies, processes pending email invitations, and provisions 
+ * context providers (Notifications, Sidebar).
+ * 
+ * Sensitive Dependencies: 
+ * - next/headers (cookies) for retrieving and managing selected states (`selectedWorkspaceId`).
+ * - @/lib/supabase/server for sensitive data interactions and RLS enforcement.
+ * - GlobalNotificationProvider for real-time app-wide notifications.
+ */
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -17,15 +27,67 @@ export default async function DashboardLayout({
         redirect("/auth/login");
     }
 
-    const { data: projects } = await supabase
-        .from("projects")
+    // Auto-accept any pending workspace invites for this email
+    if (user.email) {
+        const { data: myInvites } = await supabase
+            .from("workspace_invites")
+            .select("*")
+            .eq("email", user.email);
+
+        if (myInvites && myInvites.length > 0) {
+            for (const invite of myInvites) {
+                // Check if already a member just in case
+                const { data: existing } = await supabase
+                    .from("workspace_members")
+                    .select("role")
+                    .eq("workspace_id", invite.workspace_id)
+                    .eq("user_id", user.id)
+                    .single();
+
+                if (!existing) {
+                    await supabase
+                        .from("workspace_members")
+                        .insert({
+                            workspace_id: invite.workspace_id,
+                            user_id: user.id,
+                            role: invite.role
+                        });
+                }
+
+                // Delete invite
+                await supabase
+                    .from("workspace_invites")
+                    .delete()
+                    .eq("id", invite.id);
+            }
+        }
+    }
+
+    // Fetch workspaces the user can access
+    const { data: workspaces } = await supabase
+        .from("workspaces")
         .select("*")
         .order("created_at", { ascending: false });
 
     const cookieStore = await cookies();
+    let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
+
+    if (workspaces && workspaces.length > 0) {
+        if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
+            selectedWorkspaceId = workspaces[0].id;
+        }
+    }
+
+    // Now fetch projects for the active workspace
+    const { data: projects } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("workspace_id", selectedWorkspaceId)
+        .order("created_at", { ascending: false });
+
     let selectedProjectId = cookieStore.get("selectedProjectId")?.value;
 
-    // If no selected project in cookie, or project no longer exists, default to the first one
+    // If no selected project in cookie, or project no longer exists in this workspace, default to the first one
     if (projects && projects.length > 0) {
         if (!selectedProjectId || !projects.some(p => p.id === selectedProjectId)) {
             selectedProjectId = projects[0].id;
@@ -39,6 +101,8 @@ export default async function DashboardLayout({
         <GlobalNotificationProvider userId={user.id}>
             <SidebarProvider defaultOpen={defaultOpen}>
                 <AppSidebar
+                    workspaces={workspaces || []}
+                    selectedWorkspaceId={selectedWorkspaceId}
                     projects={projects || []}
                     selectedProjectId={selectedProjectId}
                     user={user}

@@ -1,3 +1,12 @@
+/**
+ * Main Responsibility: Server Component rendering the primary dashboard overview. Retrieves exact metrics 
+ * via Server Side Supabase Queries (e.g. feedback counts per project) and controls the display of the 
+ * `<Onboarding>` component if the user profile hasn't fully set up their first project.
+ * 
+ * Sensitive Dependencies: 
+ * - @/components/Onboarding for handling project creation flows.
+ * - next/headers `cookies()` for reading current state. Modifying state here is critical as mismatched DB foreign keys will error (500).
+ */
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import Onboarding from "@/components/Onboarding";
@@ -9,14 +18,28 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default async function DashboardPage() {
     const supabase = await createClient();
-
-    // Fetch all projects for the user
-    const { data: projects } = await supabase
-        .from('projects')
-        .select('*');
+    const { data: { user } } = await supabase.auth.getUser();
 
     const cookieStore = await cookies();
+    let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
     const selectedProjectId = cookieStore.get("selectedProjectId")?.value;
+
+    const { data: workspaces } = await supabase
+        .from('workspaces')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (workspaces && workspaces.length > 0) {
+        if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
+            selectedWorkspaceId = workspaces[0].id;
+        }
+    }
+
+    let projectsQuery = supabase.from('projects').select('*');
+    if (selectedWorkspaceId) {
+        projectsQuery = projectsQuery.eq('workspace_id', selectedWorkspaceId);
+    }
+    const { data: projects } = await projectsQuery;
 
     // Use selected project or default to the first one
     const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
@@ -55,7 +78,10 @@ export default async function DashboardPage() {
             </div>
 
             {!hasOnboarded ? (
-                <Onboarding initialStep={(projects && projects.length > 0) ? 2 : 1} />
+                <Onboarding
+                    initialStep={(!workspaces || workspaces.length === 0) ? 1 : (!projects || projects.length === 0) ? 2 : 3}
+                    workspaceId={selectedWorkspaceId}
+                />
             ) : (
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

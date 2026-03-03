@@ -1,3 +1,12 @@
+/**
+ * Main Responsibility: Provides a dropdown to switch the active project within the current workspace, 
+ * and handles UI flows for creating new projects. Synchronizes the chosen project with browser cookies.
+ * 
+ * Sensitive Dependencies: 
+ * - document.cookie for syncing `selectedProjectId` states immediately.
+ * - Next.js Router for refreshing the current page architecture after a switch/creation event occurs.
+ * - POST /api/projects for creating a new project.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -17,10 +26,12 @@ import { Plus } from 'lucide-react';
 
 export default function ProjectSwitcher({
     projects,
-    selectedProjectId
+    selectedProjectId,
+    selectedWorkspaceId
 }: {
     projects: any[],
-    selectedProjectId?: string
+    selectedProjectId?: string,
+    selectedWorkspaceId?: string
 }) {
     const router = useRouter();
     const [isCreating, setIsCreating] = useState(false);
@@ -53,7 +64,11 @@ export default function ProjectSwitcher({
             const res = await fetch('/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: projectName, website_url: websiteUrl }),
+                body: JSON.stringify({
+                    name: projectName,
+                    website_url: websiteUrl,
+                    workspace_id: selectedWorkspaceId
+                }),
             });
 
             if (res.ok) {
