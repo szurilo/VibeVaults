@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { TeamManagementClient } from "@/components/TeamManagementClient";
-import { DeleteWorkspaceCard } from "@/components/DeleteWorkspaceCard";
 
 export default async function TeamSettingsPage() {
     const supabase = await createClient();
@@ -91,12 +90,6 @@ export default async function TeamSettingsPage() {
                 invites={invites || []}
                 isOwner={isOwner}
             />
-
-            {isOwner && workspace && (
-                <div className="mt-12">
-                    <DeleteWorkspaceCard workspace={workspace} />
-                </div>
-            )}
         </div>
     );
 }

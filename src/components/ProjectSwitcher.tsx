@@ -1,28 +1,22 @@
-/**
- * Main Responsibility: Provides a dropdown to switch the active project within the current workspace, 
- * and handles UI flows for creating new projects. Synchronizes the chosen project with browser cookies.
- * 
- * Sensitive Dependencies: 
- * - document.cookie for syncing `selectedProjectId` states immediately.
- * - Next.js Router for refreshing the current page architecture after a switch/creation event occurs.
- * - POST /api/projects for creating a new project.
- */
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { Plus, ChevronsUpDown, FolderOpen } from 'lucide-react';
+import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Plus } from 'lucide-react';
-
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function ProjectSwitcher({
     projects,
@@ -34,13 +28,12 @@ export default function ProjectSwitcher({
     selectedWorkspaceId?: string
 }) {
     const router = useRouter();
-    const [isCreating, setIsCreating] = useState(false);
+    const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
     const [projectName, setProjectName] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        // If we have projects and no selected ID from prop (shouldn't happen with layout fix but good for safety)
-        // or if the cookie is missing, set it.
         const cookieValue = typeof document !== 'undefined' ? document.cookie
             .split('; ')
             .find(row => row.startsWith('selectedProjectId='))
@@ -60,6 +53,7 @@ export default function ProjectSwitcher({
         e.preventDefault();
         if (!projectName.trim() || !websiteUrl.trim()) return;
 
+        setLoading(true);
         try {
             const res = await fetch('/api/projects', {
                 method: 'POST',
@@ -76,81 +70,119 @@ export default function ProjectSwitcher({
                 document.cookie = `selectedProjectId=${newProject.id}; path=/; max-age=31536000`;
                 setProjectName('');
                 setWebsiteUrl('');
-                setIsCreating(false);
+                setShowNewProjectDialog(false);
                 router.refresh();
             }
         } catch (error) {
             console.error('Failed to create project:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
-    return (
-        <div className="flex flex-col gap-4">
-            <div className="space-y-1.5 px-3">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Your Projects
-                </Label>
-                <Select
-                    value={selectedProjectId || ''}
-                    onValueChange={handleProjectChange}
-                    disabled={projects.length < 2}
-                >
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {projects.map((project) => (
-                            <SelectItem key={project.id} value={project.id}>
-                                <div className="flex items-center justify-between gap-3 w-full pr-1">
-                                    <span className="truncate">{project.name}</span>
-                                </div>
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+    const activeProject = projects.find(p => p.id === selectedProjectId) || projects[0];
 
-            <div className="px-3">
-                {isCreating ? (
-                    <form onSubmit={handleCreateProject} className="space-y-2">
+    return (
+        <Dialog open={showNewProjectDialog} onOpenChange={setShowNewProjectDialog}>
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <SidebarMenuButton size="lg" className="w-full justify-between gap-2 h-auto py-2 cursor-pointer bg-white border border-gray-100 shadow-sm hover:bg-gray-50">
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                    <Avatar className="h-8 w-8 rounded-md border border-gray-200 shrink-0 bg-gray-50 flex items-center justify-center">
+                                        <FolderOpen className="w-4 h-4 text-gray-500" />
+                                    </Avatar>
+                                    <div className="flex flex-col items-start text-sm overflow-hidden flex-1">
+                                        <span className="truncate font-medium w-full text-left">
+                                            {activeProject ? activeProject.name : 'No projects'}
+                                        </span>
+                                        <span className="truncate text-xs text-gray-500 w-full text-left">
+                                            Current Project
+                                        </span>
+                                    </div>
+                                </div>
+                                <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                            </SidebarMenuButton>
+                        </DropdownMenuTrigger>
+
+                        <DropdownMenuContent className="w-64" align="start" side="bottom" sideOffset={8}>
+                            {projects.length > 0 && (
+                                <>
+                                    <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                        Your Projects
+                                    </DropdownMenuLabel>
+                                    {projects.map((project) => (
+                                        <DropdownMenuItem
+                                            key={project.id}
+                                            onSelect={() => handleProjectChange(project.id)}
+                                            className="cursor-pointer flex items-center gap-2"
+                                        >
+                                            <Avatar className="h-6 w-6 rounded-md border border-gray-100 bg-gray-50 flex shrink-0 items-center justify-center">
+                                                <FolderOpen className="w-3 h-3 text-gray-500" />
+                                            </Avatar>
+                                            <span className="truncate font-medium">{project.name}</span>
+                                        </DropdownMenuItem>
+                                    ))}
+                                </>
+                            )}
+
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onSelect={() => setShowNewProjectDialog(true)}
+                                className="cursor-pointer flex items-center gap-2 text-blue-600 focus:text-blue-600 focus:bg-blue-50"
+                            >
+                                <Plus className="h-4 w-4" />
+                                <span>Create Project</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </SidebarMenuItem>
+            </SidebarMenu>
+
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Create Project</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCreateProject} className="space-y-4">
+                    <div className="space-y-2 max-w-sm mt-2">
+                        <Label htmlFor="projectName">Project Name</Label>
                         <Input
+                            id="projectName"
                             type="text"
-                            placeholder="Project name"
+                            placeholder="e.g. My Website"
                             value={projectName}
                             onChange={(e) => setProjectName(e.target.value)}
+                            disabled={loading}
                             autoFocus
                         />
+                    </div>
+                    <div className="space-y-2 max-w-sm">
+                        <Label htmlFor="websiteUrl">Website URL</Label>
                         <Input
+                            id="websiteUrl"
                             type="url"
-                            placeholder="Website URL"
+                            placeholder="https://example.com"
                             value={websiteUrl}
                             onChange={(e) => setWebsiteUrl(e.target.value)}
+                            disabled={loading}
                         />
-                        <div className="flex gap-2">
-                            <Button type="submit" className="flex-1 cursor-pointer" size="sm" disabled={!projectName.trim() || !websiteUrl.trim()}>
-                                Create
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsCreating(false)}
-                                className="flex-1 cursor-pointer"
-                                size="sm"
-                            >
-                                Cancel
-                            </Button>
-                        </div>
-                    </form>
-                ) : (
-                    <Button
-                        onClick={() => setIsCreating(true)}
-                        className="w-full justify-center gap-2 cursor-pointer"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Create project
-                    </Button>
-                )}
-            </div>
-        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setShowNewProjectDialog(false)}
+                            disabled={loading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="submit" disabled={!projectName.trim() || !websiteUrl.trim() || loading} className="cursor-pointer">
+                            {loading ? "Creating..." : "Create"}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }

@@ -1,50 +1,62 @@
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { cookies } from "next/headers";
-import { DeleteProjectCard } from "@/components/DeleteProjectCard";
-import { EditProjectCard } from "@/components/EditProjectCard";
-import { NotificationsCard } from "@/components/NotificationsCard";
+import { WorkspaceSettingsCard } from "@/components/WorkspaceSettingsCard";
+import { DeleteWorkspaceCard } from "@/components/DeleteWorkspaceCard";
 
-import { ShareProjectCard } from "@/components/ShareProjectCard";
-import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
-import { InviteClientCard } from "@/components/InviteClientCard";
-
-
-export default async function SettingsPage() {
+export default async function WorkspaceSettingsPage() {
     const supabase = await createClient();
 
-    const cookieStore = await cookies();
-    const selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
-    const selectedProjectId = cookieStore.get("selectedProjectId")?.value;
-
-    let projectsQuery = supabase.from('projects').select('*');
-    if (selectedWorkspaceId) {
-        projectsQuery = projectsQuery.eq('workspace_id', selectedWorkspaceId);
-    }
-    const { data: projects } = await projectsQuery;
-
-    // Use selected project or default to the first one
-    const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
-
+    // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
-    let emailPreferences = {};
-    if (user?.email) {
-        const adminSupabase = createAdminClient();
-        const { data: pref } = await adminSupabase
-            .from('email_preferences')
-            .select('*')
-            .eq('email', user.email)
-            .single();
-        if (pref) emailPreferences = pref;
+
+    const { data: workspaces } = await supabase
+        .from('workspaces')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    const cookieStore = await cookies();
+    let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
+
+    if (workspaces && workspaces.length > 0) {
+        if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
+            selectedWorkspaceId = workspaces[0].id;
+        }
     }
+
+    if (!selectedWorkspaceId) {
+        return (
+            <div className="p-8">
+                <h1 className="text-2xl font-semibold mb-4">Workspace Settings</h1>
+                <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-12 text-center">
+                    <p className="text-gray-500">No workspace selected.</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Fetch the active workspace info
+    const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('id', selectedWorkspaceId)
+        .single();
+
+    const { data: workspaceMembers } = await supabase
+        .from('workspace_members')
+        .select('role, user_id')
+        .eq('workspace_id', selectedWorkspaceId)
+        .order('created_at', { ascending: true });
+
+    // Determine if the current user is an owner of this workspace
+    const isOwner = workspaceMembers?.some(m => m.user_id === user?.id && m.role === 'owner') || false;
 
     return (
         <div>
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-semibold text-gray-900 flex items-center flex-wrap gap-2">
-                    Settings {currentProject && (
+                    Workspace Settings {workspace && (
                         <>
-                            <span className="text-gray-400 font-normal">/ {currentProject.name}</span>
+                            <span className="text-gray-400 font-normal">/ {workspace.name}</span>
                         </>
                     )}
                 </h1>
@@ -52,20 +64,16 @@ export default async function SettingsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="col-span-full space-y-6">
-                    {currentProject ? (
+                    {workspace && isOwner ? (
                         <>
-                            <EditProjectCard project={currentProject} />
-                            <NotificationsCard initialPreferences={emailPreferences} />
-                            <InviteClientCard project={currentProject} />
-                            <EmbedWidgetCard project={currentProject} />
-                            <ShareProjectCard project={currentProject} />
-                            <DeleteProjectCard project={currentProject} />
+                            <WorkspaceSettingsCard workspace={workspace} />
+                            <DeleteWorkspaceCard workspace={workspace} />
                         </>
-                    ) : (
+                    ) : workspace ? (
                         <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-12 text-center">
-                            <p className="text-gray-500">Create a project first to manage settings.</p>
+                            <p className="text-gray-500">Only workspace owners can manage settings.</p>
                         </div>
-                    )}
+                    ) : null}
                 </div>
             </div>
         </div>
