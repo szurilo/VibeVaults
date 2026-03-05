@@ -49,6 +49,9 @@ export function AppSidebar({
         router.push("/auth/login");
     };
 
+    const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
+    const isOwner = activeWorkspace?.owner_id === user.id;
+
     return (
         <Sidebar>
             <SidebarHeader className="bg-white border-b border-gray-100 p-4">
@@ -72,21 +75,23 @@ export function AppSidebar({
                     </div>
                     <SidebarMenu>
                         <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings/team"}>
-                                <Link href="/dashboard/settings/team" className="font-medium flex items-center gap-2">
+                            <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings/users"}>
+                                <Link href="/dashboard/settings/users" className="font-medium flex items-center gap-2">
                                     <Users className="w-4 h-4" />
-                                    <span>Team</span>
+                                    <span>Users</span>
                                 </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings"}>
-                                <Link href="/dashboard/settings" className="font-medium flex items-center gap-2">
-                                    <Settings className="w-4 h-4" />
-                                    <span>Settings</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
+                        {isOwner && (
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings"}>
+                                    <Link href="/dashboard/settings" className="font-medium flex items-center gap-2">
+                                        <Settings className="w-4 h-4" />
+                                        <span>Settings</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        )}
                     </SidebarMenu>
                 </div>
 

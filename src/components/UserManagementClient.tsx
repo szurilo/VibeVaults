@@ -12,6 +12,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { MailCheck, UserX, AlertCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // Helper for '2 days ago' style timestamps without needing date-fns
 function formatRelativeTime(dateString: string) {
@@ -29,24 +40,28 @@ function formatRelativeTime(dateString: string) {
     return date.toLocaleDateString();
 }
 
-export function TeamManagementClient({
+export function UserManagementClient({
     workspaceId,
     members,
     invites,
     projects = [],
-    isOwner
+    isOwner,
+    currentUserId
 }: {
     workspaceId: string;
     members: any[];
     invites: any[];
     projects?: any[];
     isOwner: boolean;
+    currentUserId?: string;
 }) {
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
     const [role, setRole] = useState<'member' | 'client'>('member');
     const [selectedProjectId, setSelectedProjectId] = useState<string>(projects[0]?.id || '');
     const [isInviting, setIsInviting] = useState(false);
+    const [isLeaving, setIsLeaving] = useState(false);
+    const [revokingId, setRevokingId] = useState<string | null>(null);
     const router = useRouter();
 
     const handleInvite = async (e: React.FormEvent) => {
@@ -125,12 +140,48 @@ export function TeamManagementClient({
         }
     };
 
+    const handleLeaveWorkspace = async () => {
+        setIsLeaving(true);
+        try {
+            const { leaveWorkspaceAction } = await import('@/actions/workspaces');
+            await leaveWorkspaceAction(workspaceId);
+            toast.success("Left Workspace", {
+                description: "You have successfully left the workspace.",
+            });
+            router.push('/dashboard');
+        } catch (error: any) {
+            toast.error("Error", {
+                description: error.message || "Failed to leave workspace",
+            });
+        } finally {
+            setIsLeaving(false);
+        }
+    };
+
+    const handleRevokeAccess = async (userId: string, userName: string) => {
+        setRevokingId(userId);
+        try {
+            const { removeMemberAction } = await import('@/actions/workspaces');
+            await removeMemberAction(workspaceId, userId);
+            toast.success("Access Revoked", {
+                description: `Successfully removed ${userName} from the workspace.`,
+            });
+            router.refresh();
+        } catch (error: any) {
+            toast.error("Error", {
+                description: error.message || "Failed to revoke access",
+            });
+        } finally {
+            setRevokingId(null);
+        }
+    };
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
+            <div className={`${isOwner ? "lg:col-span-2" : "col-span-full"} space-y-6`}>
                 <Card>
                     <CardHeader>
-                        <CardTitle>Team Members</CardTitle>
+                        <CardTitle>Users</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {members.map((member) => (
@@ -155,13 +206,79 @@ export function TeamManagementClient({
                                     <Badge variant={member.role === 'owner' ? 'default' : 'secondary'}>
                                         {member.role}
                                     </Badge>
+
+                                    {isOwner && member.user_id !== currentUserId && (
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    disabled={revokingId === member.user_id}
+                                                    className="cursor-pointer h-8"
+                                                >
+                                                    {revokingId === member.user_id ? "Revoking..." : "Revoke Access"}
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Revoke Access?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Are you sure you want to revoke access for {member.profiles?.full_name || member.profiles?.email}? They will no longer be able to access this workspace.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={() => handleRevokeAccess(member.user_id, member.profiles?.full_name || member.profiles?.email)}
+                                                        className="cursor-pointer"
+                                                        variant="destructive"
+                                                    >
+                                                        Revoke Access
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    )}
+
+                                    {!isOwner && member.user_id === currentUserId && (
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    disabled={isLeaving}
+                                                    className="cursor-pointer h-8"
+                                                >
+                                                    {isLeaving ? "Leaving..." : "Leave Workspace"}
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Leave Workspace?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Are you sure you want to leave this workspace? You will lose access to all projects and feedback within it.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={handleLeaveWorkspace}
+                                                        className="cursor-pointer"
+                                                        variant="destructive"
+                                                    >
+                                                        Leave Workspace
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    )}
                                 </div>
                             </div>
                         ))}
                     </CardContent>
                 </Card>
 
-                {invites.length > 0 && (
+                {isOwner && invites.length > 0 && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Pending Invites</CardTitle>
@@ -181,14 +298,35 @@ export function TeamManagementClient({
                                         )}
                                         <Badge variant="outline">Pending</Badge>
                                         {isOwner && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-red-500 hover:text-red-600 hover:bg-red-50 cursor-pointer"
-                                                onClick={() => handleCancelInvite(invite.id)}
-                                            >
-                                                Cancel
-                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        className="cursor-pointer"
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Cancel Invitation?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Are you sure you want to cancel the invitation for {invite.email}?
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                            onClick={() => handleCancelInvite(invite.id)}
+                                                            className="cursor-pointer"
+                                                            variant="destructive"
+                                                        >
+                                                            Cancel Invite
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         )}
                                     </div>
                                 </div>
@@ -202,17 +340,17 @@ export function TeamManagementClient({
                 <div>
                     <Card>
                         <CardHeader>
-                            <CardTitle>Invite Member</CardTitle>
+                            <CardTitle>Invite Users</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleInvite} className="space-y-4" noValidate>
                                 <div className="space-y-2">
                                     <p className="text-sm text-muted-foreground">
-                                        Invite colleagues to join your workspace. They will be added as Members.
+                                        Invite users to join your workspace. Choose from Member or Client.
                                     </p>
                                     <Input
                                         type="email"
-                                        placeholder="colleague@example.com"
+                                        placeholder="user@example.com"
                                         value={email}
                                         onChange={(e) => {
                                             setEmail(e.target.value);

@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { TeamManagementClient } from "@/components/TeamManagementClient";
+import { UserManagementClient } from "@/components/UserManagementClient";
 
-export default async function TeamSettingsPage() {
+export default async function UserSettingsPage() {
     const supabase = await createClient();
 
     // Get the current user
@@ -25,7 +25,7 @@ export default async function TeamSettingsPage() {
     if (!selectedWorkspaceId) {
         return (
             <div className="p-8">
-                <h1 className="text-2xl font-semibold mb-4">Team Management</h1>
+                <h1 className="text-2xl font-semibold mb-4">Users</h1>
                 <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-12 text-center">
                     <p className="text-gray-500">No workspace selected.</p>
                 </div>
@@ -82,7 +82,7 @@ export default async function TeamSettingsPage() {
         <div>
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-semibold text-gray-900 flex items-center flex-wrap gap-2">
-                    Team Members {workspace && (
+                    Users {workspace && (
                         <>
                             <span className="text-gray-400 font-normal">/ {workspace.name}</span>
                         </>
@@ -90,12 +90,13 @@ export default async function TeamSettingsPage() {
                 </h1>
             </div>
 
-            <TeamManagementClient
+            <UserManagementClient
                 workspaceId={selectedWorkspaceId}
                 members={members || []}
                 invites={invites || []}
                 projects={projects || []}
                 isOwner={isOwner}
+                currentUserId={user?.id}
             />
         </div>
     );

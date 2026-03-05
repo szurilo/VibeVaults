@@ -41,8 +41,9 @@ export default function ProjectSwitcher({
 
         if (selectedProjectId && selectedProjectId !== cookieValue) {
             document.cookie = `selectedProjectId=${selectedProjectId}; path=/; max-age=31536000`;
+            router.refresh();
         }
-    }, [selectedProjectId]);
+    }, [selectedProjectId, router]);
 
     const handleProjectChange = (projectId: string) => {
         document.cookie = `selectedProjectId=${projectId}; path=/; max-age=31536000`;
@@ -140,7 +141,7 @@ export default function ProjectSwitcher({
                 </SidebarMenuItem>
             </SidebarMenu>
 
-            <DialogContent>
+            <DialogContent showCloseButton={false}>
                 <DialogHeader>
                     <DialogTitle>Create Project</DialogTitle>
                 </DialogHeader>
@@ -171,7 +172,8 @@ export default function ProjectSwitcher({
                     <DialogFooter>
                         <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
+                            className="cursor-pointer"
                             onClick={() => setShowNewProjectDialog(false)}
                             disabled={loading}
                         >

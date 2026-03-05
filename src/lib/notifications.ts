@@ -286,11 +286,11 @@ export async function sendWorkspaceInviteNotification({
                         <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">Workspace Invite</h2>
                         
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            <strong>${inviterName}</strong> has invited you to join their team workspace <strong>${workspaceName}</strong> on VibeVaults.
+                            <strong>${inviterName}</strong> has invited you to join their workspace <strong>${workspaceName}</strong> on VibeVaults.
                         </p>
                         
                         <p style="margin-bottom: 32px; font-size: 16px; color: #4a5568;">
-                            Click the button below to accept the invitation and access the team's projects.
+                            Click the button below to accept the invitation and access the workspace's projects.
                         </p>
                         
                         <div style="margin-top: 32px;">

@@ -41,8 +41,9 @@ export default function WorkspaceSwitcher({
 
         if (selectedWorkspaceId && selectedWorkspaceId !== cookieValue) {
             document.cookie = `selectedWorkspaceId=${selectedWorkspaceId}; path=/; max-age=31536000`;
+            router.refresh();
         }
-    }, [selectedWorkspaceId]);
+    }, [selectedWorkspaceId, router]);
 
     const handleWorkspaceChange = (workspaceId: string) => {
         document.cookie = `selectedWorkspaceId=${workspaceId}; path=/; max-age=31536000`;
@@ -168,7 +169,7 @@ export default function WorkspaceSwitcher({
                 </SidebarMenuItem>
             </SidebarMenu>
 
-            <DialogContent>
+            <DialogContent showCloseButton={false}>
                 <DialogHeader>
                     <DialogTitle>Create Workspace</DialogTitle>
                 </DialogHeader>
@@ -192,7 +193,8 @@ export default function WorkspaceSwitcher({
                     <DialogFooter>
                         <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
+                            className="cursor-pointer"
                             onClick={() => setShowNewWorkspaceDialog(false)}
                             disabled={loading}
                         >
