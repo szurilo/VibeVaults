@@ -1,3 +1,12 @@
+/**
+ * Main Responsibility: Centralized page for managing project-specific settings within a selected workspace.
+ * Responsible for displaying current active project metadata, email preferences, widget embeds, and destructive actions.
+ * 
+ * Sensitive Dependencies: 
+ * - Next.js Headers (cookies) to persist state identifying `selectedWorkspaceId` and `selectedProjectId`.
+ * - Supabase Admin Client (@/lib/supabase/admin) for fetching sensitive email preferences detached from public profiles.
+ * - Project Cards components mapping individual update requests (Edit/Share/Delete).
+ */
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cookies } from "next/headers";
@@ -7,7 +16,6 @@ import { NotificationsCard } from "@/components/NotificationsCard";
 
 import { ShareProjectCard } from "@/components/ShareProjectCard";
 import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
-import { InviteClientCard } from "@/components/InviteClientCard";
 
 
 export default async function SettingsPage() {
@@ -56,7 +64,6 @@ export default async function SettingsPage() {
                         <>
                             <EditProjectCard project={currentProject} />
                             <NotificationsCard initialPreferences={emailPreferences} />
-                            <InviteClientCard project={currentProject} />
                             <EmbedWidgetCard project={currentProject} />
                             <ShareProjectCard project={currentProject} />
                             <DeleteProjectCard project={currentProject} />

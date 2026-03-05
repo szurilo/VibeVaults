@@ -36,7 +36,7 @@ async function verifyApiKeyForFeedback(apiKey: string, feedbackId: string) {
         return { error: "Feedback not found for this project" };
     }
 
-    return { projectId: project.id };
+    return { projectId: project.id, workspaceId: project.workspace_id };
 }
 
 // --- POST: Send a reply (API key + email auth) ---
@@ -59,11 +59,11 @@ export async function POST(request: Request) {
 
     const adminSupabase = createAdminClient();
 
-    // Verify sender is in project_invites
+    // Verify sender is in workspace_invites
     const { data: invite, error: inviteError } = await adminSupabase
-        .from('project_invites')
+        .from('workspace_invites')
         .select('id')
-        .eq('project_id', apiKeyResult.projectId)
+        .eq('workspace_id', apiKeyResult.workspaceId)
         .eq('email', senderEmail)
         .single();
 

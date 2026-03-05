@@ -236,7 +236,7 @@ export default function Onboarding({ initialStep = 1, workspaceId }: { initialSt
 
                     <div className="flex flex-col sm:flex-row gap-4 items-center">
                         <Button asChild className="w-full sm:w-auto px-8 shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer">
-                            <Link href="/dashboard/settings" onClick={handleFinishOnboarding}>
+                            <Link href="/dashboard/project-settings" onClick={handleFinishOnboarding}>
                                 Head to Settings
                                 <ArrowRight className="ml-2 w-4 h-4" />
                             </Link>

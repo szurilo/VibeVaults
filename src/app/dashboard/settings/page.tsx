@@ -12,7 +12,7 @@ export default async function WorkspaceSettingsPage() {
     const { data: workspaces } = await supabase
         .from('workspaces')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
     const cookieStore = await cookies();
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;

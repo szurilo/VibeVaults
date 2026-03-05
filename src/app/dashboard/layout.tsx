@@ -9,6 +9,7 @@
  * - GlobalNotificationProvider for real-time app-wide notifications.
  */
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -28,8 +29,10 @@ export default async function DashboardLayout({
     }
 
     // Auto-accept any pending workspace invites for this email
+    let autoSelectedWorkspaceId: string | undefined;
     if (user.email) {
-        const { data: myInvites } = await supabase
+        const adminSupabase = createAdminClient();
+        const { data: myInvites } = await adminSupabase
             .from("workspace_invites")
             .select("*")
             .eq("email", user.email);
@@ -37,7 +40,7 @@ export default async function DashboardLayout({
         if (myInvites && myInvites.length > 0) {
             for (const invite of myInvites) {
                 // Check if already a member just in case
-                const { data: existing } = await supabase
+                const { data: existing } = await adminSupabase
                     .from("workspace_members")
                     .select("role")
                     .eq("workspace_id", invite.workspace_id)
@@ -45,7 +48,7 @@ export default async function DashboardLayout({
                     .single();
 
                 if (!existing) {
-                    await supabase
+                    await adminSupabase
                         .from("workspace_members")
                         .insert({
                             workspace_id: invite.workspace_id,
@@ -54,8 +57,11 @@ export default async function DashboardLayout({
                         });
                 }
 
+                // Track this workspace ID to auto-select it later
+                autoSelectedWorkspaceId = invite.workspace_id;
+
                 // Delete invite
-                await supabase
+                await adminSupabase
                     .from("workspace_invites")
                     .delete()
                     .eq("id", invite.id);
@@ -67,13 +73,17 @@ export default async function DashboardLayout({
     const { data: workspaces } = await supabase
         .from("workspaces")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: true });
 
     const cookieStore = await cookies();
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
 
     if (workspaces && workspaces.length > 0) {
-        if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
+        // Prioritize the workspace we just accepted an invite for 
+        // or if no workspace is currently selected/exists
+        if (autoSelectedWorkspaceId) {
+            selectedWorkspaceId = autoSelectedWorkspaceId;
+        } else if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
             selectedWorkspaceId = workspaces[0].id;
         }
     }

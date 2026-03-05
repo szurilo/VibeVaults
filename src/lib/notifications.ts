@@ -1,3 +1,11 @@
+/**
+ * Main Responsibility: Orchestrates all transactional email templates and dispatch functions across the platform 
+ * (e.g., feedback notifications, agency replies, workspace/client invites).
+ * 
+ * Sensitive Dependencies: 
+ * - Resend API Client (./resend) for securely delivering emails without exposing API keys to the client.
+ * - Environment Variables (NODE_ENV) to dynamically route links (localhost vs production).
+ */
 import { resend } from './resend';
 
 const BASE_URL = process.env.NODE_ENV === 'development'

@@ -128,9 +128,9 @@ function ConfirmContent() {
                             <p className="font-medium text-foreground mb-2">This can happen if:</p>
                             <ul className="space-y-1.5">
                                 {[
-                                    'Your email security scanned the link before you clicked it',
                                     'The link has expired (they are single-use)',
                                     'You\'ve already used this link to sign in',
+                                    'Your email security scanned the link before you clicked it',
                                 ].map((reason, i) => (
                                     <li key={i} className="flex items-center text-muted-foreground">
                                         <span className="mr-2 text-primary">•</span>

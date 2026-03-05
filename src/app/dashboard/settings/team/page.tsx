@@ -11,7 +11,7 @@ export default async function TeamSettingsPage() {
     const { data: workspaces } = await supabase
         .from('workspaces')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
     const cookieStore = await cookies();
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
@@ -26,12 +26,8 @@ export default async function TeamSettingsPage() {
         return (
             <div className="p-8">
                 <h1 className="text-2xl font-semibold mb-4">Team Management</h1>
-                <p>No workspace selected.</p>
-                <div className="mt-4 p-4 bg-gray-100 rounded text-sm font-mono overflow-auto">
-                    <p>Debug Info:</p>
-                    <p>User ID: {user?.id || 'none'}</p>
-                    <p>Workspaces count: {workspaces?.length || 0}</p>
-                    <p>Cookie Workspace ID: {cookieStore.get("selectedWorkspaceId")?.value || 'none'}</p>
+                <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-12 text-center">
+                    <p className="text-gray-500">No workspace selected.</p>
                 </div>
             </div>
         );
@@ -50,9 +46,12 @@ export default async function TeamSettingsPage() {
         .eq('workspace_id', selectedWorkspaceId)
         .order('created_at', { ascending: true });
 
-    // Fetch corresponding profiles for these members
+    // Fetch corresponding profiles for these members using admin client to bypass RLS
+    // so team members can see each other's names without exposing profiles to the public
     const memberIds = workspaceMembers?.map(m => m.user_id) || [];
-    const { data: profiles } = await supabase
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const adminSupabase = createAdminClient();
+    const { data: profiles } = await adminSupabase
         .from('profiles')
         .select('id, email, full_name, avatar_url')
         .in('id', memberIds);
@@ -65,6 +64,13 @@ export default async function TeamSettingsPage() {
     // Fetch all pending invites for this workspace
     const { data: invites } = await supabase
         .from('workspace_invites')
+        .select('*')
+        .eq('workspace_id', selectedWorkspaceId)
+        .order('created_at', { ascending: false });
+
+    // Fetch all projects for this workspace to allow sending targeted client invites
+    const { data: projects } = await supabase
+        .from('projects')
         .select('*')
         .eq('workspace_id', selectedWorkspaceId)
         .order('created_at', { ascending: false });
@@ -88,6 +94,7 @@ export default async function TeamSettingsPage() {
                 workspaceId={selectedWorkspaceId}
                 members={members || []}
                 invites={invites || []}
+                projects={projects || []}
                 isOwner={isOwner}
             />
         </div>

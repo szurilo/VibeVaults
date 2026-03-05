@@ -27,7 +27,7 @@ export default async function DashboardPage() {
     const { data: workspaces } = await supabase
         .from('workspaces')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
     if (workspaces && workspaces.length > 0) {
         if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
@@ -108,7 +108,7 @@ export default async function DashboardPage() {
                 <CardContent>
                     <h2 className="font-semibold text-sm mb-1">Regarding setup:</h2>
                     <p className="text-muted-foreground mb-6">
-                        <a href="https://calendly.com/szurilo/30min" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
+                        <a href="https://calendly.com/szurilo/30min" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                             Book a free 15-minute setup call with the founder.
                         </a>
                     </p>

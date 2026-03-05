@@ -71,9 +71,9 @@ export async function POST(request: Request) {
 
         const adminSupabase = createAdminClient();
         const { data: invite, error: inviteError } = await adminSupabase
-            .from('project_invites')
+            .from('workspace_invites')
             .select('id')
-            .eq('project_id', project.id)
+            .eq('workspace_id', project.workspace_id)
             .eq('email', sender)
             .single();
 

@@ -156,7 +156,7 @@ export function WorkspaceSettingsCard({ workspace }: WorkspaceSettingsCardProps)
                                 <div className="flex items-center gap-6">
                                     <Avatar className="h-16 w-16 rounded-md border border-gray-200 shadow-sm bg-gray-50 flex items-center justify-center">
                                         {logoUrl ? (
-                                            <AvatarImage src={logoUrl} alt="Brand Logo" className="object-cover" />
+                                            <AvatarImage src={logoUrl} alt="Brand Logo" className="object-contain" />
                                         ) : (
                                             <AvatarFallback className="bg-primary/5 text-primary rounded-md text-xl">
                                                 {name.charAt(0).toUpperCase() || "W"}
