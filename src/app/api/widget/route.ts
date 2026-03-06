@@ -70,6 +70,7 @@ export async function POST(request: Request) {
         }
 
         const adminSupabase = createAdminClient();
+
         const { data: invite, error: inviteError } = await adminSupabase
             .from('workspace_invites')
             .select('id')

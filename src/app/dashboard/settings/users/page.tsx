@@ -15,6 +15,7 @@ export default async function UserSettingsPage() {
 
     const cookieStore = await cookies();
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
+    let selectedProjectId = cookieStore.get("selectedProjectId")?.value;
 
     if (workspaces && workspaces.length > 0) {
         if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
@@ -97,6 +98,7 @@ export default async function UserSettingsPage() {
                 projects={projects || []}
                 isOwner={isOwner}
                 currentUserId={user?.id}
+                selectedProjectId={selectedProjectId}
             />
         </div>
     );

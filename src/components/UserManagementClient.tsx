@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState } from 'react';
@@ -46,7 +47,8 @@ export function UserManagementClient({
     invites,
     projects = [],
     isOwner,
-    currentUserId
+    currentUserId,
+    selectedProjectId
 }: {
     workspaceId: string;
     members: any[];
@@ -54,11 +56,12 @@ export function UserManagementClient({
     projects?: any[];
     isOwner: boolean;
     currentUserId?: string;
+    selectedProjectId?: string;
 }) {
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
     const [role, setRole] = useState<'member' | 'client'>('member');
-    const [selectedProjectId, setSelectedProjectId] = useState<string>(projects[0]?.id || '');
+    const [selectedProjectIdState, setSelectedProjectIdState] = useState<string>(selectedProjectId || projects[0]?.id || '');
     const [isInviting, setIsInviting] = useState(false);
     const [isLeaving, setIsLeaving] = useState(false);
     const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -92,7 +95,7 @@ export function UserManagementClient({
                     email: email.trim(),
                     workspaceId,
                     role,
-                    projectId: role === 'client' ? selectedProjectId : undefined
+                    projectId: role === 'client' ? selectedProjectIdState : undefined
                 })
             });
 
@@ -107,7 +110,8 @@ export function UserManagementClient({
             });
             setEmail('');
             router.refresh();
-        } catch (error: any) {
+        } catch (err) {
+            const error = err as Error;
             toast("Error", {
                 description: error.message || "Failed to send invite",
                 icon: <AlertCircle className="h-4 w-4 text-red-500" />,
@@ -132,7 +136,8 @@ export function UserManagementClient({
                 icon: <UserX className="h-4 w-4 text-muted-foreground" />,
             });
             router.refresh();
-        } catch (error: any) {
+        } catch (err) {
+            const error = err as Error;
             toast("Error", {
                 description: error.message || "Error cancelling invite",
                 icon: <AlertCircle className="h-4 w-4 text-red-500" />,
@@ -149,7 +154,8 @@ export function UserManagementClient({
                 description: "You have successfully left the workspace.",
             });
             router.push('/dashboard');
-        } catch (error: any) {
+        } catch (err) {
+            const error = err as Error;
             toast.error("Error", {
                 description: error.message || "Failed to leave workspace",
             });
@@ -167,7 +173,8 @@ export function UserManagementClient({
                 description: `Successfully removed ${userName} from the workspace.`,
             });
             router.refresh();
-        } catch (error: any) {
+        } catch (err) {
+            const error = err as Error;
             toast.error("Error", {
                 description: error.message || "Failed to revoke access",
             });
@@ -175,6 +182,10 @@ export function UserManagementClient({
             setRevokingId(null);
         }
     };
+
+    // Separate invites into actual pending members and whitelisted clients
+    const pendingMembers = invites.filter(i => i.role === 'member');
+    const clientInvites = invites.filter(i => i.role === 'client');
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -275,16 +286,78 @@ export function UserManagementClient({
                                 </div>
                             </div>
                         ))}
+
+                        {/* Render Client Invites as whitelisted users here */}
+                        {clientInvites.map((client) => (
+                            <div key={client.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50/50">
+                                <div className="flex items-center gap-4">
+                                    <Avatar>
+                                        <AvatarFallback>
+                                            {client.email.charAt(0).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <p className="font-medium text-sm">
+                                            {client.email.split('@')[0]}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {client.email}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                        Client
+                                    </Badge>
+
+                                    {isOwner && (
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    disabled={revokingId === client.id}
+                                                    className="cursor-pointer h-8"
+                                                >
+                                                    {revokingId === client.id ? "Revoking..." : "Revoke Access"}
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Revoke Access?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Are you sure you want to revoke access for {client.email}? They will no longer be able to submit feedback.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={() => {
+                                                            setRevokingId(client.id);
+                                                            handleCancelInvite(client.id).finally(() => setRevokingId(null));
+                                                        }}
+                                                        className="cursor-pointer"
+                                                        variant="destructive"
+                                                    >
+                                                        Revoke Access
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
                     </CardContent>
                 </Card>
 
-                {isOwner && invites.length > 0 && (
+                {isOwner && pendingMembers.length > 0 && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Pending Invites</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {invites.map((invite) => (
+                            {pendingMembers.map((invite) => (
                                 <div key={invite.id} className="flex items-center justify-between p-4 border border-dashed rounded-lg">
                                     <div className="flex flex-col">
                                         <span className="font-medium text-sm">{invite.email}</span>
@@ -293,9 +366,6 @@ export function UserManagementClient({
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        {invite.role === 'client' && (
-                                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Client</Badge>
-                                        )}
                                         <Badge variant="outline">Pending</Badge>
                                         {isOwner && (
                                             <AlertDialog>
@@ -362,7 +432,7 @@ export function UserManagementClient({
                                 </div>
                                 <div className="space-y-3 pb-2 pt-1">
                                     <Label className="text-sm font-medium">Role</Label>
-                                    <RadioGroup value={role} onValueChange={(val: any) => setRole(val)} className="flex flex-col gap-3">
+                                    <RadioGroup value={role} onValueChange={(val: 'member' | 'client') => setRole(val)} className="flex flex-col gap-3">
                                         <div className="flex items-start space-x-3">
                                             <RadioGroupItem value="member" id="r1" className="mt-1" />
                                             <div className="flex flex-col">
@@ -379,7 +449,7 @@ export function UserManagementClient({
                                                 {role === 'client' && projects.length > 0 && (
                                                     <div className="mt-2 space-y-2">
                                                         <Label className="text-xs font-semibold">Select Project to Review</Label>
-                                                        <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                                                        <Select value={selectedProjectIdState} onValueChange={setSelectedProjectIdState}>
                                                             <SelectTrigger className="w-full h-9 bg-white">
                                                                 <SelectValue placeholder="Select a project..." />
                                                             </SelectTrigger>
