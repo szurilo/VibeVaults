@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import WorkspaceSwitcher from "@/components/WorkspaceSwitcher"
 import ProjectSwitcher from "@/components/ProjectSwitcher"
 import {
     Sidebar,
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/sidebar"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { LayoutDashboard, MessageSquare, Settings, LogOut } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Settings, LogOut, Users } from "lucide-react"
 import { NotificationBell } from "@/components/NotificationBell"
 import { User } from "@supabase/supabase-js"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -27,10 +28,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function AppSidebar({
+    workspaces,
+    selectedWorkspaceId,
     projects,
     selectedProjectId,
     user,
 }: {
+    workspaces: any[]
+    selectedWorkspaceId?: string
     projects: any[]
     selectedProjectId?: string
     user: User
@@ -44,50 +49,90 @@ export function AppSidebar({
         router.push("/auth/login");
     };
 
+    const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
+    const isOwner = activeWorkspace?.owner_id === user.id;
+
     return (
         <Sidebar>
             <SidebarHeader className="bg-white border-b border-gray-100 p-4">
-                <div className="flex items-center justify-between mb-4 px-2">
+                <div className="flex items-center justify-between px-2">
                     <Link href="/dashboard" className="cursor-pointer block">
                         <span className="font-bold text-xl text-primary">VibeVaults</span>
                     </Link>
                     <NotificationBell userId={user.id} />
                 </div>
-                <ProjectSwitcher
-                    projects={projects || []}
-                    selectedProjectId={selectedProjectId}
-                />
             </SidebarHeader>
 
-            <SidebarContent className="bg-white px-2 py-4 gap-1">
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
-                            <Link href="/dashboard" className="font-medium flex items-center gap-2">
-                                <LayoutDashboard className="w-4 h-4" />
-                                <span>Overview</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
+            <SidebarContent className="bg-white px-2 py-4 gap-6">
+                {/* Workspace Group */}
+                <div className="flex flex-col gap-2">
+                    <div className="px-2">
+                        <WorkspaceSwitcher
+                            workspaces={workspaces || []}
+                            selectedWorkspaceId={selectedWorkspaceId}
+                            user={user}
+                        />
+                    </div>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings/users"}>
+                                <Link href="/dashboard/settings/users" className="font-medium flex items-center gap-2">
+                                    <Users className="w-4 h-4" />
+                                    <span>Users</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        {isOwner && (
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings"}>
+                                    <Link href="/dashboard/settings" className="font-medium flex items-center gap-2">
+                                        <Settings className="w-4 h-4" />
+                                        <span>Settings</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        )}
+                    </SidebarMenu>
+                </div>
 
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname === "/dashboard/feedback"}>
-                            <Link href="/dashboard/feedback" className="font-medium flex items-center gap-2">
-                                <MessageSquare className="w-4 h-4" />
-                                <span>Feedback</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
+                {/* Projects Group */}
+                <div className="flex flex-col gap-2">
+                    <div className="px-2">
+                        <ProjectSwitcher
+                            projects={projects || []}
+                            selectedProjectId={selectedProjectId}
+                            selectedWorkspaceId={selectedWorkspaceId}
+                        />
+                    </div>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
+                                <Link href="/dashboard" className="font-medium flex items-center gap-2">
+                                    <LayoutDashboard className="w-4 h-4" />
+                                    <span>Overview</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
 
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings"}>
-                            <Link href="/dashboard/settings" className="font-medium flex items-center gap-2">
-                                <Settings className="w-4 h-4" />
-                                <span>Settings</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname === "/dashboard/feedback"}>
+                                <Link href="/dashboard/feedback" className="font-medium flex items-center gap-2">
+                                    <MessageSquare className="w-4 h-4" />
+                                    <span>Feedback</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname === "/dashboard/project-settings"}>
+                                <Link href="/dashboard/project-settings" className="font-medium flex items-center gap-2">
+                                    <Settings className="w-4 h-4" />
+                                    <span>Project Settings</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </div>
             </SidebarContent>
 
             <SidebarFooter className="bg-white border-t border-gray-100 p-4">

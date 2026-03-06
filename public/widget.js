@@ -276,6 +276,7 @@
             <input type="checkbox" id="vv-notify-replies" class="checkbox-input" ${notifyRepliesSetting ? 'checked' : ''} />
             <label for="vv-notify-replies" class="checkbox-label">Notify me when someone replies</label>
           </div>
+          <div id="vv-submit-error" style="display:none; color: #b91c1c; font-size: 13px; margin-bottom: 4px; padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px;"></div>
           <button class="btn" id="vv-submit">Send Feedback</button>
         </div>
         <div class="view-feedbacks">
@@ -419,13 +420,17 @@
     const section = wrapper.querySelector('#vv-reply-section');
     if (clientEmail) {
       section.innerHTML = `
-        <div class="chat-input">
+        <div class="chat-input" style="border-top: none; padding: 0;">
           <input type="text" id="vv-reply-text" placeholder="Type a reply...">
           <button class="btn btn-sm" id="vv-send-reply">Send</button>
         </div>
+        <div id="vv-reply-error" style="display:none; color: #b91c1c; font-size: 12px; margin-top: 8px;"></div>
+      </div>
+      <style>#vv-reply-section { border-top: 1px solid #f3f4f6; padding: 12px 20px; }</style>
       `;
       section.querySelector('#vv-send-reply').onclick = sendReply;
       section.querySelector('#vv-reply-text').onkeydown = (e) => {
+        section.querySelector('#vv-reply-error').style.display = 'none';
         if (e.key === 'Enter') sendReply();
       };
     } else {
@@ -558,6 +563,8 @@
     }
 
     const btn = wrapper.querySelector('#vv-submit');
+    const submitErrorMsg = wrapper.querySelector('#vv-submit-error');
+    submitErrorMsg.style.display = 'none';
     btn.disabled = true;
     try {
       const metadata = getMetadata();
@@ -586,9 +593,13 @@
 
         switchView('success');
       } else {
-        alert(data.error || 'Error sending feedback.');
+        submitErrorMsg.innerText = data.error || 'Error sending feedback.';
+        submitErrorMsg.style.display = 'block';
       }
-    } catch (e) { alert('Network error.'); } finally { btn.disabled = false; }
+    } catch (e) {
+      submitErrorMsg.innerText = 'Network error. Please try again.';
+      submitErrorMsg.style.display = 'block';
+    } finally { btn.disabled = false; }
   };
 
   // --- Inspector Mode ---
@@ -716,11 +727,14 @@
   // --- Send reply ---
   const sendReply = async () => {
     const textEl = wrapper.querySelector('#vv-reply-text');
+    const errEl = wrapper.querySelector('#vv-reply-error');
     if (!textEl) return;
     const text = textEl.value.trim();
     if (!text || !selectedFeedbackId || !clientEmail) return;
     const btn = wrapper.querySelector('#vv-send-reply');
     btn.disabled = true;
+    if (errEl) errEl.style.display = 'none';
+
     try {
       const res = await fetch(API_REPLY, {
         method: 'POST',
@@ -732,10 +746,16 @@
         fetchReplies();
       } else {
         const err = await res.json();
-        console.error('VibeVaults: Failed to send reply', err);
+        if (errEl) {
+          errEl.innerText = err.error || 'Failed to send reply.';
+          errEl.style.display = 'block';
+        }
       }
     } catch (e) {
-      console.error('VibeVaults: Network error sending reply', e);
+      if (errEl) {
+        errEl.innerText = 'Network error. Please try again.';
+        errEl.style.display = 'block';
+      }
     } finally {
       btn.disabled = false;
     }

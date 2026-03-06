@@ -1,3 +1,13 @@
+/**
+ * Main Responsibility: Handles server-side operations for feedback management including status updates, 
+ * deletion, and creating manual feedback or agency replies. Enforces RLS permissions on the backend.
+ * 
+ * Sensitive Dependencies: 
+ * - Supabase Server Client (@/lib/supabase/server) for authenticated operations.
+ * - Supabase Admin Client (@/lib/supabase/admin) for overriding RLS during email preference fetching.
+ * - Next.js Cache (revalidatePath) for updating customized UI endpoints after mutation.
+ * - Notifications library (@/lib/notifications) to orchestrate Resend replies.
+ */
 'use server';
 
 import { createClient } from "@/lib/supabase/server";
@@ -45,16 +55,15 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Unauthorized");
 
-    // Verify ownership
+    // Verify ownership via RLS
     const { data: feedback, error: checkError } = await supabase
         .from('feedbacks')
-        .select('*, projects!inner(user_id, name)')
+        .select('*, projects!inner(id, name)')
         .eq('id', feedbackId)
         .single();
 
     if (checkError || !feedback) throw new Error("Feedback not found");
-    const project = feedback.projects as unknown as { user_id: string; name: string };
-    if (project.user_id !== user.id) throw new Error("Unauthorized");
+    const project = feedback.projects as unknown as { id: string; name: string };
 
     const { error: replyError } = await supabase
         .from('feedback_replies')
@@ -120,15 +129,14 @@ export async function addManualFeedbackAction(projectId: string, content: string
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Unauthorized");
 
-    // Verify ownership
+    // Verify ownership via RLS
     const { data: project, error: checkError } = await supabase
         .from('projects')
-        .select('user_id')
+        .select('id')
         .eq('id', projectId)
         .single();
 
     if (checkError || !project) throw new Error("Project not found");
-    if (project.user_id !== user.id) throw new Error("Unauthorized");
 
     const feedbackId = crypto.randomUUID();
 

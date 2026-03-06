@@ -4,11 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-    --color-primary: #209CEE;
-    --color-secondary: #EE7220;
-}
-
-@theme inline {
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
     --radius-lg: var(--radius);
@@ -124,6 +121,6 @@
     }
 
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background text-foreground font-sans;
     }
 }

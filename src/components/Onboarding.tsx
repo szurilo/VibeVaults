@@ -1,3 +1,12 @@
+/**
+ * Main Responsibility: Handles the multi-step flow for users to create their first project and finalize 
+ * their profile setup. Orchestrates setting browser cookies on creation and navigating to dashboard sections.
+ * 
+ * Sensitive Dependencies: 
+ * - /api/projects POST route which requires a validated `workspaceId` prop.
+ * - @/actions/onboarding for finalizing the user profile.
+ * - document.cookie for directly setting `selectedProjectId`.
+ */
 'use client';
 
 import { useState } from 'react';
@@ -16,8 +25,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { completeOnboardingAction } from '@/actions/onboarding';
 import Link from 'next/link';
 
-export default function Onboarding({ initialStep = 1 }: { initialStep?: number }) {
+export default function Onboarding({ initialStep = 1, workspaceId }: { initialStep?: number, workspaceId?: string }) {
     const router = useRouter();
+    const [workspaceName, setWorkspaceName] = useState('');
     const [projectName, setProjectName] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
     const [error, setError] = useState('');
@@ -37,17 +47,21 @@ export default function Onboarding({ initialStep = 1 }: { initialStep?: number }
 
         setLoading(true);
         try {
+            // Need to grab the latest workspace ID, which might be in the cookie now
+            const match = document.cookie.match(new RegExp('(^| )selectedWorkspaceId=([^;]+)'));
+            const currentWorkspaceId = match ? match[2] : workspaceId;
+
             const res = await fetch('/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: projectName, website_url: websiteUrl }),
+                body: JSON.stringify({ name: projectName, website_url: websiteUrl, workspace_id: currentWorkspaceId }),
             });
 
             if (res.ok) {
                 const newProject = await res.json();
                 document.cookie = `selectedProjectId=${newProject.id}; path=/; max-age=31536000`;
                 router.refresh();
-                setStep(2);
+                setStep(3);
             }
         } catch (error) {
             console.error('Failed to create project:', error);
@@ -71,6 +85,63 @@ export default function Onboarding({ initialStep = 1 }: { initialStep?: number }
                 <Card className="bg-primary/5 border-primary/20 mb-8 relative">
                     <CardHeader className="max-w-2xl px-8 pt-8 pb-4">
                         <CardTitle className="text-2xl">Welcome to VibeVaults! 🚀</CardTitle>
+                        <CardDescription className="text-lg text-muted-foreground/80">
+                            Let's set up your workspace. Enter your workspace or company name below.
+                        </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="max-w-2xl px-8 pb-8">
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            setError('');
+                            if (!workspaceName.trim()) {
+                                setError('Workspace name is required.');
+                                return;
+                            }
+                            if (loading) return;
+                            setLoading(true);
+                            try {
+                                const { createWorkspaceAction } = await import('@/actions/workspaces');
+                                const newWorkspaceId = await createWorkspaceAction(workspaceName.trim());
+                                document.cookie = `selectedWorkspaceId=${newWorkspaceId}; path=/; max-age=31536000`;
+                                document.cookie = `selectedProjectId=; path=/; max-age=0`;
+                                router.refresh();
+                                setStep(2);
+                            } catch (err: any) {
+                                setError(err.message || 'Failed to create workspace');
+                            } finally {
+                                setLoading(false);
+                            }
+                        }} className="flex flex-col gap-4">
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <Input
+                                    type="text"
+                                    placeholder="Your workspace/company name"
+                                    className="flex-1 bg-white"
+                                    value={workspaceName}
+                                    onChange={(e) => setWorkspaceName(e.target.value)}
+                                    autoFocus
+                                    disabled={loading}
+                                />
+                            </div>
+                            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+                            <Button type="submit" disabled={loading} className="w-full sm:w-auto self-start cursor-pointer flex items-center gap-2">
+                                {loading ? null : <Plus className="w-4 h-4" />}
+                                {loading ? 'Creating...' : 'Create workspace'}
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
+            </TooltipProvider>
+        );
+    }
+
+    if (step === 2) {
+        return (
+            <TooltipProvider>
+                <Card className="bg-primary/5 border-primary/20 mb-8 relative">
+                    <CardHeader className="max-w-2xl px-8 pt-8 pb-4">
+                        <CardTitle className="text-2xl">Create your first project 🚀</CardTitle>
                         <CardDescription className="text-lg text-muted-foreground/80">
                             Let's get started by creating your first project. Enter a project name and a website URL below.
                         </CardDescription>
@@ -165,7 +236,7 @@ export default function Onboarding({ initialStep = 1 }: { initialStep?: number }
 
                     <div className="flex flex-col sm:flex-row gap-4 items-center">
                         <Button asChild className="w-full sm:w-auto px-8 shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer">
-                            <Link href="/dashboard/settings" onClick={handleFinishOnboarding}>
+                            <Link href="/dashboard/project-settings" onClick={handleFinishOnboarding}>
                                 Head to Settings
                                 <ArrowRight className="ml-2 w-4 h-4" />
                             </Link>

@@ -1,3 +1,11 @@
+/**
+ * Main Responsibility: Wraps the application to provide a sticky `Toaster` component for UI alerts, 
+ * and actively listens to Supabase Realtime subscriptions to push new dashboard notifications globally.
+ * 
+ * Sensitive Dependencies: 
+ * - @/lib/supabase/client for maintaining a robust websocket connection to the `notifications` table.
+ * - `CustomEvent` ('vibe-new-notification') which acts as a bridge to force the NotificationBell component to refresh.
+ */
 "use client"
 
 import { useEffect } from "react"

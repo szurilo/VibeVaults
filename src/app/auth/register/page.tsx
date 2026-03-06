@@ -8,6 +8,7 @@ import { Turnstile } from '@marsidev/react-turnstile';
 
 export default function RegisterPage() {
     const [email, setEmail] = useState('');
+    const [emailError, setEmailError] = useState('');
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -17,6 +18,18 @@ export default function RegisterPage() {
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
+        setEmailError('');
+
+        if (!email.trim()) {
+            setEmailError('Email is required');
+            return;
+        }
+
+        if (!/\S+@\S+\.\S+/.test(email)) {
+            setEmailError('Please enter a valid email address');
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -96,7 +109,7 @@ export default function RegisterPage() {
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
                             <div>
                                 <label htmlFor="email" className="block text-sm font-medium mb-1 text-gray-700">Email</label>
                                 <input
@@ -104,11 +117,14 @@ export default function RegisterPage() {
                                     name="email"
                                     type="email"
                                     placeholder="you@example.com"
-                                    required
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                                    onChange={(e) => {
+                                        setEmail(e.target.value);
+                                        if (emailError) setEmailError('');
+                                    }}
+                                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${emailError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary focus:border-primary'}`}
                                 />
+                                {emailError && <p className="text-sm font-medium text-red-500 mt-1">{emailError}</p>}
                             </div>
                             {turnstileSiteKey && (
                                 <div className="flex justify-center w-full min-h-[65px]">
