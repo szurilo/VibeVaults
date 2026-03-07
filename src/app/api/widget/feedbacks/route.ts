@@ -1,15 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
-
-const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-};
+import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey } from "@/lib/widget-helpers";
 
 export async function OPTIONS() {
-    return NextResponse.json({}, { headers: corsHeaders });
+    return optionsResponse();
 }
 
 export async function GET(request: Request) {
@@ -17,19 +10,14 @@ export async function GET(request: Request) {
     const apiKey = searchParams.get("key");
 
     if (!apiKey) {
-        return NextResponse.json({ error: "Missing API Key" }, { status: 400, headers: corsHeaders });
+        return corsError("Missing API Key", 400);
     }
 
-    const supabase = await createClient();
-
-    // Validate API key and get project
-    const { data: projects, error: projectError } = await supabase.rpc('get_project_by_api_key', { key_param: apiKey });
-
-    if (projectError || !projects || projects.length === 0) {
-        return NextResponse.json({ error: "Invalid API Key" }, { status: 401, headers: corsHeaders });
+    const { project, error, status } = await validateApiKey(apiKey);
+    if (error) {
+        return corsError(error, status);
     }
 
-    const project = projects[0];
     const adminSupabase = createAdminClient();
 
     // Fetch all feedbacks for the project with reply counts
@@ -47,7 +35,7 @@ export async function GET(request: Request) {
         .order('created_at', { ascending: false });
 
     if (feedbackError) {
-        return NextResponse.json({ error: feedbackError.message }, { status: 500, headers: corsHeaders });
+        return corsError(feedbackError.message, 500);
     }
 
     // Transform to include reply_count
@@ -60,5 +48,5 @@ export async function GET(request: Request) {
         reply_count: Array.isArray(f.feedback_replies) ? f.feedback_replies.length : 0,
     }));
 
-    return NextResponse.json({ feedbacks: result }, { headers: corsHeaders });
+    return corsSuccess({ feedbacks: result });
 }

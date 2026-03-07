@@ -13,7 +13,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendReplyNotification } from "@/lib/notifications";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getNotificationPrefs } from "@/lib/notification-prefs";
 
 
 export async function updateFeedbackStatus(id: string, status: string) {
@@ -82,39 +82,15 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
 
     // Send notification to client if they provided an email
     if (feedback.sender && feedback.sender.includes('@')) {
-        const adminSupabase = createAdminClient();
+        const prefs = await getNotificationPrefs(feedback.sender, 'replies');
 
-        // Ensure preference exists and get token
-        const { data: prefData } = await adminSupabase
-            .from('email_preferences')
-            .select('notify_replies, unsubscribe_token')
-            .eq('email', feedback.sender)
-            .single();
-
-        let shouldSend = true;
-        let unsubscribeToken = prefData?.unsubscribe_token;
-
-        if (!prefData) {
-            // Upsert using default values
-            const { data: newPref } = await adminSupabase
-                .from('email_preferences')
-                .upsert({ email: feedback.sender }, { onConflict: 'email' })
-                .select('unsubscribe_token')
-                .single();
-            if (newPref) {
-                unsubscribeToken = newPref.unsubscribe_token;
-            }
-        } else {
-            shouldSend = prefData.notify_replies;
-        }
-
-        if (shouldSend) {
+        if (prefs.shouldNotify) {
             await sendReplyNotification({
                 to: feedback.sender,
                 projectName: project.name,
                 replyContent: content,
                 originalFeedback: feedback.content,
-                unsubscribeToken
+                unsubscribeToken: prefs.unsubscribeToken
             });
         }
     }
