@@ -4,10 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, ChevronsUpDown, FolderOpen } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
     DropdownMenu,
@@ -17,6 +13,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { CreateProjectDialog } from '@/components/CreateProjectDialog';
 
 export default function ProjectSwitcher({
     projects,
@@ -29,9 +26,6 @@ export default function ProjectSwitcher({
 }) {
     const router = useRouter();
     const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
-    const [projectName, setProjectName] = useState('');
-    const [websiteUrl, setWebsiteUrl] = useState('');
-    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         const cookieValue = typeof document !== 'undefined' ? document.cookie
@@ -50,41 +44,10 @@ export default function ProjectSwitcher({
         router.refresh();
     };
 
-    const handleCreateProject = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!projectName.trim() || !websiteUrl.trim()) return;
-
-        setLoading(true);
-        try {
-            const res = await fetch('/api/projects', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: projectName,
-                    website_url: websiteUrl,
-                    workspace_id: selectedWorkspaceId
-                }),
-            });
-
-            if (res.ok) {
-                const newProject = await res.json();
-                document.cookie = `selectedProjectId=${newProject.id}; path=/; max-age=31536000`;
-                setProjectName('');
-                setWebsiteUrl('');
-                setShowNewProjectDialog(false);
-                router.refresh();
-            }
-        } catch (error) {
-            console.error('Failed to create project:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const activeProject = projects.find(p => p.id === selectedProjectId) || projects[0];
 
     return (
-        <Dialog open={showNewProjectDialog} onOpenChange={setShowNewProjectDialog}>
+        <>
             <SidebarMenu>
                 <SidebarMenuItem>
                     <DropdownMenu>
@@ -141,50 +104,12 @@ export default function ProjectSwitcher({
                 </SidebarMenuItem>
             </SidebarMenu>
 
-            <DialogContent showCloseButton={false}>
-                <DialogHeader>
-                    <DialogTitle>Create Project</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCreateProject} className="space-y-4">
-                    <div className="space-y-2 max-w-sm mt-2">
-                        <Label htmlFor="projectName">Project Name</Label>
-                        <Input
-                            id="projectName"
-                            type="text"
-                            placeholder="e.g. My Website"
-                            value={projectName}
-                            onChange={(e) => setProjectName(e.target.value)}
-                            disabled={loading}
-                            autoFocus
-                        />
-                    </div>
-                    <div className="space-y-2 max-w-sm">
-                        <Label htmlFor="websiteUrl">Website URL</Label>
-                        <Input
-                            id="websiteUrl"
-                            type="url"
-                            placeholder="https://example.com"
-                            value={websiteUrl}
-                            onChange={(e) => setWebsiteUrl(e.target.value)}
-                            disabled={loading}
-                        />
-                    </div>
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="cursor-pointer"
-                            onClick={() => setShowNewProjectDialog(false)}
-                            disabled={loading}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={!projectName.trim() || !websiteUrl.trim() || loading} className="cursor-pointer">
-                            {loading ? "Creating..." : "Create"}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
+            <CreateProjectDialog
+                open={showNewProjectDialog}
+                onOpenChange={setShowNewProjectDialog}
+                workspaceId={selectedWorkspaceId}
+            />
+        </>
     );
 }
+

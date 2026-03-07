@@ -124,3 +124,23 @@
         @apply bg-background text-foreground font-sans;
     }
 }
+
+/* Gentle glow highlight when navigating to an anchor-linked card */
+@keyframes anchor-glow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(32, 156, 238, 0.4);
+    }
+
+    40% {
+        box-shadow: 0 0 12px 4px rgba(32, 156, 238, 0.25);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(32, 156, 238, 0);
+    }
+}
+
+.anchor-glow-active {
+    animation: anchor-glow 2.5s ease-out;
+    scroll-margin-top: 2rem;
+}

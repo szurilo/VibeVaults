@@ -14,6 +14,20 @@ export async function createWorkspaceAction(name: string) {
         throw new Error(error.message);
     }
 
+    // If this is the user's first owned workspace (e.g. a member creating their own),
+    // reset onboarding so they see the owner-specific checklist.
+    const { count } = await supabase
+        .from('workspace_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'owner');
+
+    if (count === 1) {
+        await supabase
+            .from('profiles')
+            .update({ has_onboarded: false, completed_onboarding_steps: [] })
+            .eq('id', (await supabase.auth.getUser()).data.user!.id);
+    }
+
     revalidatePath('/dashboard');
     return newWorkspaceId as string;
 }

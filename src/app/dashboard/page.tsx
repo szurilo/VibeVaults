@@ -47,10 +47,15 @@ export default async function DashboardPage() {
     // Check if the user has completed onboarding
     const { data: profile } = await supabase
         .from('profiles')
-        .select('has_onboarded')
+        .select('has_onboarded, completed_onboarding_steps')
         .single();
 
     const hasOnboarded = profile?.has_onboarded ?? false;
+    const completedSteps: string[] = profile?.completed_onboarding_steps ?? [];
+
+    // Determine the active workspace
+    const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
+    const isOwner = activeWorkspace?.owner_id === user?.id;
 
     // RLS policies ensure we only count feedback for the user's projects
     // But we filter by project_id if one is selected
@@ -77,28 +82,30 @@ export default async function DashboardPage() {
                 </h1>
             </div>
 
-            {!hasOnboarded ? (
+            {!hasOnboarded && (
                 <Onboarding
-                    initialStep={(!workspaces || workspaces.length === 0) ? 1 : (!projects || projects.length === 0) ? 2 : 3}
                     workspaceId={selectedWorkspaceId}
+                    isOwner={isOwner}
+                    completedSteps={completedSteps}
+                    hasProjects={!!(projects && projects.length > 0)}
                 />
-            ) : (
-                <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <Link href="/dashboard/feedback" className="block transition-transform hover:scale-[1.02]">
-                            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                        Total Feedback
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-3xl font-bold text-foreground">{totalFeedback}</p>
-                                </CardContent>
-                            </Card>
-                        </Link>
-                    </div>
-                </>
+            )}
+
+            {(hasOnboarded || !!(projects && projects.length > 0)) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <Link href="/dashboard/feedback" className="block transition-transform hover:scale-[1.02]">
+                        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                    Total Feedback
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-3xl font-bold text-foreground">{totalFeedback}</p>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                </div>
             )}
 
             <Card className="mt-8">

@@ -16,6 +16,7 @@ import { NotificationsCard } from "@/components/NotificationsCard";
 
 import { ShareProjectCard } from "@/components/ShareProjectCard";
 import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
+import { AnchorHighlight } from "@/components/AnchorHighlight";
 
 
 export default async function SettingsPage() {
@@ -62,10 +63,16 @@ export default async function SettingsPage() {
                 <div className="col-span-full space-y-6">
                     {currentProject ? (
                         <>
-                            <EditProjectCard project={currentProject} />
+                            <AnchorHighlight id="edit-project" className="rounded-xl">
+                                <EditProjectCard project={currentProject} />
+                            </AnchorHighlight>
                             <NotificationsCard initialPreferences={emailPreferences} />
-                            <EmbedWidgetCard project={currentProject} />
-                            <ShareProjectCard project={currentProject} />
+                            <AnchorHighlight id="embed-widget" className="rounded-xl">
+                                <EmbedWidgetCard project={currentProject} />
+                            </AnchorHighlight>
+                            <AnchorHighlight id="share-board" className="rounded-xl">
+                                <ShareProjectCard project={currentProject} />
+                            </AnchorHighlight>
                             <DeleteProjectCard project={currentProject} />
                         </>
                     ) : (
