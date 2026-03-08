@@ -76,7 +76,7 @@ export default function ProjectSwitcher({
                                     <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                         Your Projects
                                     </DropdownMenuLabel>
-                                    {projects.map((project) => (
+                                    {[...projects].reverse().map((project) => (
                                         <DropdownMenuItem
                                             key={project.id}
                                             onSelect={() => handleProjectChange(project.id)}

@@ -13,7 +13,7 @@ export default async function FeedbackListPage() {
 
     let projectsQuery = supabase.from('projects').select('*');
     if (selectedWorkspaceId) {
-        projectsQuery = projectsQuery.eq('workspace_id', selectedWorkspaceId);
+        projectsQuery = projectsQuery.eq('workspace_id', selectedWorkspaceId).order('created_at', { ascending: true });
     }
     const { data: projects } = await projectsQuery;
 

@@ -74,7 +74,7 @@ export default async function UserSettingsPage() {
         .from('projects')
         .select('*')
         .eq('workspace_id', selectedWorkspaceId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
     // Determine if the current user is an owner of this workspace
     const isOwner = members?.some(m => m.user_id === user?.id && m.role === 'owner') || false;

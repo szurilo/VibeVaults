@@ -18,16 +18,21 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default async function DashboardPage() {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
     const cookieStore = await cookies();
+
+    // Parallelize independent initial queries
+    const [
+        { data: { user } },
+        { data: workspaces },
+        { data: profile }
+    ] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from('workspaces').select('*').order('created_at', { ascending: true }),
+        supabase.from('profiles').select('has_onboarded, completed_onboarding_steps').single()
+    ]);
+
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
     const selectedProjectId = cookieStore.get("selectedProjectId")?.value;
-
-    const { data: workspaces } = await supabase
-        .from('workspaces')
-        .select('*')
-        .order('created_at', { ascending: true });
 
     if (workspaces && workspaces.length > 0) {
         if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
@@ -37,18 +42,12 @@ export default async function DashboardPage() {
 
     let projectsQuery = supabase.from('projects').select('*');
     if (selectedWorkspaceId) {
-        projectsQuery = projectsQuery.eq('workspace_id', selectedWorkspaceId);
+        projectsQuery = projectsQuery.eq('workspace_id', selectedWorkspaceId).order('created_at', { ascending: true });
     }
     const { data: projects } = await projectsQuery;
 
     // Use selected project or default to the first one
     const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
-
-    // Check if the user has completed onboarding
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('has_onboarded, completed_onboarding_steps')
-        .single();
 
     const hasOnboarded = profile?.has_onboarded ?? false;
     const completedSteps: string[] = profile?.completed_onboarding_steps ?? [];

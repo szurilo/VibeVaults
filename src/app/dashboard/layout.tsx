@@ -22,7 +22,16 @@ export default async function DashboardLayout({
     children: React.ReactNode;
 }) {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const cookieStore = await cookies();
+
+    // Parallelize user and workspace fetching
+    const [
+        { data: { user } },
+        { data: workspaces }
+    ] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from("workspaces").select("*").order("created_at", { ascending: true })
+    ]);
 
     if (!user) {
         redirect("/auth/login");
@@ -66,18 +75,9 @@ export default async function DashboardLayout({
                     .delete()
                     .eq("id", invite.id);
             }
-
-
         }
     }
 
-    // Fetch workspaces the user can access
-    const { data: workspaces } = await supabase
-        .from("workspaces")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-    const cookieStore = await cookies();
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
 
     // Determine which workspace should be active
@@ -98,7 +98,7 @@ export default async function DashboardLayout({
             .from("projects")
             .select("*")
             .eq("workspace_id", selectedWorkspaceId)
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: true });
         projects = data;
     }
 

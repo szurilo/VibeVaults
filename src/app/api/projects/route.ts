@@ -16,7 +16,7 @@ export async function GET() {
     const cookieStore = await cookies();
     const workspaceId = cookieStore.get("selectedWorkspaceId")?.value;
 
-    let query = supabase.from("projects").select("*").order("created_at", { ascending: false });
+    let query = supabase.from("projects").select("*").order("created_at", { ascending: true });
 
     if (workspaceId) {
         query = query.eq("workspace_id", workspaceId);
