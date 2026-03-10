@@ -49,17 +49,10 @@ function ConfirmContent() {
             } else {
                 setState('success')
 
-                // Attempt to send welcome email if new user
-                try {
-                    await fetch('/api/auth/welcome', { method: 'POST' })
-                } catch (e) {
-                    console.error('Failed to trigger welcome email check', e)
-                }
-
                 // Redirect after a short delay so the user sees the success state
                 setTimeout(() => {
                     router.push(next)
-                }, 1500)
+                }, 500)
             }
         }
 

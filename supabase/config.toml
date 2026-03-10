@@ -81,6 +81,7 @@ enabled = true
 # objects_path = "./images"
 
 [auth]
+jwt_secret = "super-secret-jwt-key-with-at-least-32-characters-long"
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.

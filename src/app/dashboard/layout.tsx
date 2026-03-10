@@ -22,7 +22,16 @@ export default async function DashboardLayout({
     children: React.ReactNode;
 }) {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const cookieStore = await cookies();
+
+    // Parallelize user and workspace fetching
+    const [
+        { data: { user } },
+        { data: workspaces }
+    ] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from("workspaces").select("*").order("created_at", { ascending: true })
+    ]);
 
     if (!user) {
         redirect("/auth/login");
@@ -69,31 +78,29 @@ export default async function DashboardLayout({
         }
     }
 
-    // Fetch workspaces the user can access
-    const { data: workspaces } = await supabase
-        .from("workspaces")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-    const cookieStore = await cookies();
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
 
-    if (workspaces && workspaces.length > 0) {
-        // Prioritize the workspace we just accepted an invite for 
-        // or if no workspace is currently selected/exists
-        if (autoSelectedWorkspaceId) {
-            selectedWorkspaceId = autoSelectedWorkspaceId;
-        } else if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
+    // Determine which workspace should be active
+    if (autoSelectedWorkspaceId) {
+        // Always prioritize freshly accepted invite workspace
+        selectedWorkspaceId = autoSelectedWorkspaceId;
+    } else if (workspaces && workspaces.length > 0) {
+        if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
             selectedWorkspaceId = workspaces[0].id;
         }
     }
 
+
     // Now fetch projects for the active workspace
-    const { data: projects } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("workspace_id", selectedWorkspaceId)
-        .order("created_at", { ascending: false });
+    let projects: any[] | null = null;
+    if (selectedWorkspaceId) {
+        const { data } = await supabase
+            .from("projects")
+            .select("*")
+            .eq("workspace_id", selectedWorkspaceId)
+            .order("created_at", { ascending: true });
+        projects = data;
+    }
 
     let selectedProjectId = cookieStore.get("selectedProjectId")?.value;
 
@@ -102,7 +109,12 @@ export default async function DashboardLayout({
         if (!selectedProjectId || !projects.some(p => p.id === selectedProjectId)) {
             selectedProjectId = projects[0].id;
         }
+    } else {
+        // Clear stale project selection if workspace has no projects
+        selectedProjectId = undefined;
     }
+
+
 
     const cookie = cookieStore.get("sidebar_state");
     const defaultOpen = cookie ? cookie.value === "true" : true;

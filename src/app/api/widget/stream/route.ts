@@ -1,14 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { corsHeaders, validateApiKey } from "@/lib/widget-helpers";
 
 // SSE streams must not be cached or statically rendered
 export const dynamic = "force-dynamic";
-
-const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-};
 
 export async function OPTIONS() {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -39,20 +33,14 @@ export async function GET(request: Request) {
     }
 
     // --- Auth: validate API key + feedback ownership ---
-    const supabase = await createClient();
-    const { data: projects, error: projectError } = await supabase.rpc(
-        "get_project_by_api_key",
-        { key_param: apiKey }
-    );
+    const { project, error: apiKeyError } = await validateApiKey(apiKey);
 
-    if (projectError || !projects || projects.length === 0) {
+    if (apiKeyError || !project) {
         return new Response(
             JSON.stringify({ error: "Invalid API Key" }),
             { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
-
-    const project = projects[0];
 
     const adminSupabase = createAdminClient();
     const { data: feedback, error: feedbackError } = await adminSupabase

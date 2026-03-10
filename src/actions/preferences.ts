@@ -4,12 +4,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function updatePreferencesAction(token: string, notifyReplies: boolean, notifyNewFeedback?: boolean) {
+export async function updatePreferencesAction(token: string, notifyReplies: boolean, notifyNewFeedback?: boolean, notifyProjectCreated?: boolean) {
     const supabase = createAdminClient();
 
     const updateData: any = { notify_replies: notifyReplies };
     if (notifyNewFeedback !== undefined) {
         updateData.notify_new_feedback = notifyNewFeedback;
+    }
+    if (notifyProjectCreated !== undefined) {
+        updateData.notify_project_created = notifyProjectCreated;
     }
 
     const { error } = await supabase
@@ -24,7 +27,7 @@ export async function updatePreferencesAction(token: string, notifyReplies: bool
     revalidatePath('/unsubscribe');
 }
 
-export async function updateAgencyPreferencesAction(notifyNewFeedback: boolean, notifyReplies: boolean) {
+export async function updateAgencyPreferencesAction(notifyNewFeedback: boolean, notifyReplies: boolean, notifyProjectCreated: boolean) {
     const supabaseServer = await createClient();
     const { data: { user } } = await supabaseServer.auth.getUser();
     if (!user) throw new Error("Unauthorized");
@@ -38,7 +41,8 @@ export async function updateAgencyPreferencesAction(notifyNewFeedback: boolean, 
         .upsert({
             email,
             notify_new_feedback: notifyNewFeedback,
-            notify_replies: notifyReplies
+            notify_replies: notifyReplies,
+            notify_project_created: notifyProjectCreated
         }, { onConflict: 'email' });
 
     if (error) {

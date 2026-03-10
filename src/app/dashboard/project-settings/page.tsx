@@ -8,14 +8,13 @@
  * - Project Cards components mapping individual update requests (Edit/Share/Delete).
  */
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { cookies } from "next/headers";
 import { DeleteProjectCard } from "@/components/DeleteProjectCard";
 import { EditProjectCard } from "@/components/EditProjectCard";
-import { NotificationsCard } from "@/components/NotificationsCard";
 
 import { ShareProjectCard } from "@/components/ShareProjectCard";
 import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
+import { AnchorHighlight } from "@/components/AnchorHighlight";
 
 
 export default async function SettingsPage() {
@@ -27,24 +26,12 @@ export default async function SettingsPage() {
 
     let projectsQuery = supabase.from('projects').select('*');
     if (selectedWorkspaceId) {
-        projectsQuery = projectsQuery.eq('workspace_id', selectedWorkspaceId);
+        projectsQuery = projectsQuery.eq('workspace_id', selectedWorkspaceId).order('created_at', { ascending: true });
     }
     const { data: projects } = await projectsQuery;
 
     // Use selected project or default to the first one
     const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
-
-    const { data: { user } } = await supabase.auth.getUser();
-    let emailPreferences = {};
-    if (user?.email) {
-        const adminSupabase = createAdminClient();
-        const { data: pref } = await adminSupabase
-            .from('email_preferences')
-            .select('*')
-            .eq('email', user.email)
-            .single();
-        if (pref) emailPreferences = pref;
-    }
 
     return (
         <div>
@@ -62,10 +49,15 @@ export default async function SettingsPage() {
                 <div className="col-span-full space-y-6">
                     {currentProject ? (
                         <>
-                            <EditProjectCard project={currentProject} />
-                            <NotificationsCard initialPreferences={emailPreferences} />
-                            <EmbedWidgetCard project={currentProject} />
-                            <ShareProjectCard project={currentProject} />
+                            <AnchorHighlight id="edit-project" className="rounded-xl">
+                                <EditProjectCard project={currentProject} />
+                            </AnchorHighlight>
+                            <AnchorHighlight id="embed-widget" className="rounded-xl">
+                                <EmbedWidgetCard project={currentProject} />
+                            </AnchorHighlight>
+                            <AnchorHighlight id="share-board" className="rounded-xl">
+                                <ShareProjectCard project={currentProject} />
+                            </AnchorHighlight>
                             <DeleteProjectCard project={currentProject} />
                         </>
                     ) : (

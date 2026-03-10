@@ -1,18 +1,21 @@
 /**
- * Main Responsibility: Handles the multi-step flow for users to create their first project and finalize 
- * their profile setup. Orchestrates setting browser cookies on creation and navigating to dashboard sections.
- * 
- * Sensitive Dependencies: 
+ * Main Responsibility: Handles onboarding for new users.
+ * - Role-specific checklist with collapse/expand, inline project
+ *   creation dialog, anchor navigation with glow, recommended badges,
+ *   and smart client feedback link.
+ *
+ * Sensitive Dependencies:
  * - /api/projects POST route which requires a validated `workspaceId` prop.
- * - @/actions/onboarding for finalizing the user profile.
+ * - @/actions/onboarding for toggling steps and finalizing onboarding.
  * - document.cookie for directly setting `selectedProjectId`.
+ * - localStorage for collapsed/expanded UI state.
  */
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Card,
     CardContent,
@@ -20,237 +23,301 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { XIcon, Settings, Share2, ArrowRight, Plus } from 'lucide-react';
+import { CreateProjectDialog } from '@/components/CreateProjectDialog';
+import { XIcon, ExternalLink, ChevronDown, Star } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { completeOnboardingAction } from '@/actions/onboarding';
+import { completeOnboardingAction, toggleOnboardingStepAction } from '@/actions/onboarding';
 import Link from 'next/link';
 
-export default function Onboarding({ initialStep = 1, workspaceId }: { initialStep?: number, workspaceId?: string }) {
+interface OnboardingStep {
+    id: string;
+    label: string;
+    href: string;
+    recommended?: boolean;
+    /** 'dialog' opens the create-project dialog */
+    action?: 'dialog';
+}
+
+function getOwnerSteps(): OnboardingStep[] {
+    return [
+        { id: 'create_project', label: 'Create a project', href: '/dashboard', recommended: true, action: 'dialog' },
+        { id: 'embed_widget', label: 'Embed project widget on your site', href: '/dashboard/project-settings#embed-widget', recommended: true },
+        { id: 'invite_members', label: 'Invite Team members to the workspace', href: '/dashboard/settings/users#invite-users' },
+        { id: 'invite_clients', label: 'Invite Clients to the workspace', href: '/dashboard/settings/users#invite-users', recommended: true },
+        { id: 'create_feedback_member', label: 'Create Feedback as a Team member', href: '/dashboard/feedback' },
+        { id: 'customize_workspace', label: 'Customise the workspace', href: '/dashboard/settings#workspace-settings' },
+        { id: 'customize_project', label: 'Customise the project', href: '/dashboard/project-settings#edit-project' },
+        { id: 'share_board', label: 'Share read-only Project Board', href: '/dashboard/project-settings#share-board' },
+    ];
+}
+
+const MEMBER_STEPS: OnboardingStep[] = [
+    { id: 'create_feedback_member', label: 'Create Feedback as a Team member', href: '/dashboard/feedback' },
+];
+
+interface OnboardingProps {
+    workspaceId?: string;
+    isOwner?: boolean;
+    completedSteps?: string[];
+    hasProjects?: boolean;
+}
+
+export default function Onboarding({
+    workspaceId,
+    isOwner = true,
+    completedSteps = [],
+    hasProjects = false,
+}: OnboardingProps) {
     const router = useRouter();
-    const [workspaceName, setWorkspaceName] = useState('');
-    const [projectName, setProjectName] = useState('');
-    const [websiteUrl, setWebsiteUrl] = useState('');
-    const [error, setError] = useState('');
-    const [step, setStep] = useState(initialStep);
-    const [loading, setLoading] = useState(false);
+    const [localCompleted, setLocalCompleted] = useState<string[]>(completedSteps);
+    const [collapsed, setCollapsed] = useState(false);
+    const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(false);
 
-    const handleCreateProject = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
+    const steps = isOwner ? getOwnerSteps() : MEMBER_STEPS;
 
-        if (!projectName.trim() || !websiteUrl.trim()) {
-            setError('Project name and Website url are both required.');
-            return;
-        }
+    // Restore collapsed state from localStorage
+    useEffect(() => {
+        const stored = localStorage.getItem('onboarding_collapsed');
+        if (stored === 'true') setCollapsed(true);
+    }, []);
 
-        if (loading) return;
+    // "Create a project" is auto-checked if projects exist
+    const isStepCompleted = (stepId: string) => {
+        if (stepId === 'create_project' && hasProjects) return true;
+        return localCompleted.includes(stepId);
+    };
 
-        setLoading(true);
+    const completedCount = steps.filter(s => isStepCompleted(s.id)).length;
+
+    const handleCollapse = () => {
+        setCollapsed(true);
+        localStorage.setItem('onboarding_collapsed', 'true');
+    };
+
+    const handleExpand = () => {
+        setCollapsed(false);
+        localStorage.removeItem('onboarding_collapsed');
+    };
+
+    const handleToggleStep = async (stepId: string) => {
+        if (stepId === 'create_project' && hasProjects) return;
+
+        const wasCompleted = localCompleted.includes(stepId);
+        const newCompleted = wasCompleted
+            ? localCompleted.filter(s => s !== stepId)
+            : [...localCompleted, stepId];
+
+        setLocalCompleted(newCompleted);
+
         try {
-            // Need to grab the latest workspace ID, which might be in the cookie now
-            const match = document.cookie.match(new RegExp('(^| )selectedWorkspaceId=([^;]+)'));
-            const currentWorkspaceId = match ? match[2] : workspaceId;
+            await toggleOnboardingStepAction(stepId);
 
-            const res = await fetch('/api/projects', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: projectName, website_url: websiteUrl, workspace_id: currentWorkspaceId }),
+            const nowAllDone = steps.every(s => {
+                if (s.id === 'create_project' && hasProjects) return true;
+                return newCompleted.includes(s.id);
             });
 
-            if (res.ok) {
-                const newProject = await res.json();
-                document.cookie = `selectedProjectId=${newProject.id}; path=/; max-age=31536000`;
+            if (nowAllDone) {
+                localStorage.removeItem('onboarding_collapsed');
+                await completeOnboardingAction();
                 router.refresh();
-                setStep(3);
             }
-        } catch (error) {
-            console.error('Failed to create project:', error);
-        } finally {
-            setLoading(false);
+        } catch {
+            setLocalCompleted(wasCompleted
+                ? [...localCompleted]
+                : localCompleted.filter(s => s !== stepId)
+            );
         }
     };
 
-    const handleFinishOnboarding = async () => {
-        try {
-            await completeOnboardingAction();
-            router.refresh();
-        } catch (error) {
-            console.error('Failed to finish onboarding:', error);
+
+    const handleStepGoClick = (item: OnboardingStep) => {
+        if (item.action === 'dialog') {
+            // "Create a project" → open inline dialog
+            if (!hasProjects) {
+                setShowCreateProjectDialog(true);
+            }
+            return;
         }
+        // Default: navigate via Link (handled by the Link component)
     };
 
-    if (step === 1) {
-        return (
-            <TooltipProvider>
-                <Card className="bg-primary/5 border-primary/20 mb-8 relative">
-                    <CardHeader className="max-w-2xl px-8 pt-8 pb-4">
-                        <CardTitle className="text-2xl">Welcome to VibeVaults! 🚀</CardTitle>
-                        <CardDescription className="text-lg text-muted-foreground/80">
-                            Let's set up your workspace. Enter your workspace or company name below.
-                        </CardDescription>
-                    </CardHeader>
+    const progressPercent = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
 
-                    <CardContent className="max-w-2xl px-8 pb-8">
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            setError('');
-                            if (!workspaceName.trim()) {
-                                setError('Workspace name is required.');
-                                return;
-                            }
-                            if (loading) return;
-                            setLoading(true);
-                            try {
-                                const { createWorkspaceAction } = await import('@/actions/workspaces');
-                                const newWorkspaceId = await createWorkspaceAction(workspaceName.trim());
-                                document.cookie = `selectedWorkspaceId=${newWorkspaceId}; path=/; max-age=31536000`;
-                                document.cookie = `selectedProjectId=; path=/; max-age=0`;
-                                router.refresh();
-                                setStep(2);
-                            } catch (err: any) {
-                                setError(err.message || 'Failed to create workspace');
-                            } finally {
-                                setLoading(false);
-                            }
-                        }} className="flex flex-col gap-4">
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <Input
-                                    type="text"
-                                    placeholder="Your workspace/company name"
-                                    className="flex-1 bg-white"
-                                    value={workspaceName}
-                                    onChange={(e) => setWorkspaceName(e.target.value)}
-                                    autoFocus
-                                    disabled={loading}
-                                />
-                            </div>
-                            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-                            <Button type="submit" disabled={loading} className="w-full sm:w-auto self-start cursor-pointer flex items-center gap-2">
-                                {loading ? null : <Plus className="w-4 h-4" />}
-                                {loading ? 'Creating...' : 'Create workspace'}
-                            </Button>
-                        </form>
-                    </CardContent>
-                </Card>
-            </TooltipProvider>
-        );
-    }
-
-    if (step === 2) {
-        return (
-            <TooltipProvider>
-                <Card className="bg-primary/5 border-primary/20 mb-8 relative">
-                    <CardHeader className="max-w-2xl px-8 pt-8 pb-4">
-                        <CardTitle className="text-2xl">Create your first project 🚀</CardTitle>
-                        <CardDescription className="text-lg text-muted-foreground/80">
-                            Let's get started by creating your first project. Enter a project name and a website URL below.
-                        </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="max-w-2xl px-8 pb-8">
-                        <form onSubmit={handleCreateProject} className="flex flex-col gap-4">
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <Input
-                                    type="text"
-                                    placeholder="Project Name (e.g. My Client's App)"
-                                    className="flex-1 bg-white"
-                                    value={projectName}
-                                    onChange={(e) => setProjectName(e.target.value)}
-                                    autoFocus
-                                    disabled={loading}
-                                />
-                                <Input
-                                    type="url"
-                                    placeholder="Website URL (e.g. https://client-site.com)"
-                                    className="flex-1 bg-white"
-                                    value={websiteUrl}
-                                    onChange={(e) => setWebsiteUrl(e.target.value)}
-                                    disabled={loading}
-                                />
-                            </div>
-                            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-                            <Button type="submit" disabled={loading} className="w-full sm:w-auto self-start cursor-pointer flex items-center gap-2">
-                                {loading ? null : <Plus className="w-4 h-4" />}
-                                {loading ? 'Creating...' : 'Create project'}
-                            </Button>
-                        </form>
-                    </CardContent>
-                </Card>
-            </TooltipProvider>
-        );
-    }
-
+    // Final render with single dialog instance
     return (
         <TooltipProvider>
-            <Card className="bg-primary/5 border-primary/20 mb-8 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={handleFinishOnboarding}
-                                className="text-muted-foreground hover:text-foreground hover:bg-primary/10 cursor-pointer"
-                            >
-                                <XIcon className="w-5 h-5" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Finish Onboarding</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-
-                <CardHeader className="max-w-2xl px-8 pt-8 pb-4">
-                    <CardTitle className="text-2xl">Your are almost ready! 🎊</CardTitle>
-                    <CardDescription className="text-lg text-muted-foreground/80">
-                        Embed the widget in your project website and invite your users to share their feedback. Optionally you can already share your read-only project dashboard with anyone.
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent className="max-w-3xl px-8 pb-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                        <div className="flex gap-4 p-4 bg-white rounded-xl border border-primary/10 shadow-sm transition-all hover:shadow-md">
-                            <div className="p-2 bg-primary/5 rounded-lg h-fit">
-                                <Settings className="w-5 h-5 text-primary" />
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-foreground mb-1">Embed Widget</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Copy the script from settings and paste it into your website.
-                                </p>
+            {collapsed ? (
+                <Card className="bg-primary/5 border-primary/20 mb-8">
+                    <div className="flex items-center justify-between px-6 py-3">
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-foreground">
+                                📋 Getting Started: {completedCount}/{steps.length} steps completed
+                            </span>
+                            <div className="w-24 bg-gray-200 rounded-full h-1.5 hidden sm:block">
+                                <div
+                                    className="bg-primary rounded-full h-1.5 transition-all duration-500 ease-out"
+                                    style={{ width: `${progressPercent}%` }}
+                                />
                             </div>
                         </div>
-                        <div className="flex gap-4 p-4 bg-white rounded-xl border border-primary/10 shadow-sm transition-all hover:shadow-md">
-                            <div className="p-2 bg-primary/5 rounded-lg h-fit">
-                                <Share2 className="w-5 h-5 text-primary" />
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-foreground mb-1">Share read-only Project Board</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Enable sharing in settings to let others view your project's feedback live.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-4 items-center">
-                        <Button asChild className="w-full sm:w-auto px-8 shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer">
-                            <Link href="/dashboard/project-settings" onClick={handleFinishOnboarding}>
-                                Head to Settings
-                                <ArrowRight className="ml-2 w-4 h-4" />
-                            </Link>
-                        </Button>
-                        <button
-                            onClick={handleFinishOnboarding}
-                            className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 cursor-pointer"
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleExpand}
+                            className="text-primary hover:text-primary hover:bg-primary/10 cursor-pointer flex items-center gap-1"
                         >
-                            I'll do this later
-                        </button>
+                            <ChevronDown className="w-4 h-4" />
+                            Resume
+                        </Button>
                     </div>
-                </CardContent>
-            </Card>
+                </Card>
+            ) : (
+                <Card className="bg-primary/5 border-primary/20 mb-8 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleCollapse}
+                                    className="text-muted-foreground hover:text-foreground hover:bg-primary/10 cursor-pointer"
+                                >
+                                    <XIcon className="w-5 h-5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Minimise</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+
+                    <CardHeader className="max-w-2xl px-8 pt-8 pb-4">
+                        <CardTitle className="text-2xl">
+                            {isOwner ? 'Getting Started 🚀' : 'Welcome to the workspace! 👋'}
+                        </CardTitle>
+                        <CardDescription className="text-lg text-muted-foreground/80">
+                            {isOwner
+                                ? 'Complete these steps to get the most out of VibeVaults.'
+                                : 'Here\'s what you can do in this workspace.'}
+                        </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="max-w-2xl px-8 pb-8">
+                        {/* Progress bar */}
+                        <div className="mb-6">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-muted-foreground">
+                                    {completedCount}/{steps.length} completed
+                                </span>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                    {progressPercent}%
+                                </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                    className="bg-primary rounded-full h-2 transition-all duration-500 ease-out"
+                                    style={{ width: `${progressPercent}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Checklist */}
+                        <div className="space-y-3">
+                            {steps.map((item) => {
+                                const checked = isStepCompleted(item.id);
+                                const isAutoChecked = item.id === 'create_project' && hasProjects;
+                                const isGoDisabled = item.action === 'dialog' && hasProjects;
+
+                                const goButtonContent = (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={`cursor-pointer shrink-0 ${isGoDisabled
+                                            ? 'text-muted-foreground opacity-50 cursor-not-allowed'
+                                            : 'text-primary hover:text-primary hover:bg-primary/10'
+                                            }`}
+                                        disabled={isGoDisabled}
+                                        onClick={item.action ? (e) => { e.preventDefault(); handleStepGoClick(item); } : undefined}
+                                    >
+                                        <ExternalLink className="w-4 h-4 mr-1" />
+                                        <span className="hidden sm:inline">Go</span>
+                                    </Button>
+                                );
+
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${checked
+                                            ? 'bg-white/60 border-primary/20'
+                                            : 'bg-white border-gray-200 hover:border-primary/30'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Checkbox
+                                                id={item.id}
+                                                checked={checked}
+                                                disabled={isAutoChecked}
+                                                onCheckedChange={() => handleToggleStep(item.id)}
+                                                className="cursor-pointer"
+                                            />
+                                            <label
+                                                htmlFor={item.id}
+                                                className={`text-sm font-medium select-none ${checked
+                                                    ? 'text-muted-foreground line-through cursor-pointer'
+                                                    : 'text-foreground cursor-pointer'
+                                                    }`}
+                                            >
+                                                {item.label}
+                                            </label>
+                                            {item.recommended && !checked && (
+                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                    <Star className="w-2.5 h-2.5" />
+                                                    Recommended
+                                                </span>
+                                            )}
+                                        </div>
+                                        {/* Go button: use Link for navigation, button for actions */}
+                                        {item.action || isGoDisabled ? (
+                                            goButtonContent
+                                        ) : (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                asChild
+                                                className="text-primary hover:text-primary hover:bg-primary/10 cursor-pointer shrink-0"
+                                            >
+                                                <Link href={item.href}>
+                                                    <ExternalLink className="w-4 h-4 mr-1" />
+                                                    <span className="hidden sm:inline">Go</span>
+                                                </Link>
+                                            </Button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Collapse */}
+                        <div className="mt-6 flex justify-center">
+                            <button
+                                onClick={handleCollapse}
+                                className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 cursor-pointer"
+                            >
+                                I'll explore on my own
+                            </button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            <CreateProjectDialog
+                open={showCreateProjectDialog}
+                onOpenChange={setShowCreateProjectDialog}
+                workspaceId={workspaceId}
+            />
         </TooltipProvider>
     );
 }
+
 

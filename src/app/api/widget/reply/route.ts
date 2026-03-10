@@ -1,28 +1,19 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey } from "@/lib/widget-helpers";
 import { sendAgencyReplyNotification } from "@/lib/notifications";
-
-const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-};
+import { getNotificationPrefs } from "@/lib/notification-prefs";
 
 export async function OPTIONS() {
-    return NextResponse.json({}, { headers: corsHeaders });
+    return optionsResponse();
 }
 
 // Verify that the API key is valid and the feedback belongs to the project
 async function verifyApiKeyForFeedback(apiKey: string, feedbackId: string) {
-    const supabase = await createClient();
-    const { data: projects, error: projectError } = await supabase.rpc('get_project_by_api_key', { key_param: apiKey });
+    const { project, error } = await validateApiKey(apiKey);
 
-    if (projectError || !projects || projects.length === 0) {
+    if (error || !project) {
         return { error: "Invalid API Key" };
     }
-
-    const project = projects[0];
 
     const adminSupabase = createAdminClient();
     const { data: feedback, error: feedbackError } = await adminSupabase
@@ -45,16 +36,16 @@ export async function POST(request: Request) {
     const { feedbackId, content, apiKey, senderEmail } = await request.json();
 
     if (!feedbackId || !content || !apiKey || !senderEmail) {
-        return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: corsHeaders });
+        return corsError("Missing required fields", 400);
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
-        return NextResponse.json({ error: "Invalid email address" }, { status: 400, headers: corsHeaders });
+        return corsError("Invalid email address", 400);
     }
 
     const apiKeyResult = await verifyApiKeyForFeedback(apiKey, feedbackId);
     if (apiKeyResult.error) {
-        return NextResponse.json({ error: apiKeyResult.error }, { status: 401, headers: corsHeaders });
+        return corsError(apiKeyResult.error, 401);
     }
 
     const adminSupabase = createAdminClient();
@@ -68,7 +59,7 @@ export async function POST(request: Request) {
         .single();
 
     if (inviteError || !invite) {
-        return NextResponse.json({ error: "Unauthorized email address. Access may have been revoked." }, { status: 403, headers: corsHeaders });
+        return corsError("Unauthorized email address. Access may have been revoked.", 403);
     }
 
     // 1. Get Feedback & Project ID
@@ -80,7 +71,7 @@ export async function POST(request: Request) {
 
     if (feedbackError || !feedback) {
         console.error("VibeVaults: Feedback not found", feedbackError);
-        return NextResponse.json({ error: "Feedback not found" }, { status: 404, headers: corsHeaders });
+        return corsError("Feedback not found", 404);
     }
 
     // 2. Insert the reply
@@ -95,66 +86,54 @@ export async function POST(request: Request) {
 
     if (replyError) {
         console.error("VibeVaults: Reply insert error", replyError);
-        return NextResponse.json({ error: replyError.message }, { status: 500, headers: corsHeaders });
+        return corsError(replyError.message, 500);
     }
 
-    // 3. Notify agency owner
+    // 3. Notify all workspace members
     try {
         const { data: projectData } = await adminSupabase
             .from('projects')
-            .select('name, user_id')
+            .select('name, workspace_id')
             .eq('id', feedback.project_id)
             .single();
 
-        if (projectData) {
-            let targetEmail = null;
+        if (projectData && projectData.workspace_id) {
+            const { data: memberRows } = await adminSupabase
+                .from('workspace_members')
+                .select('user_id')
+                .eq('workspace_id', projectData.workspace_id);
 
-            const { data: profileData } = await adminSupabase
-                .from('profiles')
-                .select('email')
-                .eq('id', projectData.user_id)
-                .single();
-            targetEmail = profileData?.email;
+            if (memberRows && memberRows.length > 0) {
+                const memberIds = memberRows.map(m => m.user_id);
+                const { data: profiles } = await adminSupabase
+                    .from('profiles')
+                    .select('email')
+                    .in('id', memberIds);
 
-            if (targetEmail) {
-                const { data: prefData } = await adminSupabase
-                    .from('email_preferences')
-                    .select('notify_replies, unsubscribe_token')
-                    .eq('email', targetEmail)
-                    .single();
+                if (profiles) {
+                    for (const p of profiles) {
+                        const email = p.email;
+                        if (!email) continue;
 
-                let shouldNotify = true;
-                let unsubscribeToken = prefData?.unsubscribe_token;
-
-                if (!prefData) {
-                    const { data: newPref } = await adminSupabase
-                        .from('email_preferences')
-                        .upsert({ email: targetEmail }, { onConflict: 'email' })
-                        .select('unsubscribe_token')
-                        .single();
-                    if (newPref) {
-                        unsubscribeToken = newPref.unsubscribe_token;
+                        const prefs = await getNotificationPrefs(email, 'replies');
+                        if (prefs.shouldNotify) {
+                            await sendAgencyReplyNotification({
+                                to: email,
+                                projectName: projectData.name,
+                                replyContent: content,
+                                senderName: senderEmail,
+                                unsubscribeToken: prefs.unsubscribeToken
+                            });
+                        }
                     }
-                } else {
-                    shouldNotify = prefData.notify_replies;
-                }
-
-                if (shouldNotify) {
-                    await sendAgencyReplyNotification({
-                        to: targetEmail,
-                        projectName: projectData.name,
-                        replyContent: content,
-                        senderName: senderEmail,
-                        unsubscribeToken
-                    });
                 }
             }
         }
     } catch (e) {
-        console.error("VibeVaults: Email notification error", e);
+        console.error("VibeVaults: Reply email notification error", e);
     }
 
-    return NextResponse.json({ success: true }, { headers: corsHeaders });
+    return corsSuccess({ success: true });
 }
 
 // --- GET: Fetch replies for a feedback (API key auth) ---
@@ -165,12 +144,12 @@ export async function GET(request: Request) {
     const apiKey = searchParams.get('key');
 
     if (!feedbackId || !apiKey) {
-        return NextResponse.json({ error: "Missing feedbackId or key" }, { status: 400, headers: corsHeaders });
+        return corsError("Missing feedbackId or key", 400);
     }
 
     const apiKeyResult = await verifyApiKeyForFeedback(apiKey, feedbackId);
     if (apiKeyResult.error) {
-        return NextResponse.json({ error: apiKeyResult.error }, { status: 401, headers: corsHeaders });
+        return corsError(apiKeyResult.error, 401);
     }
 
     const adminSupabase = createAdminClient();
@@ -181,8 +160,8 @@ export async function GET(request: Request) {
         .order('created_at', { ascending: true });
 
     if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500, headers: corsHeaders });
+        return corsError(error.message, 500);
     }
 
-    return NextResponse.json({ replies }, { headers: corsHeaders });
+    return corsSuccess({ replies });
 }

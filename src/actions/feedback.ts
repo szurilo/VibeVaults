@@ -13,7 +13,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendReplyNotification } from "@/lib/notifications";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getNotificationPrefs } from "@/lib/notification-prefs";
 
 
 export async function updateFeedbackStatus(id: string, status: string) {
@@ -82,39 +82,15 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
 
     // Send notification to client if they provided an email
     if (feedback.sender && feedback.sender.includes('@')) {
-        const adminSupabase = createAdminClient();
+        const prefs = await getNotificationPrefs(feedback.sender, 'replies');
 
-        // Ensure preference exists and get token
-        const { data: prefData } = await adminSupabase
-            .from('email_preferences')
-            .select('notify_replies, unsubscribe_token')
-            .eq('email', feedback.sender)
-            .single();
-
-        let shouldSend = true;
-        let unsubscribeToken = prefData?.unsubscribe_token;
-
-        if (!prefData) {
-            // Upsert using default values
-            const { data: newPref } = await adminSupabase
-                .from('email_preferences')
-                .upsert({ email: feedback.sender }, { onConflict: 'email' })
-                .select('unsubscribe_token')
-                .single();
-            if (newPref) {
-                unsubscribeToken = newPref.unsubscribe_token;
-            }
-        } else {
-            shouldSend = prefData.notify_replies;
-        }
-
-        if (shouldSend) {
+        if (prefs.shouldNotify) {
             await sendReplyNotification({
                 to: feedback.sender,
                 projectName: project.name,
                 replyContent: content,
                 originalFeedback: feedback.content,
-                unsubscribeToken
+                unsubscribeToken: prefs.unsubscribeToken
             });
         }
     }
@@ -154,8 +130,58 @@ export async function addManualFeedbackAction(projectId: string, content: string
 
     if (insertError) throw new Error(insertError.message);
 
-    // Mark associated notifications as read since the agency member created it themselves
-    await supabase.from('notifications').update({ is_read: true }).eq('feedback_id', feedbackId);
+    // Notify all workspace members via email
+    try {
+        const { createAdminClient } = await import("@/lib/supabase/admin");
+        const { sendFeedbackNotification } = await import("@/lib/notifications");
+        const { getNotificationPrefs } = await import("@/lib/notification-prefs");
+        
+        const adminSupabase = createAdminClient();
+        
+        // Get project details for the email
+        const { data: projectData } = await adminSupabase
+            .from('projects')
+            .select('name, workspace_id')
+            .eq('id', projectId)
+            .single();
+
+        if (projectData && projectData.workspace_id) {
+            const { data: memberRows } = await adminSupabase
+                .from('workspace_members')
+                .select('user_id')
+                .eq('workspace_id', projectData.workspace_id);
+
+            if (memberRows && memberRows.length > 0) {
+                const memberIds = memberRows.filter(m => m.user_id !== user.id).map(m => m.user_id);
+
+                const { data: profiles } = await adminSupabase
+                    .from('profiles')
+                    .select('email')
+                    .in('id', memberIds);
+
+                if (profiles) {
+                    for (const p of profiles) {
+                        const email = p.email;
+                        if (!email) continue;
+
+                        const prefs = await getNotificationPrefs(email, 'new_feedback');
+                        if (prefs.shouldNotify) {
+                            await sendFeedbackNotification({
+                                to: email,
+                                projectName: projectData.name,
+                                content,
+                                sender: user.email || 'Agency Member',
+                                metadata: { is_manual: true },
+                                unsubscribeToken: prefs.unsubscribeToken
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error("VibeVaults: Manual feedback email error", e);
+    }
 
     revalidatePath('/dashboard/feedback');
     return { success: true, feedback_id: feedbackId };

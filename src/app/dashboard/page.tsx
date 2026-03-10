@@ -18,16 +18,21 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default async function DashboardPage() {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
     const cookieStore = await cookies();
+
+    // Parallelize independent initial queries
+    const [
+        { data: { user } },
+        { data: workspaces },
+        { data: profile }
+    ] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from('workspaces').select('*').order('created_at', { ascending: true }),
+        supabase.from('profiles').select('has_onboarded, completed_onboarding_steps').single()
+    ]);
+
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
     const selectedProjectId = cookieStore.get("selectedProjectId")?.value;
-
-    const { data: workspaces } = await supabase
-        .from('workspaces')
-        .select('*')
-        .order('created_at', { ascending: true });
 
     if (workspaces && workspaces.length > 0) {
         if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
@@ -37,20 +42,19 @@ export default async function DashboardPage() {
 
     let projectsQuery = supabase.from('projects').select('*');
     if (selectedWorkspaceId) {
-        projectsQuery = projectsQuery.eq('workspace_id', selectedWorkspaceId);
+        projectsQuery = projectsQuery.eq('workspace_id', selectedWorkspaceId).order('created_at', { ascending: true });
     }
     const { data: projects } = await projectsQuery;
 
     // Use selected project or default to the first one
     const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
 
-    // Check if the user has completed onboarding
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('has_onboarded')
-        .single();
-
     const hasOnboarded = profile?.has_onboarded ?? false;
+    const completedSteps: string[] = profile?.completed_onboarding_steps ?? [];
+
+    // Determine the active workspace
+    const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
+    const isOwner = activeWorkspace?.owner_id === user?.id;
 
     // RLS policies ensure we only count feedback for the user's projects
     // But we filter by project_id if one is selected
@@ -77,28 +81,30 @@ export default async function DashboardPage() {
                 </h1>
             </div>
 
-            {!hasOnboarded ? (
+            {!hasOnboarded && (
                 <Onboarding
-                    initialStep={(!workspaces || workspaces.length === 0) ? 1 : (!projects || projects.length === 0) ? 2 : 3}
                     workspaceId={selectedWorkspaceId}
+                    isOwner={isOwner}
+                    completedSteps={completedSteps}
+                    hasProjects={!!(projects && projects.length > 0)}
                 />
-            ) : (
-                <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <Link href="/dashboard/feedback" className="block transition-transform hover:scale-[1.02]">
-                            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                        Total Feedback
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-3xl font-bold text-foreground">{totalFeedback}</p>
-                                </CardContent>
-                            </Card>
-                        </Link>
-                    </div>
-                </>
+            )}
+
+            {(hasOnboarded || !!(projects && projects.length > 0)) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <Link href="/dashboard/feedback" className="block transition-transform hover:scale-[1.02]">
+                        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                    Total Feedback
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-3xl font-bold text-foreground">{totalFeedback}</p>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                </div>
             )}
 
             <Card className="mt-8">

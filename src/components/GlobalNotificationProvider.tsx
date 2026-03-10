@@ -23,11 +23,11 @@ export function GlobalNotificationProvider({ children, userId }: { children: Rea
         if (!userId) return;
 
         const channel = supabase
-            .channel('global-notifications')
+            .channel('global-notifications-' + userId)
             .on(
                 'postgres_changes',
                 {
-                    event: '*',
+                    event: 'INSERT',
                     schema: 'public',
                     table: 'notifications',
                     filter: `user_id=eq.${userId}`,
@@ -36,26 +36,23 @@ export function GlobalNotificationProvider({ children, userId }: { children: Rea
                     // Dispatch custom event to tell NotificationBell to refresh
                     window.dispatchEvent(new CustomEvent('vibe-new-notification', { detail: payload.new }))
 
-                    // Only show toast notification for new INSERTS
-                    if (payload.eventType === 'INSERT') {
-                        const notification = payload.new;
-                        toast(notification.title, {
-                            description: notification.message,
-                            action: {
-                                label: "View",
-                                onClick: () => {
-                                    // Navigate to the project dashboard
-                                    document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
-                                    router.push("/dashboard/feedback");
-                                    router.refresh();
-                                }
-                            },
-                            duration: 8000,
-                        })
-                    }
+                    const notification = payload.new;
+                    toast(notification.title, {
+                        description: notification.message,
+                        action: {
+                            label: "View",
+                            onClick: () => {
+                                // Navigate to the project dashboard
+                                document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
+                                router.push("/dashboard/feedback");
+                                router.refresh();
+                            }
+                        },
+                        duration: 8000,
+                    });
                 }
             )
-            .subscribe()
+            .subscribe();
 
         return () => {
             supabase.removeChannel(channel)
