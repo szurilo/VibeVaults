@@ -26,12 +26,32 @@ jobs:
     - name: Start Supabase
       run: supabase start
 
+    - name: Get Supabase Local Keys
+      id: supabase_keys
+      run: |
+        # Wait for Auth service to be ready
+        count=0
+        until $(curl --output /dev/null --silent --head --fail http://127.0.0.1:54321/auth/v1/health); do
+          if [ $count -gt 30 ]; then
+            echo "Supabase Auth timed out"
+            exit 1
+          fi
+          echo "Waiting for Supabase Auth..."
+          sleep 2
+          count=$((count+1))
+        done
+
+        # Extract keys safely, ignoring warnings/noise
+        JSON=$(supabase status -o json | sed -n '/{/,/}/p')
+        echo "anon_key=$(echo "$JSON" | jq -r '.ANON_KEY')" >> $GITHUB_OUTPUT
+        echo "service_role_key=$(echo "$JSON" | jq -r '.SERVICE_ROLE_KEY')" >> $GITHUB_OUTPUT
+
     - name: Run Playwright tests
       run: npx playwright test
       env:
         NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
-        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByb2plY3QtcmVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE2MjQwMDAwMDAsImV4cCI6MTkyNDAwMDAwMH0.MmockPublishableKey"
-        SUPABASE_SECRET_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByb2plY3QtcmVmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTYyNDAwMDAwMCwiZXhwIjoyMDQ3NDA0ODAwfQ.XGpsX-D_1m9XjTq7u2_v1x7N8z3l7Y7z5j5G5F5o5v5"
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ steps.supabase_keys.outputs.anon_key }}
+        SUPABASE_SECRET_KEY: ${{ steps.supabase_keys.outputs.service_role_key }}
         STRIPE_SECRET_KEY: "sk_test_dummy"
         STRIPE_WEBHOOK_SECRET: "whsec_dummy"
         NEXT_PUBLIC_STRIPE_PRICE_ID: "price_dummy"
