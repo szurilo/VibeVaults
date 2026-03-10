@@ -130,8 +130,58 @@ export async function addManualFeedbackAction(projectId: string, content: string
 
     if (insertError) throw new Error(insertError.message);
 
-    // Mark associated notifications as read since the agency member created it themselves
-    await supabase.from('notifications').update({ is_read: true }).eq('feedback_id', feedbackId);
+    // Notify all workspace members via email
+    try {
+        const { createAdminClient } = await import("@/lib/supabase/admin");
+        const { sendFeedbackNotification } = await import("@/lib/notifications");
+        const { getNotificationPrefs } = await import("@/lib/notification-prefs");
+        
+        const adminSupabase = createAdminClient();
+        
+        // Get project details for the email
+        const { data: projectData } = await adminSupabase
+            .from('projects')
+            .select('name, workspace_id')
+            .eq('id', projectId)
+            .single();
+
+        if (projectData && projectData.workspace_id) {
+            const { data: memberRows } = await adminSupabase
+                .from('workspace_members')
+                .select('user_id')
+                .eq('workspace_id', projectData.workspace_id);
+
+            if (memberRows && memberRows.length > 0) {
+                const memberIds = memberRows.filter(m => m.user_id !== user.id).map(m => m.user_id);
+
+                const { data: profiles } = await adminSupabase
+                    .from('profiles')
+                    .select('email')
+                    .in('id', memberIds);
+
+                if (profiles) {
+                    for (const p of profiles) {
+                        const email = p.email;
+                        if (!email) continue;
+
+                        const prefs = await getNotificationPrefs(email, 'new_feedback');
+                        if (prefs.shouldNotify) {
+                            await sendFeedbackNotification({
+                                to: email,
+                                projectName: projectData.name,
+                                content,
+                                sender: user.email || 'Agency Member',
+                                metadata: { is_manual: true },
+                                unsubscribeToken: prefs.unsubscribeToken
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error("VibeVaults: Manual feedback email error", e);
+    }
 
     revalidatePath('/dashboard/feedback');
     return { success: true, feedback_id: feedbackId };

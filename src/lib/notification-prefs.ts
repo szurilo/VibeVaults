@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
-type NotificationType = 'new_feedback' | 'replies';
+type NotificationType = 'new_feedback' | 'replies' | 'project_created';
 
 interface NotificationPrefs {
     shouldNotify: boolean;
@@ -12,7 +12,7 @@ interface NotificationPrefs {
  * If no preference row exists, upserts a default one (opted-in).
  *
  * @param email - The email address to check preferences for
- * @param type - Which notification type to check: 'new_feedback' or 'replies'
+ * @param type - Which notification type to check: 'new_feedback', 'replies', or 'project_created'
  * @returns `{ shouldNotify, unsubscribeToken }`
  */
 export async function getNotificationPrefs(
@@ -20,13 +20,20 @@ export async function getNotificationPrefs(
     type: NotificationType
 ): Promise<NotificationPrefs> {
     const adminSupabase = createAdminClient();
-    const column = type === 'new_feedback' ? 'notify_new_feedback' : 'notify_replies';
+
+    const columnMap: Record<NotificationType, string> = {
+        'new_feedback': 'notify_new_feedback',
+        'replies': 'notify_replies',
+        'project_created': 'notify_project_created'
+    };
+
+    const column = columnMap[type];
 
     const { data: prefData } = await adminSupabase
         .from('email_preferences')
         .select(`${column}, unsubscribe_token`)
         .eq('email', email)
-        .single();
+        .single() as any;
 
     let shouldNotify = true;
     let unsubscribeToken = prefData?.unsubscribe_token;

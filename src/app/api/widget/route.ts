@@ -98,24 +98,44 @@ export async function POST(request: Request) {
         return corsError(insertError.message, 500);
     }
 
-    // Notify the agency owner
-    if (project.owner_email) {
-        try {
-            const prefs = await getNotificationPrefs(project.owner_email, 'new_feedback');
+    // Notify all workspace members
+    try {
+        const adminSupabase = createAdminClient();
 
-            if (prefs.shouldNotify) {
-                await sendFeedbackNotification({
-                    to: project.owner_email,
-                    projectName: project.name,
-                    content,
-                    sender,
-                    metadata,
-                    unsubscribeToken: prefs.unsubscribeToken
-                });
+        // Fetch workspace members separately from profiles for maximum query reliability
+        const { data: memberRows } = await adminSupabase
+            .from('workspace_members')
+            .select('user_id')
+            .eq('workspace_id', project.workspace_id);
+
+        if (memberRows && memberRows.length > 0) {
+            const memberIds = memberRows.map(m => m.user_id);
+            const { data: profiles } = await adminSupabase
+                .from('profiles')
+                .select('email')
+                .in('id', memberIds);
+
+            if (profiles) {
+                for (const p of profiles) {
+                    const email = p.email;
+                    if (!email) continue;
+
+                    const prefs = await getNotificationPrefs(email, 'new_feedback');
+                    if (prefs.shouldNotify) {
+                        await sendFeedbackNotification({
+                            to: email,
+                            projectName: project.name,
+                            content,
+                            sender,
+                            metadata,
+                            unsubscribeToken: prefs.unsubscribeToken
+                        });
+                    }
+                }
             }
-        } catch (e) {
-            console.error("VibeVaults: Email notification error", e);
         }
+    } catch (e) {
+        console.error("VibeVaults: Email notification error", e);
     }
 
     return corsSuccess({ success: true, feedback_id: feedbackId });

@@ -89,39 +89,48 @@ export async function POST(request: Request) {
         return corsError(replyError.message, 500);
     }
 
-    // 3. Notify agency owner
+    // 3. Notify all workspace members
     try {
         const { data: projectData } = await adminSupabase
             .from('projects')
-            .select('name, user_id')
+            .select('name, workspace_id')
             .eq('id', feedback.project_id)
             .single();
 
-        if (projectData) {
-            const { data: profileData } = await adminSupabase
-                .from('profiles')
-                .select('email')
-                .eq('id', projectData.user_id)
-                .single();
+        if (projectData && projectData.workspace_id) {
+            const { data: memberRows } = await adminSupabase
+                .from('workspace_members')
+                .select('user_id')
+                .eq('workspace_id', projectData.workspace_id);
 
-            const targetEmail = profileData?.email;
+            if (memberRows && memberRows.length > 0) {
+                const memberIds = memberRows.map(m => m.user_id);
+                const { data: profiles } = await adminSupabase
+                    .from('profiles')
+                    .select('email')
+                    .in('id', memberIds);
 
-            if (targetEmail) {
-                const prefs = await getNotificationPrefs(targetEmail, 'replies');
+                if (profiles) {
+                    for (const p of profiles) {
+                        const email = p.email;
+                        if (!email) continue;
 
-                if (prefs.shouldNotify) {
-                    await sendAgencyReplyNotification({
-                        to: targetEmail,
-                        projectName: projectData.name,
-                        replyContent: content,
-                        senderName: senderEmail,
-                        unsubscribeToken: prefs.unsubscribeToken
-                    });
+                        const prefs = await getNotificationPrefs(email, 'replies');
+                        if (prefs.shouldNotify) {
+                            await sendAgencyReplyNotification({
+                                to: email,
+                                projectName: projectData.name,
+                                replyContent: content,
+                                senderName: senderEmail,
+                                unsubscribeToken: prefs.unsubscribeToken
+                            });
+                        }
+                    }
                 }
             }
         }
     } catch (e) {
-        console.error("VibeVaults: Email notification error", e);
+        console.error("VibeVaults: Reply email notification error", e);
     }
 
     return corsSuccess({ success: true });

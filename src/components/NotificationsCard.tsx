@@ -12,18 +12,20 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Loader2, Check, Bell } from 'lucide-react';
+import { Loader2, Check, Bell, Mail } from 'lucide-react';
 
 interface NotificationsCardProps {
     initialPreferences: {
         notify_new_feedback?: boolean;
         notify_replies?: boolean;
+        notify_project_created?: boolean;
     };
 }
 
 export function NotificationsCard({ initialPreferences }: NotificationsCardProps) {
     const [notifyNewFeedback, setNotifyNewFeedback] = useState(initialPreferences.notify_new_feedback !== false);
     const [notifyReplies, setNotifyReplies] = useState(initialPreferences.notify_replies !== false);
+    const [notifyProjectCreated, setNotifyProjectCreated] = useState(initialPreferences.notify_project_created !== false);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
@@ -32,7 +34,8 @@ export function NotificationsCard({ initialPreferences }: NotificationsCardProps
 
         const hasChanged =
             (initialPreferences.notify_new_feedback !== false) !== notifyNewFeedback ||
-            (initialPreferences.notify_replies !== false) !== notifyReplies;
+            (initialPreferences.notify_replies !== false) !== notifyReplies ||
+            (initialPreferences.notify_project_created !== false) !== notifyProjectCreated;
 
         if (!hasChanged) return;
 
@@ -40,7 +43,7 @@ export function NotificationsCard({ initialPreferences }: NotificationsCardProps
         setSuccess(false);
 
         try {
-            await updateAgencyPreferencesAction(notifyNewFeedback, notifyReplies);
+            await updateAgencyPreferencesAction(notifyNewFeedback, notifyReplies, notifyProjectCreated);
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (error) {
@@ -53,7 +56,8 @@ export function NotificationsCard({ initialPreferences }: NotificationsCardProps
 
     const hasChanged =
         (initialPreferences.notify_new_feedback !== false) !== notifyNewFeedback ||
-        (initialPreferences.notify_replies !== false) !== notifyReplies;
+        (initialPreferences.notify_replies !== false) !== notifyReplies ||
+        (initialPreferences.notify_project_created !== false) !== notifyProjectCreated;
 
     return (
         <Card className="shadow-sm border-gray-200">
@@ -61,7 +65,7 @@ export function NotificationsCard({ initialPreferences }: NotificationsCardProps
                 <div className="flex-1">
                     <CardHeader>
                         <CardTitle className="font-semibold text-gray-900 flex items-center gap-2">
-                            <Bell className="w-5 h-5" />
+                            <Mail className="w-5 h-5" />
                             Email Notifications
                         </CardTitle>
                         <CardDescription>
@@ -94,6 +98,20 @@ export function NotificationsCard({ initialPreferences }: NotificationsCardProps
                                 id="notify-agency-replies"
                                 checked={notifyReplies}
                                 onCheckedChange={(c) => { setNotifyReplies(c); setSuccess(false); }}
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="notify-project-created" className="text-base">New Projects</Label>
+                                <p className="text-sm text-gray-500">
+                                    Receive an email when a team member creates a new project in your workspace.
+                                </p>
+                            </div>
+                            <Switch
+                                id="notify-project-created"
+                                checked={notifyProjectCreated}
+                                onCheckedChange={(c) => { setNotifyProjectCreated(c); setSuccess(false); }}
                             />
                         </div>
                     </CardContent>
