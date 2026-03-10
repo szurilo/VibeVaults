@@ -82,6 +82,29 @@ export function UserManagementClient({
             return;
         }
 
+        const normalizedEmail = email.trim().toLowerCase();
+
+        if (role === 'member') {
+            const alreadyMember = members.some(m => m.profiles?.email?.toLowerCase() === normalizedEmail);
+            if (alreadyMember) {
+                setEmailError('This user is already a member of this workspace');
+                return;
+            }
+            const pendingInvite = invites.find(i => i.email?.toLowerCase() === normalizedEmail && i.role === 'member');
+            if (pendingInvite) {
+                setEmailError('An invitation is already pending for this email');
+                return;
+            }
+        }
+
+        if (role === 'client') {
+            const existingClient = invites.find(i => i.email?.toLowerCase() === normalizedEmail && i.role === 'client');
+            if (existingClient) {
+                setEmailError('This client already has access to the workspace');
+                return;
+            }
+        }
+
         if (role === 'client' && !selectedProjectId) {
             setEmailError('Please select a project for the client to review');
             return;

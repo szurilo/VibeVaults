@@ -62,12 +62,21 @@ export default async function UserSettingsPage() {
         profiles: profiles?.find(p => p.id === m.user_id)
     })) || [];
 
-    // Fetch all pending invites for this workspace
-    const { data: invites } = await supabase
+    // Determine if the current user is an owner of this workspace
+    const isOwner = members?.some(m => m.user_id === user?.id && m.role === 'owner') || false;
+
+    // Fetch all invites for this workspace using admin client
+    // so that members (not just owners) can see client invites
+    const { data: allInvites } = await adminSupabase
         .from('workspace_invites')
         .select('*')
         .eq('workspace_id', selectedWorkspaceId)
         .order('created_at', { ascending: false });
+
+    // Members see only client invites; owners see everything
+    const invites = isOwner
+        ? allInvites
+        : allInvites?.filter(i => i.role === 'client') || [];
 
     // Fetch all projects for this workspace to allow sending targeted client invites
     const { data: projects } = await supabase
@@ -75,9 +84,6 @@ export default async function UserSettingsPage() {
         .select('*')
         .eq('workspace_id', selectedWorkspaceId)
         .order('created_at', { ascending: true });
-
-    // Determine if the current user is an owner of this workspace
-    const isOwner = members?.some(m => m.user_id === user?.id && m.role === 'owner') || false;
 
     return (
         <div>

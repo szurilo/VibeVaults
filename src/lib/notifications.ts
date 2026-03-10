@@ -60,7 +60,7 @@ export async function sendFeedbackNotification({
                                 <tr>
                                     <td style="padding: 8px 0; color: #718096; font-size: 14px;">Page:</td>
                                     <td style="padding: 8px 0; color: #1a202c; font-size: 14px; font-weight: 600;">
-                                        <a href="${metadata.url}" style="color: #209CEE; text-decoration: none;">${new URL(metadata.url).pathname}</a>
+                                        <a href="${metadata.url}" style="color: #209CEE; text-decoration: none;">${metadata.url}</a>
                                     </td>
                                 </tr>
                                 ` : ''}

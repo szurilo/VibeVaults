@@ -80,7 +80,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-8 text-center">
             <h2 className="text-5xl font-extrabold mb-6">Built for agency velocity</h2>
             <p className="text-xl text-gray-500 max-w-2xl mx-auto mb-16">
-              Stop deciphering "make the logo bigger" from cropped PDFs. Give your clients a friction-free way to point, click, and leave feedback exactly where it belongs.
+              Stop deciphering "make the logo bigger" from cropped PDFs. Give your clients a visual, friction-free way to point, click, and leave feedback exactly where it belongs.
             </p>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto text-left">
               <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
@@ -124,6 +124,14 @@ export default function Home() {
               </div>
 
               <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
+                <div className="w-12 h-12 bg-rose-500/10 rounded-2xl flex items-center justify-center mb-6 text-rose-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                </div>
+                <h3 className="text-xl font-bold mb-4">Team Collaboration</h3>
+                <p className="text-gray-500 flex-1">Invite your team members with role-based access. Owners, members, and clients each see exactly what they need — with real-time notifications keeping everyone in the loop.</p>
+              </div>
+
+              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
                 <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 text-blue-600">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                 </div>
@@ -149,6 +157,7 @@ export default function Home() {
                 <ul className="text-left space-y-4 mb-10 text-gray-600">
                   <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> <strong>Unlimited</strong> Projects & Websites</li>
                   <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> <strong>Unlimited</strong> Feedback & Clients</li>
+                  <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Team Collaboration & Role-Based Access</li>
                   <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Public Dashboard for Stakeholders</li>
                   <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Direct Partner Support from Founders</li>
                 </ul>
