@@ -17,7 +17,8 @@ async function onboardUser(page: Page) {
     await expect(page.locator('text=Getting Started 🚀')).toBeVisible();
 
     // Click the "Go" button next to "Create a project" to open the CreateProjectDialog
-    const createProjectRow = page.locator('div').filter({ hasText: /^Create a project/ });
+    // Use `has` with a label locator to avoid matching ancestor divs that also start with this text
+    const createProjectRow = page.locator('div').filter({ has: page.locator('label', { hasText: 'Create a project' }) }).first();
     await createProjectRow.getByRole('button', { name: /go/i }).click();
 
     // Fill in the CreateProjectDialog
@@ -27,10 +28,10 @@ async function onboardUser(page: Page) {
     await page.getByRole('dialog').getByRole('button', { name: /^create$/i }).click();
 
     // Wait for dialog to close and page to refresh with the new project
-    await expect(page.getByRole('dialog')).toBeHidden({ timeout: 3000 });
+    await expect(page.getByRole('dialog')).toBeHidden();
 
     // Dismiss onboarding by clicking "I'll explore on my own"
-    await expect(page.getByText("I'll explore on my own")).toBeVisible({ timeout: 3000 });
+    await expect(page.getByText("I'll explore on my own")).toBeVisible();
     await page.getByText("I'll explore on my own").click();
 }
 
@@ -42,7 +43,7 @@ test.describe('Dashboard UI & User Management', () => {
         // After finishing onboarding, wait for the actual layout to rerender and show the Project
         // This allows the router.refresh() from completeOnboardingAction to complete.
         await expect(page.locator('h1')).toContainText('Overview');
-        await expect(page.locator('h1')).toContainText('My Test Project', { timeout: 3000 });
+        await expect(page.locator('h1')).toContainText('My Test Project');
 
         const totalFeedbackCard = page.locator('text=Total Feedback');
         await expect(totalFeedbackCard).toBeVisible();

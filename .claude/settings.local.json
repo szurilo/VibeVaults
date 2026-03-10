@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find C:/Joco/VibeVaults -name \"project_summary*\" -o -name \"rules*\" 2>/dev/null | grep -v node_modules)"
+    ]
+  }
+}

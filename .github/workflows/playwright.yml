@@ -31,7 +31,7 @@ jobs:
       run: |
         # Wait for Auth service to be ready
         count=0
-        until $(curl --output /dev/null --silent --head --fail http://127.0.0.1:54321/auth/v1/health); do
+        until curl --output /dev/null --silent --head --fail http://127.0.0.1:54321/auth/v1/health; do
           if [ $count -gt 30 ]; then
             echo "Supabase Auth timed out"
             exit 1
@@ -41,10 +41,20 @@ jobs:
           count=$((count+1))
         done
 
-        # Extract keys safely, ignoring warnings/noise
-        JSON=$(supabase status -o json | sed -n '/{/,/}/p')
-        echo "anon_key=$(echo "$JSON" | jq -r '.ANON_KEY')" >> $GITHUB_OUTPUT
-        echo "service_role_key=$(echo "$JSON" | jq -r '.SERVICE_ROLE_KEY')" >> $GITHUB_OUTPUT
+        # Use text output for reliable key extraction (JSON output can have stderr noise)
+        STATUS=$(supabase status 2>&1)
+        ANON_KEY=$(echo "$STATUS" | grep "anon key" | awk '{print $NF}')
+        SERVICE_ROLE_KEY=$(echo "$STATUS" | grep "service_role key" | awk '{print $NF}')
+
+        # Validate keys were extracted
+        if [ -z "$ANON_KEY" ] || [ -z "$SERVICE_ROLE_KEY" ]; then
+          echo "ERROR: Failed to extract Supabase keys. Status output:"
+          echo "$STATUS"
+          exit 1
+        fi
+
+        echo "anon_key=${ANON_KEY}" >> $GITHUB_OUTPUT
+        echo "service_role_key=${SERVICE_ROLE_KEY}" >> $GITHUB_OUTPUT
 
     - name: Run Playwright tests
       run: npx playwright test
