@@ -46,14 +46,14 @@ jobs:
         done
         echo "Supabase Auth is ready."
 
-        # Extract keys from human-readable status output (more reliable than JSON parsing)
-        STATUS=$(supabase status 2>&1)
-        ANON_KEY=$(echo "$STATUS" | grep "anon key" | awk '{print $NF}')
-        SERVICE_ROLE_KEY=$(echo "$STATUS" | grep "service_role key" | awk '{print $NF}')
+        # Extract keys via JSON output — redirect stderr so CLI warnings don't corrupt the JSON
+        STATUS_JSON=$(supabase status --output json 2>/dev/null)
+        ANON_KEY=$(echo "$STATUS_JSON" | jq -r '.ANON_KEY // .anon_key // empty')
+        SERVICE_ROLE_KEY=$(echo "$STATUS_JSON" | jq -r '.SERVICE_ROLE_KEY // .service_role_key // empty')
 
         if [ -z "$ANON_KEY" ] || [ -z "$SERVICE_ROLE_KEY" ]; then
-          echo "ERROR: Failed to extract Supabase keys. Raw status output:"
-          echo "$STATUS"
+          echo "ERROR: Failed to extract Supabase keys. JSON output was:"
+          echo "$STATUS_JSON"
           exit 1
         fi
 
