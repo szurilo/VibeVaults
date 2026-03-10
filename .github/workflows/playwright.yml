@@ -29,26 +29,30 @@ jobs:
     - name: Get Supabase Local Keys
       id: supabase_keys
       run: |
-        # Wait for Auth service to be ready
+        # Wait for Supabase Auth to accept GET requests.
+        # NOTE: --head (HEAD) is intentionally NOT used — GoTrue returns 405 for HEAD,
+        # which makes curl --fail exit non-zero even when the service is fully running.
+        echo "Waiting for Supabase Auth to be ready..."
         count=0
-        until curl --output /dev/null --silent --head --fail http://127.0.0.1:54321/auth/v1/health; do
-          if [ $count -gt 30 ]; then
-            echo "Supabase Auth timed out"
+        until curl -sf http://127.0.0.1:54321/auth/v1/health > /dev/null; do
+          if [ $count -ge 150 ]; then
+            echo "ERROR: Supabase Auth did not become ready after 5 minutes."
+            supabase status || true
             exit 1
           fi
-          echo "Waiting for Supabase Auth..."
+          echo "  Still waiting... ($((count * 2))s elapsed)"
           sleep 2
-          count=$((count+1))
+          count=$((count + 1))
         done
+        echo "Supabase Auth is ready."
 
-        # Use text output for reliable key extraction (JSON output can have stderr noise)
+        # Extract keys from human-readable status output (more reliable than JSON parsing)
         STATUS=$(supabase status 2>&1)
         ANON_KEY=$(echo "$STATUS" | grep "anon key" | awk '{print $NF}')
         SERVICE_ROLE_KEY=$(echo "$STATUS" | grep "service_role key" | awk '{print $NF}')
 
-        # Validate keys were extracted
         if [ -z "$ANON_KEY" ] || [ -z "$SERVICE_ROLE_KEY" ]; then
-          echo "ERROR: Failed to extract Supabase keys. Status output:"
+          echo "ERROR: Failed to extract Supabase keys. Raw status output:"
           echo "$STATUS"
           exit 1
         fi

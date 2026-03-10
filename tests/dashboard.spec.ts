@@ -1,82 +1,82 @@
 import { test, expect, Page } from '@playwright/test';
 import { getMagicLink } from './utils/auth';
 
-// Helper to quickly onboard a new test user to reach the dashboard
-async function onboardUser(page: Page) {
-    const randomSuffix = Math.floor(Math.random() * 1000000);
-    const testEmail = `test-onboard-${Date.now()}-${randomSuffix}@example.com`;
+// ---------------------------------------------------------------------------
+// Onboarding helper — only used by the fresh-user onboarding test.
+// Creates a brand-new user so the onboarding card is guaranteed to show.
+// ---------------------------------------------------------------------------
+async function signInFreshUser(page: Page): Promise<void> {
+    const testEmail = `e2e-onboard-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
     const magicLink = await getMagicLink(page, testEmail);
-
     await page.goto(magicLink);
-
-    // Wait for redirect to dashboard
     await page.waitForURL('**/dashboard**');
-    await expect(page).toHaveURL(/.*\/dashboard/);
-
-    // The new onboarding shows a checklist card with "Getting Started 🚀"
-    await expect(page.locator('text=Getting Started 🚀')).toBeVisible();
-
-    // Click the "Go" button next to "Create a project" to open the CreateProjectDialog
-    // Use `has` with a label locator to avoid matching ancestor divs that also start with this text
-    const createProjectRow = page.locator('div').filter({ has: page.locator('label', { hasText: 'Create a project' }) }).first();
-    await createProjectRow.getByRole('button', { name: /go/i }).click();
-
-    // Fill in the CreateProjectDialog
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.locator('#createProjectName').fill('My Test Project');
-    await page.locator('#createWebsiteUrl').fill('https://example.com');
-    await page.getByRole('dialog').getByRole('button', { name: /^create$/i }).click();
-
-    // Wait for dialog to close and page to refresh with the new project
-    await expect(page.getByRole('dialog')).toBeHidden();
-
-    // Dismiss onboarding by clicking "I'll explore on my own"
-    await expect(page.getByText("I'll explore on my own")).toBeVisible();
-    await page.getByText("I'll explore on my own").click();
 }
 
-test.describe('Dashboard UI & User Management', () => {
+// ---------------------------------------------------------------------------
+// Onboarding flow — requires a completely unauthenticated fresh user.
+// Overrides the project-level storageState to start with no session.
+// ---------------------------------------------------------------------------
+test.describe('Onboarding flow', () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
 
-    test('should allow a new user to onboard and view the dashboard', async ({ page }) => {
-        await onboardUser(page);
+    test('new user completes onboarding and reaches dashboard', async ({ page }) => {
+        await signInFreshUser(page);
 
-        // After finishing onboarding, wait for the actual layout to rerender and show the Project
-        // This allows the router.refresh() from completeOnboardingAction to complete.
+        // Onboarding card must appear
+        await expect(page.locator('text=Getting Started 🚀')).toBeVisible();
+
+        // Open "Create a project" dialog via the Go button on that step row
+        const createProjectRow = page.locator('div').filter({
+            has: page.locator('label', { hasText: 'Create a project' }),
+        }).first();
+        await createProjectRow.getByRole('button', { name: /go/i }).click();
+
+        // Fill and submit the dialog
+        await expect(page.getByRole('dialog')).toBeVisible();
+        await page.locator('#createProjectName').fill('My Test Project');
+        await page.locator('#createWebsiteUrl').fill('https://example.com');
+        await page.getByRole('dialog').getByRole('button', { name: /^create$/i }).click();
+
+        await expect(page.getByRole('dialog')).toBeHidden();
+
+        // Dismiss onboarding
+        await expect(page.getByText("I'll explore on my own")).toBeVisible();
+        await page.getByText("I'll explore on my own").click();
+
+        // Dashboard renders with the new project
         await expect(page.locator('h1')).toContainText('Overview');
         await expect(page.locator('h1')).toContainText('My Test Project');
+        await expect(page.locator('text=Total Feedback')).toBeVisible();
+        await expect(page.locator('text=Questions or Problems?')).toBeVisible();
+    });
+});
 
-        const totalFeedbackCard = page.locator('text=Total Feedback');
-        await expect(totalFeedbackCard).toBeVisible();
+// ---------------------------------------------------------------------------
+// Pre-authenticated tests — use the storageState created by globalSetup.
+// These tests skip the onboarding/auth steps and run significantly faster.
+// ---------------------------------------------------------------------------
+test.describe('Dashboard pages — authenticated user', () => {
 
-        const questionsCard = page.locator('text=Questions or Problems?');
-        await expect(questionsCard).toBeVisible();
+    test('overview page renders correctly', async ({ page }) => {
+        await page.goto('/dashboard');
+
+        await expect(page.locator('h1')).toContainText('Overview');
+        await expect(page.locator('text=Total Feedback')).toBeVisible();
+        await expect(page.locator('text=Questions or Problems?')).toBeVisible();
     });
 
-    test('should allow navigating to Project Settings', async ({ page }) => {
-        await onboardUser(page);
-
-        // Navigate to project settings and wait for DOM completely
+    test('project settings page renders correctly', async ({ page }) => {
         await page.goto('/dashboard/project-settings', { waitUntil: 'domcontentloaded' });
 
         await expect(page.locator('h1')).toContainText('Project Settings');
-
-        // Form fields like Project Name should be visible
         await expect(page.locator('text=Project Name')).toBeVisible();
         await expect(page.locator('text=Embed widget').first()).toBeVisible();
     });
 
-    test('should allow navigating to User Management', async ({ page }) => {
-        await onboardUser(page);
-
-        // Navigate to Users
+    test('users page renders correctly', async ({ page }) => {
         await page.goto('/dashboard/settings/users', { waitUntil: 'domcontentloaded' });
 
         await expect(page.locator('h1')).toContainText('Users');
-
-        // Check for specific text or buttons on the users page
-        // "Invite User" or "Invite" or "Invite Member", previous instructions say "Users"
-        const inviteBtn = page.getByRole('button', { name: /invite/i });
-        await expect(inviteBtn).toBeVisible();
+        await expect(page.getByRole('button', { name: /invite/i })).toBeVisible();
     });
-
 });
