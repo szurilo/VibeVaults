@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Page } from '@playwright/test';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY;
 
 if (!supabaseServiceKey) {
@@ -41,5 +41,5 @@ export async function getMagicLink(page: Page, email: string) {
     }
 
     // Build the URL that exactly matches what the email template provides
-    return `http://localhost:3000/auth/confirm?token_hash=${token}&type=${type}`;
+    return `http://127.0.0.1:3000/auth/confirm?token_hash=${token}&type=${type}`;
 }

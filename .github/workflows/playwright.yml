@@ -17,12 +17,21 @@ jobs:
       run: npm ci
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
+
+    - name: Setup Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        version: latest
+
+    - name: Start Supabase
+      run: supabase start
+
     - name: Run Playwright tests
       run: npx playwright test
       env:
-        NEXT_PUBLIC_SUPABASE_URL: "http://localhost:54321"
-        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "dummy_publishable_key"
-        SUPABASE_SECRET_KEY: "dummy_secret_key"
+        NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByb2plY3QtcmVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE2MjQwMDAwMDAsImV4cCI6MTkyNDAwMDAwMH0.MmockPublishableKey"
+        SUPABASE_SECRET_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByb2plY3QtcmVmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTYyNDAwMDAwMCwiZXhwIjoyMDQ3NDA0ODAwfQ.XGpsX-D_1m9XjTq7u2_v1x7N8z3l7Y7z5j5G5F5o5v5"
         STRIPE_SECRET_KEY: "sk_test_dummy"
         STRIPE_WEBHOOK_SECRET: "whsec_dummy"
         NEXT_PUBLIC_STRIPE_PRICE_ID: "price_dummy"
