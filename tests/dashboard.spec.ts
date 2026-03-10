@@ -3,7 +3,8 @@ import { getMagicLink } from './utils/auth';
 
 // Helper to quickly onboard a new test user to reach the dashboard
 async function onboardUser(page: Page) {
-    const testEmail = `test-onboard-${Date.now()}@example.com`;
+    const randomSuffix = Math.floor(Math.random() * 1000000);
+    const testEmail = `test-onboard-${Date.now()}-${randomSuffix}@example.com`;
     const magicLink = await getMagicLink(page, testEmail);
 
     await page.goto(magicLink);
@@ -26,10 +27,10 @@ async function onboardUser(page: Page) {
     await page.getByRole('dialog').getByRole('button', { name: /^create$/i }).click();
 
     // Wait for dialog to close and page to refresh with the new project
-    await expect(page.getByRole('dialog')).toBeHidden({ timeout: 10000 });
+    await expect(page.getByRole('dialog')).toBeHidden({ timeout: 3000 });
 
     // Dismiss onboarding by clicking "I'll explore on my own"
-    await expect(page.getByText("I'll explore on my own")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("I'll explore on my own")).toBeVisible({ timeout: 3000 });
     await page.getByText("I'll explore on my own").click();
 }
 
@@ -41,7 +42,7 @@ test.describe('Dashboard UI & User Management', () => {
         // After finishing onboarding, wait for the actual layout to rerender and show the Project
         // This allows the router.refresh() from completeOnboardingAction to complete.
         await expect(page.locator('h1')).toContainText('Overview');
-        await expect(page.locator('h1')).toContainText('My Test Project', { timeout: 10000 });
+        await expect(page.locator('h1')).toContainText('My Test Project', { timeout: 3000 });
 
         const totalFeedbackCard = page.locator('text=Total Feedback');
         await expect(totalFeedbackCard).toBeVisible();

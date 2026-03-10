@@ -28,14 +28,18 @@ export async function getMagicLink(page: Page, email: string) {
     // But our app's custom confirmation page is at /auth/confirm
     // So we extract the token from the action_link URL and build our own redirect URL
     const actionLink = data.properties.action_link;
-    const tokenMatch = actionLink.match(/token=([^&]+)/);
+    const url = new URL(actionLink);
+    const token = url.searchParams.get('token');
+    const type = url.searchParams.get('type');
 
-    if (!tokenMatch) {
+    if (!token) {
         throw new Error("Could not find token in generated action_link: " + actionLink);
     }
-
-    const token = tokenMatch[1];
+    
+    if (!type) {
+        throw new Error("Could not find type in generated action_link: " + actionLink);
+    }
 
     // Build the URL that exactly matches what the email template provides
-    return `http://localhost:3000/auth/confirm?token_hash=${token}&type=email`;
+    return `http://localhost:3000/auth/confirm?token_hash=${token}&type=${type}`;
 }
