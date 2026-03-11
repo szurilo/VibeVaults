@@ -518,6 +518,21 @@
         } catch (err) { }
       });
 
+      eventSource.addEventListener('status_update', (e) => {
+        try {
+          const { status } = JSON.parse(e.data);
+          // Update status in the detail header
+          const detailStatus = wrapper.querySelector('.detail-header .feedback-status');
+          if (detailStatus) {
+            detailStatus.className = 'feedback-status ' + getStatusClass(status);
+            detailStatus.textContent = status || 'open';
+          }
+          // Update cached feedback so going back to list reflects the change
+          const cached = cachedFeedbacks.find(f => f.id === selectedFeedbackId);
+          if (cached) cached.status = status;
+        } catch (err) { }
+      });
+
       eventSource.addEventListener('connected', () => {
         // SSE connected — stop any polling fallback
         stopPolling();

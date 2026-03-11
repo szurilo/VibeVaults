@@ -68,6 +68,7 @@ export async function GET(request: Request) {
             );
 
             // Subscribe to realtime INSERTs on feedback_replies for this feedback
+            // and UPDATEs on the feedback itself (e.g. status changes)
             const channel = adminSupabase
                 .channel(`replies-${feedbackId}`)
                 .on(
@@ -83,6 +84,25 @@ export async function GET(request: Request) {
                             const data = JSON.stringify(payload.new);
                             controller.enqueue(
                                 encoder.encode(`event: new_reply\ndata: ${data}\n\n`)
+                            );
+                        } catch {
+                            // Connection may have been closed
+                        }
+                    }
+                )
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "UPDATE",
+                        schema: "public",
+                        table: "feedbacks",
+                        filter: `id=eq.${feedbackId}`,
+                    },
+                    (payload) => {
+                        try {
+                            const data = JSON.stringify({ status: payload.new.status });
+                            controller.enqueue(
+                                encoder.encode(`event: status_update\ndata: ${data}\n\n`)
                             );
                         } catch {
                             // Connection may have been closed
