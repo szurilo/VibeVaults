@@ -17,4 +17,3 @@ I use a local Supabase instance running in Docker Desktop for local development 
 This app is not available for free, only a trial for 14 days.
 There is no paying user in the live database so you don't have to deal with legacy data hence you don't need to take into consideration backfilling or fallbacks because of missing data.
 Before writing any code, write a short plan how you would solve the given problem. Also feel free to ask clarifying questions.
-Be concise.

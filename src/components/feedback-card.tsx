@@ -31,7 +31,8 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { MessageSquare, Send, User2 } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
-import { sendAgencyReplyAction } from "@/actions/feedback"
+import { sendAgencyReplyAction, deleteFeedback } from "@/actions/feedback"
+import { toast } from "sonner"
 
 import {
     Sheet,
@@ -135,8 +136,8 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
             setNewReply("")
             fetchReplies() // Refresh list
         } catch (err) {
-            console.error("Error sending reply:", err)
-            alert("Failed to send reply")
+            const message = err instanceof Error ? err.message : "Failed to send reply"
+            toast.error(message)
         } finally {
             setIsSendingReply(false)
         }
@@ -145,17 +146,11 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const handleDelete = async () => {
         setIsDeleting(true)
         try {
-            const { error } = await supabase
-                .from('feedbacks')
-                .delete()
-                .eq('id', feedback.id)
-
-            if (error) throw error
-
+            await deleteFeedback(feedback.id)
             router.refresh()
         } catch (error) {
-            console.error(error)
-            alert("Failed to delete feedback")
+            const message = error instanceof Error ? error.message : "Failed to delete feedback"
+            toast.error(message)
             setIsDeleting(false)
         }
     }
