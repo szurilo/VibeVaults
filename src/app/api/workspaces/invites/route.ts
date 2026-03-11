@@ -46,7 +46,22 @@ export async function POST(req: Request) {
             return new NextResponse("Forbidden: Only owners can invite members", { status: 403 });
         }
 
-        // Check if user is already a member (only for 'member' invites)
+        // Check if an invite already exists for this email in this workspace
+        const { data: existingInvite } = await supabase
+            .from('workspace_invites')
+            .select('id, role')
+            .eq('workspace_id', workspaceId)
+            .eq('email', email)
+            .single();
+
+        if (existingInvite) {
+            if (existingInvite.role === 'client') {
+                return new NextResponse("This client already has access to the workspace", { status: 400 });
+            }
+            return new NextResponse("An invitation is already pending for this email", { status: 400 });
+        }
+
+        // Check if user is already an accepted member (only for 'member' invites)
         if (role === 'member') {
             const { data: existingUser } = await supabase
                 .from('profiles')
@@ -63,7 +78,7 @@ export async function POST(req: Request) {
                     .single();
 
                 if (existingMember) {
-                    return new NextResponse("User is already a member of this workspace", { status: 400 });
+                    return new NextResponse("This user is already a member of this workspace", { status: 400 });
                 }
             }
         }
@@ -94,9 +109,7 @@ export async function POST(req: Request) {
 
         // Send email via Resend
         if (role === 'member') {
-            const BASE_URL = process.env.NODE_ENV === 'development'
-                ? 'http://localhost:3000'
-                : 'https://www.vibe-vaults.com';
+            const BASE_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
             const adminSupabase = createAdminClient();
             const { data: linkData, error: linkError } = await adminSupabase.auth.admin.generateLink({

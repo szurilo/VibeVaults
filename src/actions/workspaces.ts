@@ -21,6 +21,7 @@ export async function createWorkspaceAction(name: string) {
     const { count } = await supabase
         .from('workspace_members')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user!.id)
         .eq('role', 'owner');
 
     if (count === 1) {

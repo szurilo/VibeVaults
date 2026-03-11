@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const defaultUrl = "https://www.vibe-vaults.com";
+const defaultUrl = process.env.NEXT_PUBLIC_APP_URL!;
 
 export const viewport: Viewport = {
   themeColor: "#209CEE",

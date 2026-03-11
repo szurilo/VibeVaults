@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
     AlertDialog,
-    AlertDialogAction,
     AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
@@ -20,38 +19,32 @@ import { addManualFeedbackAction } from '@/actions/feedback';
 export function AddFeedbackDialog({ projectId }: { projectId: string }) {
     const [open, setOpen] = useState(false);
     const [content, setContent] = useState('');
-    const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
 
     const handleSubmit = async (e: React.MouseEvent) => {
         e.preventDefault();
 
-        if (!content.trim()) {
+        const trimmed = content.trim();
+        if (!trimmed) {
             setErrorMsg('Feedback content is required');
             return;
         }
 
-        setLoading(true);
-        setErrorMsg('');
+        // Close dialog immediately, then fire the action
+        setOpen(false);
+        setContent('');
 
         try {
-            await addManualFeedbackAction(projectId, content.trim());
-            setOpen(false);
-            setContent('');
+            await addManualFeedbackAction(projectId, trimmed);
         } catch (error: any) {
             console.error('Failed to add feedback:', error);
-            setErrorMsg(error.message || 'Failed to add feedback');
-        } finally {
-            setLoading(false);
         }
     };
 
     return (
         <AlertDialog open={open} onOpenChange={(newOpen) => {
-            if (!newOpen && loading) return; // Prevent closing while loading
             setOpen(newOpen);
             if (!newOpen) {
-                // Reset state when closing
                 setContent('');
                 setErrorMsg('');
             }
@@ -78,7 +71,6 @@ export function AddFeedbackDialog({ projectId }: { projectId: string }) {
                             if (errorMsg) setErrorMsg('');
                         }}
                         className="min-h-[120px] resize-none"
-                        disabled={loading}
                     />
                     {errorMsg && (
                         <p className="text-red-500 text-sm mt-2 font-medium">{errorMsg}</p>
@@ -86,15 +78,14 @@ export function AddFeedbackDialog({ projectId }: { projectId: string }) {
                 </div>
 
                 <AlertDialogFooter>
-                    <AlertDialogCancel disabled={loading} className="cursor-pointer">Cancel</AlertDialogCancel>
-                    <AlertDialogAction
+                    <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+                    <Button
                         onClick={handleSubmit}
-                        disabled={loading || !content.trim()}
+                        disabled={!content.trim()}
                         className="cursor-pointer"
                     >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                        {loading ? 'Adding...' : 'Add Feedback'}
-                    </AlertDialogAction>
+                        Add Feedback
+                    </Button>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

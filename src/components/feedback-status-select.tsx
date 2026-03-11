@@ -9,6 +9,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { updateFeedbackStatus } from '@/actions/feedback';
+import { toast } from 'sonner';
 
 interface FeedbackStatusSelectProps {
     id: string;
@@ -23,7 +24,8 @@ export function FeedbackStatusSelect({ id, initialStatus }: FeedbackStatusSelect
         try {
             await updateFeedbackStatus(id, newStatus);
         } catch (error) {
-            console.error('Failed to update status', error);
+            const message = error instanceof Error ? error.message : 'Failed to update status';
+            toast.error(message);
             setStatus(initialStatus); // Revert on error
         }
     };

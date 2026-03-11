@@ -19,13 +19,18 @@ import { getNotificationPrefs } from "@/lib/notification-prefs";
 export async function updateFeedbackStatus(id: string, status: string) {
     const supabase = await createClient();
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('feedbacks')
         .update({ status })
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
     if (error) {
         throw new Error('Failed to update feedback status');
+    }
+
+    if (!data || data.length === 0) {
+        throw new Error('Feedback not found — it may have been deleted');
     }
 
     // Mark associated notifications as read
@@ -37,13 +42,18 @@ export async function updateFeedbackStatus(id: string, status: string) {
 export async function deleteFeedback(id: string) {
     const supabase = await createClient();
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('feedbacks')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
     if (error) {
         throw new Error('Failed to delete feedback');
+    }
+
+    if (!data || data.length === 0) {
+        throw new Error('Feedback not found — it may have been already deleted');
     }
 
     revalidatePath('/dashboard/feedback');

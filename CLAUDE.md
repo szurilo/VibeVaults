@@ -93,7 +93,6 @@ tests/              # Playwright E2E tests
 | `feedback_replies` | `id`, `feedback_id`, `content`, `author_role`, `author_name` |
 | `notifications` | `id`, `user_id`, `project_id`, `feedback_id`, `type`, `title`, `message`, `read` |
 | `email_preferences` | `email`, `notify_replies`, `notify_new_feedback`, `notify_project_created` |
-| `project_invites` | `project_id`, `email` (legacy client invite, still used for client access RLS) |
 
 ## API Routes
 | Route | Method | Purpose |
