@@ -82,7 +82,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
             content,
             user_id: user.id,
             author_role: 'agency',
-            author_name: 'Agency Support'
+            author_name: user.email || 'Support'
         });
 
     if (replyError) throw replyError;

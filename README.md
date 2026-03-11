@@ -1,4 +1,4 @@
-VibeVaults is a Feedback tool for website owners to embed a widget collecting user feedback
+Collect visual feedback, share progress with clients, and ship faster. The feedback tool designed specifically for freelancers and agencies.
 
 ## Getting Started
 

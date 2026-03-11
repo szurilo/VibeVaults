@@ -454,7 +454,7 @@
   const renderReplyBubble = (r) => `
     <div class="msg-wrapper ${r.author_role}" data-reply-id="${r.id || ''}">
       <div class="msg-meta ${r.author_role}">
-        <span style="font-weight:700; text-transform:uppercase; letter-spacing:-0.5px;">${r.author_role === 'agency' ? 'Support' : escapeHtml(r.author_name || 'Client')}</span>
+        <span style="font-weight:700; text-transform:uppercase; letter-spacing:-0.5px;">${r.author_role === 'agency' ? escapeHtml(r.author_name || 'Support') : escapeHtml(r.author_name || 'Client')}</span>
         <span style="color:#d1d5db;">•</span>
         <span>${new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
