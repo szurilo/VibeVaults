@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
             allow: '/',
             disallow: '/dashboard/',
         },
-        sitemap: `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/sitemap.xml`,
+        sitemap: `${process.env.NEXT_PUBLIC_APP_URL}/sitemap.xml`,
     }
 }

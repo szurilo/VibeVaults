@@ -109,9 +109,7 @@ export async function POST(req: Request) {
 
         // Send email via Resend
         if (role === 'member') {
-            const BASE_URL = process.env.NODE_ENV === 'development'
-                ? 'http://localhost:3000'
-                : 'https://www.vibe-vaults.com';
+            const BASE_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
             const adminSupabase = createAdminClient();
             const { data: linkData, error: linkError } = await adminSupabase.auth.admin.generateLink({

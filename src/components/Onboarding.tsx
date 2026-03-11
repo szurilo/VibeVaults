@@ -187,7 +187,7 @@ export default function Onboarding({
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>Minimise</p>
+                                <p>Minimize</p>
                             </TooltipContent>
                         </Tooltip>
                     </div>

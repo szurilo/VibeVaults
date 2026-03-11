@@ -4,13 +4,11 @@
  * 
  * Sensitive Dependencies: 
  * - Resend API Client (./resend) for securely delivering emails without exposing API keys to the client.
- * - Environment Variables (NODE_ENV) to dynamically route links (localhost vs production).
+ * - Environment Variable (NEXT_PUBLIC_APP_URL) to dynamically route links per environment.
  */
 import { resend } from './resend';
 
-const BASE_URL = process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3000'
-    : 'https://www.vibe-vaults.com';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
 interface SendFeedbackEmailParams {
     to: string;
