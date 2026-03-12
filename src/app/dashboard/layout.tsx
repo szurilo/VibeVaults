@@ -37,14 +37,15 @@ export default async function DashboardLayout({
         redirect("/auth/login");
     }
 
-    // Auto-accept any pending workspace invites for this email
+    // Auto-accept pending member workspace invites for this email.
     let autoSelectedWorkspaceId: string | undefined;
     if (user.email) {
         const adminSupabase = createAdminClient();
         const { data: myInvites } = await adminSupabase
             .from("workspace_invites")
             .select("*")
-            .eq("email", user.email);
+            .eq("email", user.email)
+            .neq("role", "client");
 
         if (myInvites && myInvites.length > 0) {
             for (const invite of myInvites) {
@@ -82,7 +83,6 @@ export default async function DashboardLayout({
 
     // Determine which workspace should be active
     if (autoSelectedWorkspaceId) {
-        // Always prioritize freshly accepted invite workspace
         selectedWorkspaceId = autoSelectedWorkspaceId;
     } else if (workspaces && workspaces.length > 0) {
         if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
