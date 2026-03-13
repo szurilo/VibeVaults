@@ -9,7 +9,11 @@
       "Bash(grep -A 20 \"CREATE TABLE.*feedbacks\\\\|CREATE TABLE.*email_preferences\" /c/Joco/VibeVaults/supabase/migrations/*.sql | head -60)",
       "Bash(find /c/Joco/VibeVaults/src -name \"*.ts\" -o -name \"*.tsx\" | xargs grep -l \"unsubscribe_token\\\\|share_token\" | head -5)",
       "Bash(grep -A 5 \"api_key\\\\|api_key = \" /c/Joco/VibeVaults/supabase/migrations/*.sql | head -30)",
-      "Bash(ls -d /c/Joco/VibeVaults/src/app/dashboard/*/)"
+      "Bash(ls -d /c/Joco/VibeVaults/src/app/dashboard/*/)",
+      "Bash(ls -la /c/Joco/VibeVaults/supabase/migrations/*.sql)",
+      "Bash(grep -r \"ALTER TABLE.*feedbacks\" /c/Joco/VibeVaults/supabase/migrations/*.sql)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -n \"workspace_logos\\\\|bucket\\\\|getPublicUrl\\\\|createSignedUrl\" /c/Joco/VibeVaults/src/app/api/workspaces/*/route.ts)"
     ]
   }
 }

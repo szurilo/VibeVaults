@@ -70,7 +70,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     // New: Subscription protection for /dashboard
-    if (request.nextUrl.pathname.startsWith('/dashboard') && !request.nextUrl.pathname.startsWith('/dashboard/payment-success') && user) {
+    if (request.nextUrl.pathname.startsWith('/dashboard') && !request.nextUrl.pathname.startsWith('/dashboard/payment-success') && !request.nextUrl.pathname.startsWith('/dashboard/subscribe') && user) {
         const { data: profile, error } = await supabase
             .from('profiles')
             .select('subscription_status, trial_ends_at')
@@ -89,7 +89,7 @@ export async function updateSession(request: NextRequest) {
 
         if (!isSubscribed && !isTrialActive) {
             const url = request.nextUrl.clone();
-            url.pathname = "/api/stripe/checkout";
+            url.pathname = "/dashboard/subscribe";
             return NextResponse.redirect(url);
         }
     }

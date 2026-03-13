@@ -12,7 +12,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { FeedbackStatusSelect } from "./feedback-status-select"
 import { cn } from "@/lib/utils"
-import { Calendar, Trash2, Globe, Monitor, Terminal, Info, ChevronRight, Activity, Cpu, MousePointer2 } from "lucide-react"
+import { Calendar, Trash2, Globe, Monitor, Terminal, Info, ChevronRight, Activity, Cpu, MousePointer2, Paperclip, FileText, Image as ImageIcon } from "lucide-react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -51,7 +51,6 @@ interface FeedbackMetadata {
     viewport?: string
     language?: string
     logs?: Array<{ type: string; time: string; content: string }>
-    screenshot?: string
     dom_selector?: string
 }
 
@@ -74,6 +73,9 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const [newReply, setNewReply] = useState("")
     const [isSendingReply, setIsSendingReply] = useState(false)
     const [showReplies, setShowReplies] = useState(false)
+    const [attachments, setAttachments] = useState<any[]>([])
+    const [replyFiles, setReplyFiles] = useState<File[]>([])
+    const [isUploadingReplyFiles, setIsUploadingReplyFiles] = useState(false)
 
     const status = feedback.status || 'open'
     const supabase = createClient()
@@ -97,8 +99,26 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
         }
     }, [feedback.id, supabase])
 
+    const fetchAttachments = useCallback(async () => {
+        try {
+            const { data, error } = await supabase
+                .from('feedback_attachments')
+                .select('*')
+                .eq('feedback_id', feedback.id)
+                .order('created_at', { ascending: true })
+
+            if (error) throw error
+            setAttachments(data || [])
+        } catch (err) {
+            console.error("Error fetching attachments:", err)
+        }
+    }, [feedback.id, supabase])
+
+    const isImageFile = (mimeType: string) => mimeType?.startsWith('image/')
+
     useEffect(() => {
         fetchReplies()
+        fetchAttachments()
 
         // Subscribe to Realtime for new replies on this feedback
         const channel = supabase
@@ -129,15 +149,33 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     }, [feedback.id])
 
     const handleSendReply = async () => {
-        if (!newReply.trim()) return
+        if (!newReply.trim() && replyFiles.length === 0) return
         setIsSendingReply(true)
         try {
-            await sendAgencyReplyAction(feedback.id, newReply)
+            const replyResult = await sendAgencyReplyAction(feedback.id, newReply || "(attachment)")
+
+            // Upload reply files if any
+            if (replyFiles.length > 0) {
+                setIsUploadingReplyFiles(true)
+                const formData = new FormData()
+                formData.append('feedbackId', feedback.id)
+                for (const f of replyFiles) formData.append('files', f)
+
+                await fetch('/api/dashboard/upload', {
+                    method: 'POST',
+                    body: formData,
+                })
+                setReplyFiles([])
+                setIsUploadingReplyFiles(false)
+            }
+
             setNewReply("")
-            fetchReplies() // Refresh list
+            fetchReplies()
+            fetchAttachments()
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to send reply"
             toast.error(message)
+            setIsUploadingReplyFiles(false)
         } finally {
             setIsSendingReply(false)
         }
@@ -279,41 +317,57 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                     <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap font-medium break-all">
                         {feedback.content}
                     </p>
-                    {feedback.metadata?.screenshot && (
-                        <div className="mt-4 pb-2">
-                            <Sheet>
-                                <SheetTrigger asChild>
-                                    <div className="relative rounded-lg overflow-hidden border border-gray-200 cursor-pointer group w-[240px] max-w-full shadow-sm">
-                                        <img src={feedback.metadata.screenshot} alt="Screenshot" className="w-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                            <div className="bg-white/95 shadow-md text-gray-800 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 duration-200">
-                                                View Attachment
+                    {/* Attachments (new storage-based) */}
+                    {attachments.length > 0 && (
+                        <div className="mt-4 pb-2 flex flex-wrap gap-3">
+                            {attachments.map((att) => (
+                                isImageFile(att.mime_type) ? (
+                                    <Sheet key={att.id}>
+                                        <SheetTrigger asChild>
+                                            <div className="relative rounded-lg overflow-hidden border border-gray-200 cursor-pointer group w-[120px] h-[80px] shadow-sm">
+                                                <img src={att.file_url} alt={att.file_name} className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                                    <div className="bg-white/95 shadow-md text-gray-800 text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                                        View
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </SheetTrigger>
-                                <SheetContent className="w-full sm:max-w-5xl h-full flex flex-col p-0">
-                                    <div className="px-8 pt-8 flex-none">
-                                        <SheetHeader>
-                                            <SheetTitle className="flex items-center gap-2 text-xl">
-                                                <MousePointer2 className="w-5 h-5 text-blue-600" />
-                                                Screenshot attachment
-                                            </SheetTitle>
-                                            <SheetDescription>
-                                                Captured during the feedback session on {feedback.metadata.url}
-                                            </SheetDescription>
-                                        </SheetHeader>
-                                    </div>
-
-                                    <div className="flex-1 min-h-0 flex flex-col px-8 pb-8 mt-6">
-                                        <div className="bg-slate-950 rounded-xl flex-1 flex flex-col overflow-hidden ring-1 ring-white/10 shadow-2xl items-center justify-center p-2 sm:p-6">
-                                            <img src={feedback.metadata.screenshot} alt="Screenshot Full" className="max-w-full max-h-full object-contain rounded-lg border border-white/10 drop-shadow-2xl" />
-                                        </div>
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
+                                        </SheetTrigger>
+                                        <SheetContent className="w-full sm:max-w-5xl h-full flex flex-col p-0">
+                                            <div className="px-8 pt-8 flex-none">
+                                                <SheetHeader>
+                                                    <SheetTitle className="flex items-center gap-2 text-xl">
+                                                        <ImageIcon className="w-5 h-5 text-blue-600" />
+                                                        {att.file_name}
+                                                    </SheetTitle>
+                                                    <SheetDescription>
+                                                        Uploaded by {att.uploaded_by}
+                                                    </SheetDescription>
+                                                </SheetHeader>
+                                            </div>
+                                            <div className="flex-1 min-h-0 flex flex-col px-8 pb-8 mt-6">
+                                                <div className="bg-slate-950 rounded-xl flex-1 flex flex-col overflow-hidden ring-1 ring-white/10 shadow-2xl items-center justify-center p-2 sm:p-6">
+                                                    <img src={att.file_url} alt={att.file_name} className="max-w-full max-h-full object-contain rounded-lg border border-white/10 drop-shadow-2xl" />
+                                                </div>
+                                            </div>
+                                        </SheetContent>
+                                    </Sheet>
+                                ) : (
+                                    <a
+                                        key={att.id}
+                                        href={att.file_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors text-sm text-gray-700 shadow-sm"
+                                    >
+                                        <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                                        <span className="truncate max-w-[140px]">{att.file_name}</span>
+                                    </a>
+                                )
+                            ))}
                         </div>
                     )}
+
                 </div>
 
                 {mode === 'edit' && feedback.metadata && (
@@ -519,9 +573,29 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                 </div>
 
                                 <div className="relative group">
+                                    {replyFiles.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mb-2">
+                                            {replyFiles.map((file, idx) => (
+                                                <div key={idx} className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-600">
+                                                    {file.type.startsWith('image/') ? (
+                                                        <ImageIcon className="w-3 h-3 text-gray-400" />
+                                                    ) : (
+                                                        <FileText className="w-3 h-3 text-gray-400" />
+                                                    )}
+                                                    <span className="truncate max-w-[100px]">{file.name}</span>
+                                                    <button
+                                                        className="text-gray-400 hover:text-red-500 ml-1"
+                                                        onClick={() => setReplyFiles(prev => prev.filter((_, i) => i !== idx))}
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                     <Textarea
                                         placeholder="Type your reply..."
-                                        className="min-h-[80px] pr-12 pt-3 bg-gray-50/50 border-gray-200 focus:bg-white transition-colors resize-none rounded-xl text-[13px]"
+                                        className="min-h-[80px] pr-20 pt-3 bg-gray-50/50 border-gray-200 focus:bg-white transition-colors resize-none rounded-xl text-[13px]"
                                         value={newReply}
                                         onChange={(e) => setNewReply(e.target.value)}
                                         onKeyDown={(e) => {
@@ -531,18 +605,35 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                             }
                                         }}
                                     />
-                                    <Button
-                                        size="icon"
-                                        className="absolute bottom-2.5 right-2.5 h-8 w-8 rounded-lg shadow-md transition-all hover:scale-105"
-                                        disabled={!newReply.trim() || isSendingReply}
-                                        onClick={handleSendReply}
-                                    >
-                                        {isSendingReply ? (
-                                            <Activity className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <Send className="w-4 h-4 ml-0.5" />
-                                        )}
-                                    </Button>
+                                    <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5">
+                                        <label className="h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                                            <Paperclip className="w-4 h-4" />
+                                            <input
+                                                type="file"
+                                                multiple
+                                                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    if (e.target.files) {
+                                                        setReplyFiles(prev => [...prev, ...Array.from(e.target.files!)])
+                                                        e.target.value = ''
+                                                    }
+                                                }}
+                                            />
+                                        </label>
+                                        <Button
+                                            size="icon"
+                                            className="h-8 w-8 rounded-lg shadow-md transition-all hover:scale-105"
+                                            disabled={(!newReply.trim() && replyFiles.length === 0) || isSendingReply}
+                                            onClick={handleSendReply}
+                                        >
+                                            {isSendingReply || isUploadingReplyFiles ? (
+                                                <Activity className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <Send className="w-4 h-4 ml-0.5" />
+                                            )}
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         )}
