@@ -51,6 +51,14 @@ export async function POST(request: Request) {
         return corsError("Missing API Key", 400);
     }
 
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+        return corsError("Feedback content is required.", 400);
+    }
+
+    if (content.length > 5000) {
+        return corsError("Feedback content is too long (max 5000 characters).", 400);
+    }
+
     const { project, error, status } = await validateApiKey(apiKey);
     if (error) {
         return corsError(error, status);

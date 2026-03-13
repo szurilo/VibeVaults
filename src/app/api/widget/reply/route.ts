@@ -42,6 +42,14 @@ export async function POST(request: Request) {
         return corsError("Missing required fields", 400);
     }
 
+    if (typeof content !== "string" || content.trim().length === 0) {
+        return corsError("Reply content is required.", 400);
+    }
+
+    if (content.length > 5000) {
+        return corsError("Reply content is too long (max 5000 characters).", 400);
+    }
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
         return corsError("Invalid email address", 400);
     }
