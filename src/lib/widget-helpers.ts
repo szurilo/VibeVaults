@@ -20,6 +20,37 @@ export function corsSuccess(data: object) {
     return NextResponse.json(data, { headers: corsHeaders });
 }
 
+// --- In-memory rate limiter (per warm serverless instance) ---
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 30;  // max requests per IP per window
+
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+/** Removes expired entries every 5 minutes to prevent memory leaks. */
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of rateLimitMap) {
+        if (now > entry.resetAt) rateLimitMap.delete(key);
+    }
+}, 5 * 60_000);
+
+/**
+ * Checks if an IP has exceeded the rate limit.
+ * Returns `true` if the request should be blocked.
+ */
+export function isRateLimited(ip: string): boolean {
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip);
+
+    if (!entry || now > entry.resetAt) {
+        rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+        return false;
+    }
+
+    entry.count++;
+    return entry.count > RATE_LIMIT_MAX_REQUESTS;
+}
+
 /**
  * Validates a widget API key and returns the project row.
  * Also checks that the workspace owner has an active subscription or trial.

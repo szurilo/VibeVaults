@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey } from "@/lib/widget-helpers";
+import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
 import { sendAgencyReplyNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 
@@ -33,10 +33,21 @@ async function verifyApiKeyForFeedback(apiKey: string, feedbackId: string) {
 // --- POST: Send a reply (API key + email auth) ---
 
 export async function POST(request: Request) {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+
     const { feedbackId, content, apiKey, senderEmail } = await request.json();
 
     if (!feedbackId || !content || !apiKey || !senderEmail) {
         return corsError("Missing required fields", 400);
+    }
+
+    if (typeof content !== "string" || content.trim().length === 0) {
+        return corsError("Reply content is required.", 400);
+    }
+
+    if (content.length > 5000) {
+        return corsError("Reply content is too long (max 5000 characters).", 400);
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
@@ -139,6 +150,9 @@ export async function POST(request: Request) {
 // --- GET: Fetch replies for a feedback (API key auth) ---
 
 export async function GET(request: Request) {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+
     const { searchParams } = new URL(request.url);
     const feedbackId = searchParams.get('feedbackId');
     const apiKey = searchParams.get('key');

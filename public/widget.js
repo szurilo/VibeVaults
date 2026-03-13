@@ -14,6 +14,7 @@
   const API_REPLY = `${origin}/api/widget/reply`;
   const API_FEEDBACKS = `${origin}/api/widget/feedbacks`;
   const API_STREAM = `${origin}/api/widget/stream`;
+  const API_UPLOAD = `${origin}/api/widget/upload`;
 
   const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
@@ -59,6 +60,8 @@
   let eventSource = null;
   let sseSupported = typeof EventSource !== 'undefined';
   let domSelector = null;
+  let pendingAttachments = []; // Files queued for upload with feedback
+  let replyAttachments = []; // Files queued for upload with reply
 
   // --- Metadata & Logs Collection ---
   const logs = [];
@@ -112,6 +115,84 @@
     language: navigator.language,
     logs: logs
   });
+
+  // --- File Upload Helpers ---
+  const ALLOWED_TYPES = ['image/jpeg','image/png','image/gif','image/webp','image/svg+xml','application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','text/plain','text/csv'];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  const MAX_FILES = 10;
+
+  const uploadFiles = async (files, feedbackId, replyId) => {
+    if (files.length === 0) return { attachments: [] };
+    const formData = new FormData();
+    formData.append('apiKey', apiKey);
+    formData.append('senderEmail', clientEmail);
+    if (feedbackId) formData.append('feedbackId', feedbackId);
+    if (replyId) formData.append('replyId', replyId);
+    for (const f of files) formData.append('files', f);
+    const res = await fetch(API_UPLOAD, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Upload failed');
+    }
+    return await res.json();
+  };
+
+  const isImageType = (mimeType) => mimeType && mimeType.startsWith('image/');
+
+  const getFileExtension = (name) => {
+    const parts = name.split('.');
+    return parts.length > 1 ? parts.pop().toUpperCase() : 'FILE';
+  };
+
+  const renderAttachPreviews = (files, containerId, removeCallback) => {
+    const container = wrapper.querySelector(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    files.forEach((file, idx) => {
+      const el = document.createElement('div');
+      el.className = containerId.includes('reply') ? 'reply-attach-preview' : 'attach-preview';
+      if (isImageType(file.type)) {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        el.appendChild(img);
+      } else {
+        const icon = document.createElement('div');
+        icon.className = 'file-icon';
+        icon.textContent = getFileExtension(file.name);
+        el.appendChild(icon);
+      }
+      const btn = document.createElement('button');
+      btn.className = 'remove-attach';
+      btn.textContent = '✕';
+      btn.onclick = (e) => { e.preventDefault(); removeCallback(idx); };
+      el.appendChild(btn);
+      container.appendChild(el);
+    });
+  };
+
+  const validateFiles = (fileList) => {
+    const valid = [];
+    for (const file of fileList) {
+      if (file.size > MAX_FILE_SIZE) { alert(`"${file.name}" exceeds the 10MB limit.`); continue; }
+      if (!ALLOWED_TYPES.includes(file.type)) { alert(`"${file.name}" has an unsupported file type.`); continue; }
+      valid.push(file);
+    }
+    return valid;
+  };
+
+  const refreshFeedbackPreviews = () => {
+    renderAttachPreviews(pendingAttachments, '#vv-attach-previews', (idx) => {
+      pendingAttachments.splice(idx, 1);
+      refreshFeedbackPreviews();
+    });
+  };
+
+  const refreshReplyPreviews = () => {
+    renderAttachPreviews(replyAttachments, '#vv-reply-attach-previews', (idx) => {
+      replyAttachments.splice(idx, 1);
+      refreshReplyPreviews();
+    });
+  };
 
   // --- UI Construction ---
   const host = document.createElement('div');
@@ -241,6 +322,27 @@
       transform: rotate(45deg); margin-top: -2px;
     }
     .checkbox-label { font-size: 13px; color: #4a5568; cursor: pointer; user-select: none; margin: 0; padding: 0; line-height: 1.4; }
+
+    /* Attachments */
+    .attachments-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .attach-btn { background: #f3f4f6; color: #1f2937; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; font-family: inherit; }
+    .attach-btn:hover { background: #e5e7eb; }
+    .attach-previews { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .attach-preview { position: relative; width: 64px; height: 64px; border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden; background: #f9fafb; display: flex; align-items: center; justify-content: center; }
+    .attach-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .attach-preview .file-icon { font-size: 10px; color: #6b7280; text-align: center; padding: 4px; word-break: break-all; line-height: 1.2; }
+    .attach-preview .remove-attach { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; }
+    .attach-preview .remove-attach:hover { background: rgba(0,0,0,0.7); }
+    .upload-progress { font-size: 11px; color: #6b7280; margin-bottom: 8px; }
+    .reply-attach-previews { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 8px; }
+    .reply-attach-preview { position: relative; width: 48px; height: 48px; border-radius: 6px; border: 1px solid #e5e7eb; overflow: hidden; background: #f9fafb; display: flex; align-items: center; justify-content: center; }
+    .reply-attach-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .reply-attach-preview .file-icon { font-size: 9px; color: #6b7280; text-align: center; padding: 2px; word-break: break-all; }
+    .reply-attach-preview .remove-attach { position: absolute; top: 1px; right: 1px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 9px; }
+    .msg-attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .msg-attachment { display: block; width: 80px; height: 60px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1); }
+    .msg-attachment img { width: 100%; height: 100%; object-fit: cover; }
+    .msg-attachment-file { display: flex; align-items: center; gap: 4px; font-size: 11px; color: inherit; opacity: 0.8; text-decoration: underline; margin-top: 4px; }
   `;
   shadow.appendChild(style);
 
@@ -262,14 +364,19 @@
       </div>
       <div class="content">
         <div class="view-form">
-          <button type="button" class="btn btn-sm" id="vv-capture-btn" style="background:#f3f4f6; color:#1f2937; margin-bottom: 12px; border: 1px solid #d1d5db; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-            Attach Screenshot
-          </button>
-          <div id="vv-screenshot-preview-container" style="display:none; margin-bottom: 12px; position: relative;">
-            <img id="vv-screenshot-preview" style="width: 100%; border-radius: 8px; border: 1px solid #e5e7eb;" />
-            <button type="button" id="vv-remove-screenshot" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px;">✕</button>
+          <div class="attachments-bar">
+            <button type="button" class="attach-btn" id="vv-capture-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              Screenshot
+            </button>
+            <button type="button" class="attach-btn" id="vv-attach-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+              Attach Files
+            </button>
+            <input type="file" id="vv-file-input" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none;" />
           </div>
+          <div class="attach-previews" id="vv-attach-previews"></div>
+          <div class="upload-progress" id="vv-upload-progress" style="display:none;"></div>
           <textarea id="vv-textarea" placeholder="Describe your issue..."></textarea>
           <div id="vv-text-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -12px; margin-bottom: 4px; padding-left: 4px;">Please describe your issue.</div>
           <div class="checkbox-wrapper">
@@ -346,6 +453,11 @@
     listEl.innerHTML = '<div class="feedbacks-loading">Loading feedbacks...</div>';
     try {
       const res = await fetch(`${API_FEEDBACKS}?key=${apiKey}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        listEl.innerHTML = `<div class="feedbacks-loading">${err.error || 'Failed to load feedbacks.'}</div>`;
+        return;
+      }
       const data = await res.json();
       if (data.feedbacks && data.feedbacks.length > 0) {
         cachedFeedbacks = data.feedbacks;
@@ -418,20 +530,40 @@
 
   const renderReplySection = () => {
     const section = wrapper.querySelector('#vv-reply-section');
+    replyAttachments = [];
     if (clientEmail) {
       section.innerHTML = `
+        <div class="reply-attach-previews" id="vv-reply-attach-previews"></div>
         <div class="chat-input" style="border-top: none; padding: 0;">
+          <button type="button" id="vv-reply-attach-btn" style="background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; cursor: pointer; display: flex; align-items: center; color: #6b7280;" title="Attach files">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+          </button>
+          <input type="file" id="vv-reply-file-input" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none;" />
           <input type="text" id="vv-reply-text" placeholder="Type a reply...">
           <button class="btn btn-sm" id="vv-send-reply">Send</button>
         </div>
         <div id="vv-reply-error" style="display:none; color: #b91c1c; font-size: 12px; margin-top: 8px;"></div>
-      </div>
       <style>#vv-reply-section { border-top: 1px solid #f3f4f6; padding: 12px 20px; }</style>
       `;
       section.querySelector('#vv-send-reply').onclick = sendReply;
       section.querySelector('#vv-reply-text').onkeydown = (e) => {
         section.querySelector('#vv-reply-error').style.display = 'none';
         if (e.key === 'Enter') sendReply();
+      };
+      // Reply file attachment
+      const replyFileInput = section.querySelector('#vv-reply-file-input');
+      section.querySelector('#vv-reply-attach-btn').onclick = () => replyFileInput.click();
+      replyFileInput.onchange = () => {
+        const newFiles = validateFiles(Array.from(replyFileInput.files));
+        const totalAllowed = MAX_FILES - replyAttachments.length;
+        if (newFiles.length > totalAllowed) {
+          alert('Maximum ' + MAX_FILES + ' files allowed.');
+          replyAttachments.push(...newFiles.slice(0, totalAllowed));
+        } else {
+          replyAttachments.push(...newFiles);
+        }
+        refreshReplyPreviews();
+        replyFileInput.value = '';
       };
     } else {
       section.innerHTML = `
@@ -491,6 +623,12 @@
     if (!selectedFeedbackId) return;
     try {
       const res = await fetch(`${API_REPLY}?feedbackId=${selectedFeedbackId}&key=${apiKey}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const chatEl = wrapper.querySelector('#vv-chat');
+        if (chatEl) chatEl.innerHTML = `<div class="chat-no-replies">${err.error || 'Could not load replies.'}</div>`;
+        return;
+      }
       const data = await res.json();
       const chatEl = wrapper.querySelector('#vv-chat');
       if (data.replies && data.replies.length > 0) {
@@ -499,7 +637,11 @@
       } else {
         chatEl.innerHTML = '<div class="chat-no-replies">No replies yet. Start the conversation!</div>';
       }
-    } catch (e) { }
+    } catch (e) {
+      console.error('[VibeVaults] Failed to fetch replies:', e);
+      const chatEl = wrapper.querySelector('#vv-chat');
+      if (chatEl) chatEl.innerHTML = '<div class="chat-no-replies">Could not load replies. Retrying…</div>';
+    }
   };
 
   // --- SSE Realtime (primary) with polling fallback ---
@@ -515,7 +657,7 @@
         try {
           const reply = JSON.parse(e.data);
           appendReply(reply);
-        } catch (err) { }
+        } catch (err) { console.error('[VibeVaults] Failed to parse reply:', err); }
       });
 
       eventSource.addEventListener('status_update', (e) => {
@@ -530,7 +672,7 @@
           // Update cached feedback so going back to list reflects the change
           const cached = cachedFeedbacks.find(f => f.id === selectedFeedbackId);
           if (cached) cached.status = status;
-        } catch (err) { }
+        } catch (err) { console.error('[VibeVaults] Failed to parse status update:', err); }
       });
 
       eventSource.addEventListener('connected', () => {
@@ -583,15 +725,18 @@
     btn.disabled = true;
     try {
       const metadata = getMetadata();
-      const previewImg = wrapper.querySelector('#vv-screenshot-preview');
-      if (previewImg && previewImg.src && !previewImg.src.endsWith('undefined')) {
-        metadata.screenshot = previewImg.src;
-        metadata.dom_selector = domSelector;
-      }
+      if (domSelector) metadata.dom_selector = domSelector;
 
       const notifyRepliesCheckbox = wrapper.querySelector('#vv-notify-replies');
       const notifyReplies = notifyRepliesCheckbox ? notifyRepliesCheckbox.checked : true;
       localStorage.setItem(prefsKey, notifyReplies.toString());
+
+      // Show upload progress if there are attachments
+      const progressEl = wrapper.querySelector('#vv-upload-progress');
+      if (pendingAttachments.length > 0) {
+        progressEl.textContent = `Uploading ${pendingAttachments.length} file(s)...`;
+        progressEl.style.display = 'block';
+      }
 
       const res = await fetch(API_BASE, {
         method: 'POST',
@@ -600,20 +745,34 @@
       });
       const data = await res.json();
       if (data.success && data.feedback_id) {
+        // Upload attachments linked to the new feedback
+        if (pendingAttachments.length > 0) {
+          try {
+            await uploadFiles(pendingAttachments, data.feedback_id, null);
+          } catch (uploadErr) {
+            console.error('[VibeVaults] Attachment upload failed:', uploadErr);
+            // Feedback was created, but attachments failed — don't block success
+          }
+        }
+
+        // Reset form
         wrapper.querySelector('#vv-textarea').value = '';
-        wrapper.querySelector('#vv-screenshot-preview').src = '';
-        wrapper.querySelector('#vv-screenshot-preview-container').style.display = 'none';
-        wrapper.querySelector('#vv-capture-btn').style.display = 'flex';
+        pendingAttachments = [];
+        wrapper.querySelector('#vv-attach-previews').innerHTML = '';
+        if (progressEl) progressEl.style.display = 'none';
         domSelector = null;
 
         switchView('success');
       } else {
         submitErrorMsg.innerText = data.error || 'Error sending feedback.';
         submitErrorMsg.style.display = 'block';
+        if (progressEl) progressEl.style.display = 'none';
       }
     } catch (e) {
       submitErrorMsg.innerText = 'Network error. Please try again.';
       submitErrorMsg.style.display = 'block';
+      const progressEl = wrapper.querySelector('#vv-upload-progress');
+      if (progressEl) progressEl.style.display = 'none';
     } finally { btn.disabled = false; }
   };
 
@@ -703,10 +862,26 @@
       capBtn.innerHTML = 'Capturing...';
       capBtn.disabled = true;
 
-      const finishCapture = (dataUrl) => {
-        wrapper.querySelector('#vv-screenshot-preview').src = dataUrl;
-        wrapper.querySelector('#vv-screenshot-preview-container').style.display = 'block';
-        wrapper.querySelector('#vv-capture-btn').style.display = 'none';
+      const finishCapture = async (dataUrl) => {
+        // Convert data URL to File object
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const screenshotFile = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' });
+
+        // Remove existing screenshot from pendingAttachments
+        pendingAttachments = pendingAttachments.filter(f => f.name !== 'screenshot.jpg');
+
+        // Enforce max files limit
+        if (pendingAttachments.length >= MAX_FILES) {
+          alert('Maximum ' + MAX_FILES + ' files allowed.');
+          cleanup();
+          capBtn.innerHTML = originalText;
+          capBtn.disabled = false;
+          return;
+        }
+
+        pendingAttachments.unshift(screenshotFile); // screenshot first
+        refreshFeedbackPreviews();
         cleanup();
         capBtn.innerHTML = originalText;
         capBtn.disabled = false;
@@ -757,7 +932,19 @@
         body: JSON.stringify({ feedbackId: selectedFeedbackId, content: text, apiKey, senderEmail: clientEmail })
       });
       if (res.ok) {
+        await res.json();
+        // Upload reply attachments if any
+        if (replyAttachments.length > 0) {
+          try {
+            await uploadFiles(replyAttachments, selectedFeedbackId, null);
+          } catch (uploadErr) {
+            console.error('[VibeVaults] Reply attachment upload failed:', uploadErr);
+          }
+        }
         textEl.value = '';
+        replyAttachments = [];
+        const replyPreviewsEl = wrapper.querySelector('#vv-reply-attach-previews');
+        if (replyPreviewsEl) replyPreviewsEl.innerHTML = '';
         fetchReplies();
       } else {
         const err = await res.json();
@@ -798,11 +985,21 @@
   wrapper.querySelector('.close-btn').onclick = () => triggerBtn.onclick();
   wrapper.querySelector('#vv-submit').onclick = sendFeedback;
   wrapper.querySelector('#vv-capture-btn').onclick = captureScreenshotAndElement;
-  wrapper.querySelector('#vv-remove-screenshot').onclick = () => {
-    wrapper.querySelector('#vv-screenshot-preview').src = '';
-    wrapper.querySelector('#vv-screenshot-preview-container').style.display = 'none';
-    wrapper.querySelector('#vv-capture-btn').style.display = 'flex';
-    domSelector = null;
+
+  // File attachment button
+  const fileInput = wrapper.querySelector('#vv-file-input');
+  wrapper.querySelector('#vv-attach-btn').onclick = () => fileInput.click();
+  fileInput.onchange = () => {
+    const newFiles = validateFiles(Array.from(fileInput.files));
+    const totalAllowed = MAX_FILES - pendingAttachments.length;
+    if (newFiles.length > totalAllowed) {
+      alert('Maximum ' + MAX_FILES + ' files allowed. You can add ' + totalAllowed + ' more.');
+      pendingAttachments.push(...newFiles.slice(0, totalAllowed));
+    } else {
+      pendingAttachments.push(...newFiles);
+    }
+    refreshFeedbackPreviews();
+    fileInput.value = '';
   };
   wrapper.querySelector('#vv-back-btn').onclick = goBackToList;
   wrapper.querySelectorAll('.nav-item').forEach(i => i.onclick = () => {

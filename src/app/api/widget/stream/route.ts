@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsHeaders, validateApiKey } from "@/lib/widget-helpers";
+import { corsHeaders, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
 
 // SSE streams must not be cached or statically rendered
 export const dynamic = "force-dynamic";
@@ -24,6 +24,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const feedbackId = searchParams.get("feedbackId");
     const apiKey = searchParams.get("key");
+
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (isRateLimited(ip)) {
+        return new Response(
+            JSON.stringify({ error: "Too many requests. Please try again later." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+    }
 
     if (!feedbackId || !apiKey) {
         return new Response(

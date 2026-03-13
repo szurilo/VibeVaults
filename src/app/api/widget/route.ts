@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsError, corsSuccess, optionsResponse, validateApiKey } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
 import { sendFeedbackNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 
@@ -9,6 +9,9 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+
     const { searchParams } = new URL(request.url);
     const apiKey = searchParams.get("key");
 
@@ -39,10 +42,21 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+
     const { apiKey, content, type, sender, metadata, notifyReplies } = await request.json();
 
     if (!apiKey) {
         return corsError("Missing API Key", 400);
+    }
+
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+        return corsError("Feedback content is required.", 400);
+    }
+
+    if (content.length > 5000) {
+        return corsError("Feedback content is too long (max 5000 characters).", 400);
     }
 
     const { project, error, status } = await validateApiKey(apiKey);
