@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export const corsHeaders = {
@@ -21,6 +22,7 @@ export function corsSuccess(data: object) {
 
 /**
  * Validates a widget API key and returns the project row.
+ * Also checks that the workspace owner has an active subscription or trial.
  * Returns `{ project }` on success or `{ error, status }` on failure.
  */
 export async function validateApiKey(apiKey: string) {
@@ -31,5 +33,32 @@ export async function validateApiKey(apiKey: string) {
         return { project: null, error: "Invalid API Key", status: 401 };
     }
 
-    return { project: projects[0], error: null, status: 200 };
+    const project = projects[0];
+
+    // Check workspace owner's subscription/trial status
+    const adminSupabase = createAdminClient();
+    const { data: workspace } = await adminSupabase
+        .from('workspaces')
+        .select('owner_id')
+        .eq('id', project.workspace_id)
+        .single();
+
+    if (workspace?.owner_id) {
+        const { data: profile } = await adminSupabase
+            .from('profiles')
+            .select('subscription_status, trial_ends_at')
+            .eq('id', workspace.owner_id)
+            .single();
+
+        const isSubscribed = profile?.subscription_status === 'active';
+        const isTrialActive = profile?.trial_ends_at
+            ? new Date(profile.trial_ends_at) > new Date()
+            : false;
+
+        if (!isSubscribed && !isTrialActive) {
+            return { project: null, error: "This widget is currently inactive. Please contact the site owner.", status: 403 };
+        }
+    }
+
+    return { project, error: null, status: 200 };
 }

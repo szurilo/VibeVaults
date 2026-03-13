@@ -10,6 +10,10 @@ import { resend } from './resend';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
+function esc(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 interface SendFeedbackEmailParams {
     to: string;
     projectName: string;
@@ -31,7 +35,7 @@ export async function sendFeedbackNotification({
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
             to,
-            subject: `New Feedback for ${projectName}`,
+            subject: `New Feedback for ${esc(projectName)}`,
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
@@ -39,11 +43,11 @@ export async function sendFeedbackNotification({
                         <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">New feedback received!</h2>
                         
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            Someone just left feedback for your project <strong>${projectName}</strong>.
+                            Someone just left feedback for your project <strong>${esc(projectName)}</strong>.
                         </p>
 
                         <div style="background-color: #f9fafb; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #f1f5f9;">
-                            <p style="margin: 0; color: #1a202c; line-height: 1.6; font-size: 16px; font-style: italic;">"${content}"</p>
+                            <p style="margin: 0; color: #1a202c; line-height: 1.6; font-size: 16px; font-style: italic;">"${esc(content)}"</p>
                         </div>
 
                         <div style="margin-bottom: 32px;">
@@ -51,7 +55,7 @@ export async function sendFeedbackNotification({
                                 ${sender ? `
                                 <tr>
                                     <td style="padding: 8px 0; color: #718096; font-size: 14px;">From:</td>
-                                    <td style="padding: 8px 0; color: #1a202c; font-size: 14px; font-weight: 600;">${sender}</td>
+                                    <td style="padding: 8px 0; color: #1a202c; font-size: 14px; font-weight: 600;">${esc(sender)}</td>
                                 </tr>
                                 ` : ''}
                                 ${metadata?.url ? `
@@ -72,10 +76,10 @@ export async function sendFeedbackNotification({
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
-                                You received this because you have notifications enabled for <strong>${projectName}</strong>.
+                                You received this because you have notifications enabled for <strong>${esc(projectName)}</strong>.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
                             </p>
-                            
+
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
                                 If you have questions, reach out to 
@@ -118,7 +122,7 @@ export async function sendProjectCreatedNotification({
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
             to,
-            subject: `New Project: ${projectName} in ${workspaceName}`,
+            subject: `New Project: ${esc(projectName)} in ${esc(workspaceName)}`,
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
@@ -126,7 +130,7 @@ export async function sendProjectCreatedNotification({
                         <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">New Project Created!</h2>
                         
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            <strong>${creatorName}</strong> has created a new project <strong>${projectName}</strong> in your workspace <strong>${workspaceName}</strong>.
+                            <strong>${esc(creatorName)}</strong> has created a new project <strong>${esc(projectName)}</strong> in your workspace <strong>${esc(workspaceName)}</strong>.
                         </p>
 
                         <div style="background-color: #f9fafb; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #f1f5f9;">
@@ -142,7 +146,7 @@ export async function sendProjectCreatedNotification({
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
-                                You received this because you are a member of <strong>${workspaceName}</strong>.
+                                You received this because you are a member of <strong>${esc(workspaceName)}</strong>.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
                             </p>
                             
@@ -187,7 +191,7 @@ export async function sendReplyNotification({
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
             to,
-            subject: `New response for your feedback on ${projectName}`,
+            subject: `New response for your feedback on ${esc(projectName)}`,
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
@@ -195,25 +199,25 @@ export async function sendReplyNotification({
                         <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">New reply from Support</h2>
                         
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            Support has responded to your feedback on <strong>${projectName}</strong>.
+                            Support has responded to your feedback on <strong>${esc(projectName)}</strong>.
                         </p>
 
                         <div style="background-color: #f0f9ff; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #e0f2fe;">
                             <p style="margin: 0; font-weight: 600; color: #0369a1; font-size: 14px; margin-bottom: 8px;">Support Says:</p>
-                            <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${replyContent}"</p>
+                            <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${esc(replyContent)}"</p>
                         </div>
 
                         <p style="font-size: 14px; color: #718096; margin-bottom: 8px;">Your original feedback:</p>
                         <div style="background-color: #f9fafb; padding: 16px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #f1f5f9; border-left: 4px solid #209CEE;">
-                            <p style="margin: 0; color: #4a5568; font-size: 14px; line-height: 1.6; font-style: italic;">"${originalFeedback}"</p>
+                            <p style="margin: 0; color: #4a5568; font-size: 14px; line-height: 1.6; font-style: italic;">"${esc(originalFeedback)}"</p>
                         </div>
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
-                                You received this because you have notifications enabled for <strong>${projectName}</strong>.
+                                You received this because you have notifications enabled for <strong>${esc(projectName)}</strong>.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
                             </p>
-                            
+
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.<br>
                                 If you didn't leave this feedback, please ignore this email.
@@ -242,7 +246,7 @@ export async function sendAgencyReplyNotification({
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
             to,
-            subject: `New reply from ${senderName} (${projectName})`,
+            subject: `New reply from ${esc(senderName)} (${esc(projectName)})`,
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
@@ -250,12 +254,12 @@ export async function sendAgencyReplyNotification({
                         <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">New client reply!</h2>
                         
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            <strong>${senderName}</strong> replied to your feedback thread in <strong>${projectName}</strong>.
+                            <strong>${esc(senderName)}</strong> replied to your feedback thread in <strong>${esc(projectName)}</strong>.
                         </p>
 
                         <div style="background-color: #f0f9ff; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #e0f2fe;">
-                            <p style="margin: 0; font-weight: 600; color: #0369a1; font-size: 14px; margin-bottom: 8px;">${senderName} Says:</p>
-                            <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${replyContent}"</p>
+                            <p style="margin: 0; font-weight: 600; color: #0369a1; font-size: 14px; margin-bottom: 8px;">${esc(senderName)} Says:</p>
+                            <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${esc(replyContent)}"</p>
                         </div>
 
                         <div style="margin-top: 32px;">
@@ -267,16 +271,16 @@ export async function sendAgencyReplyNotification({
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
-                                You received this because you have notifications enabled for <strong>${projectName}</strong>.
+                                You received this because you have notifications enabled for <strong>${esc(projectName)}</strong>.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
                             </p>
-                            
+
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.<br>
                                 This is an automatically generated email, please do not reply.
                             </p>
                         </div>
-                        
+
                     </div>
                 </div>
             `
@@ -296,7 +300,7 @@ export async function sendClientInviteNotification({
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
             to,
-            subject: `You've been invited to review ${projectName}`,
+            subject: `You've been invited to review ${esc(projectName)}`,
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
@@ -304,7 +308,7 @@ export async function sendClientInviteNotification({
                         <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">Feedback Invite</h2>
                         
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            You have been invited to provide structural and visual feedback for <strong>${projectName}</strong>.
+                            You have been invited to provide structural and visual feedback for <strong>${esc(projectName)}</strong>.
                         </p>
                         
                         <p style="margin-bottom: 32px; font-size: 16px; color: #4a5568;">
@@ -345,7 +349,7 @@ export async function sendWorkspaceInviteNotification({
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
             to,
-            subject: `You've been invited to join ${workspaceName} on VibeVaults`,
+            subject: `You've been invited to join ${esc(workspaceName)} on VibeVaults`,
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
@@ -353,7 +357,7 @@ export async function sendWorkspaceInviteNotification({
                         <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">Workspace Invite</h2>
                         
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            <strong>${inviterName}</strong> has invited you to join their workspace <strong>${workspaceName}</strong> on VibeVaults.
+                            <strong>${esc(inviterName)}</strong> has invited you to join their workspace <strong>${esc(workspaceName)}</strong> on VibeVaults.
                         </p>
                         
                         <p style="margin-bottom: 32px; font-size: 16px; color: #4a5568;">
@@ -402,7 +406,7 @@ export async function sendWelcomeNotification({
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                         
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            Hi ${name},
+                            Hi ${esc(name)},
                         </p>
 
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
