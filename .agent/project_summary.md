@@ -32,7 +32,7 @@
 - **Team Member & Client Invites**: Comprehensive invitation system supporting both `member` and `client` roles. Team members get access to all projects in a workspace. Clients can review specific projects. Auto-acceptance of pending invites happens in `dashboard/layout.tsx` on login. RLS policies use `SECURITY DEFINER` helper functions (like `get_client_project_ids()`) to securely allow invited clients to view and interact with feedbacks.
 - **RLS & Database Security**: Resolved infinite recursion (`42P17`) bugs in Supabase Row Level Security by refactoring policies to use `SECURITY DEFINER` helper functions (`get_user_workspaces()`). This securely resolves client/agency authorizations without circular foreign key table locks.
 - **Onboarding Refactor**: Complete overhaul of `Onboarding.tsx` to a role-specific checklist system:
-  - **Owners** see 8 steps: Create project (opens `CreateProjectDialog`), Embed widget, Invite members, Invite clients, Create feedback, Customise workspace, Customise project, Share board. Three steps marked as ⭐ Recommended.
+  - **Owners** see 8 steps: Create project (opens `CreateProjectDialog`), Embed widget, Invite members, Invite clients, Create feedback, Customize workspace, Customize project, Share board. Three steps marked as ⭐ Recommended.
   - **Members** see 1 step: Create Feedback as a Team member.
   - Checklist auto-completes (`has_onboarded = true`) only when all items are checked.
   - Dismissible into a persistent **mini-banner** (`localStorage`-backed collapsed state) with a Resume button.

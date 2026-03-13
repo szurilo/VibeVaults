@@ -137,7 +137,7 @@
     .trigger-btn .top-text { font-size: 7px; font-weight: 800; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
     .trigger-btn .bottom-text { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; }
     .trigger-btn:hover { transform: scale(1.05) translateY(-2px); }
-    .badge { position: absolute; top: -2px; right: -2px; width: 14px; height: 14px; background: #ef4444; border: 2px solid white; border-radius: 50%; display: none; }
+    .badge { position: absolute; top: -2px; right: -2px; width: 14px !important; height: 14px; background: #ef4444; border: 2px solid white; border-radius: 50%; display: none; }
 
     .popup {
       position: absolute; bottom: 100px; right: 0; width: 380px; max-width: calc(100vw - 40px); height: 520px;
@@ -454,7 +454,7 @@
   const renderReplyBubble = (r) => `
     <div class="msg-wrapper ${r.author_role}" data-reply-id="${r.id || ''}">
       <div class="msg-meta ${r.author_role}">
-        <span style="font-weight:700; text-transform:uppercase; letter-spacing:-0.5px;">${r.author_role === 'agency' ? 'Support' : escapeHtml(r.author_name || 'Client')}</span>
+        <span style="font-weight:700; text-transform:uppercase; letter-spacing:-0.5px;">${r.author_role === 'agency' ? escapeHtml(r.author_name || 'Support') : escapeHtml(r.author_name || 'Client')}</span>
         <span style="color:#d1d5db;">•</span>
         <span>${new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
