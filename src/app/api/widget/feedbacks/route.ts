@@ -1,11 +1,14 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey } from "@/lib/widget-helpers";
+import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
 
 export async function OPTIONS() {
     return optionsResponse();
 }
 
 export async function GET(request: Request) {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+
     const { searchParams } = new URL(request.url);
     const apiKey = searchParams.get("key");
 
