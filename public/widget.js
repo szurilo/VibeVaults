@@ -180,11 +180,21 @@
     return valid;
   };
 
+  const updatePopupHeight = () => {
+    const popup = wrapper.querySelector('.popup');
+    if (!popup) return;
+    const hasExtras = pendingAttachments.length > 0 ||
+      wrapper.querySelector('#vv-submit-error')?.style.display === 'block' ||
+      wrapper.querySelector('#vv-text-error')?.style.display === 'block';
+    popup.classList.toggle('expanded', hasExtras);
+  };
+
   const refreshFeedbackPreviews = () => {
     renderAttachPreviews(pendingAttachments, '#vv-attach-previews', (idx) => {
       pendingAttachments.splice(idx, 1);
       refreshFeedbackPreviews();
     });
+    updatePopupHeight();
   };
 
   const refreshReplyPreviews = () => {
@@ -221,9 +231,11 @@
     .badge { position: absolute; top: -2px; right: -2px; width: 14px !important; height: 14px; background: #ef4444; border: 2px solid white; border-radius: 50%; display: none; }
 
     .popup {
-      position: absolute; bottom: 100px; right: 0; width: 380px; max-width: calc(100vw - 40px); height: 520px;
+      position: absolute; bottom: 100px; right: 0; width: 380px; max-width: calc(100vw - 40px); height: 520px; max-height: calc(100vh - 140px);
       background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-      border: 1px solid #e5e7eb; overflow: hidden; animation: slideUp 0.3s ease-out;
+      border: 1px solid #e5e7eb; overflow: hidden; animation: slideUp 0.3s ease-out; transition: height 0.2s ease;
+    }
+    .popup.expanded { height: 600px;
     }
     .popup ::-webkit-scrollbar { width: 6px; height: 6px; }
     .popup ::-webkit-scrollbar-track { background: transparent; }
@@ -238,8 +250,10 @@
     .nav { display: flex; background: #f1f5f9; padding: 4px; margin: 16px 20px 4px; border-radius: 8px; gap: 4px; flex-shrink: 0; }
     .nav-item { flex: 1; padding: 8px 12px; font-size: 13px; font-weight: 600; color: #64748b; text-align: center; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
     .nav-item.active { color: #0f172a; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
-    .view-form { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+    .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+    .view-form { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .view-form-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .view-form-footer { flex-shrink: 0; padding: 0 20px 20px; }
     textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; background: white; color: #1f2937; }
     .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
 
@@ -364,27 +378,31 @@
       </div>
       <div class="content">
         <div class="view-form">
-          <div class="attachments-bar">
-            <button type="button" class="attach-btn" id="vv-capture-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-              Screenshot
-            </button>
-            <button type="button" class="attach-btn" id="vv-attach-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-              Attach Files
-            </button>
-            <input type="file" id="vv-file-input" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none;" />
+          <div class="view-form-body">
+            <div class="attachments-bar">
+              <button type="button" class="attach-btn" id="vv-capture-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                Screenshot
+              </button>
+              <button type="button" class="attach-btn" id="vv-attach-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                Attach Files
+              </button>
+              <input type="file" id="vv-file-input" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none;" />
+            </div>
+            <div class="attach-previews" id="vv-attach-previews"></div>
+            <div class="upload-progress" id="vv-upload-progress" style="display:none;"></div>
+            <textarea id="vv-textarea" placeholder="Describe your issue..."></textarea>
+            <div id="vv-text-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -12px; margin-bottom: 4px; padding-left: 4px;">Please describe your issue.</div>
+            <div class="checkbox-wrapper">
+              <input type="checkbox" id="vv-notify-replies" class="checkbox-input" ${notifyRepliesSetting ? 'checked' : ''} />
+              <label for="vv-notify-replies" class="checkbox-label">Notify me when someone replies</label>
+            </div>
           </div>
-          <div class="attach-previews" id="vv-attach-previews"></div>
-          <div class="upload-progress" id="vv-upload-progress" style="display:none;"></div>
-          <textarea id="vv-textarea" placeholder="Describe your issue..."></textarea>
-          <div id="vv-text-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -12px; margin-bottom: 4px; padding-left: 4px;">Please describe your issue.</div>
-          <div class="checkbox-wrapper">
-            <input type="checkbox" id="vv-notify-replies" class="checkbox-input" ${notifyRepliesSetting ? 'checked' : ''} />
-            <label for="vv-notify-replies" class="checkbox-label">Notify me when someone replies</label>
+          <div class="view-form-footer">
+            <div id="vv-submit-error" style="display:none; color: #b91c1c; font-size: 13px; margin-bottom: 8px; padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px;"></div>
+            <button class="btn" id="vv-submit" style="width: 100%;">Send Feedback</button>
           </div>
-          <div id="vv-submit-error" style="display:none; color: #b91c1c; font-size: 13px; margin-bottom: 4px; padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px;"></div>
-          <button class="btn" id="vv-submit">Send Feedback</button>
         </div>
         <div class="view-feedbacks">
           <div class="feedbacks-list" id="vv-feedbacks-list">
@@ -710,6 +728,7 @@
     const textErrorMsg = wrapper.querySelector('#vv-text-error');
     if (!text) {
       textErrorMsg.style.display = 'block';
+      updatePopupHeight();
       return;
     }
     textErrorMsg.style.display = 'none';
@@ -761,16 +780,19 @@
         wrapper.querySelector('#vv-attach-previews').innerHTML = '';
         if (progressEl) progressEl.style.display = 'none';
         domSelector = null;
+        updatePopupHeight();
 
         switchView('success');
       } else {
         submitErrorMsg.innerText = data.error || 'Error sending feedback.';
         submitErrorMsg.style.display = 'block';
+        updatePopupHeight();
         if (progressEl) progressEl.style.display = 'none';
       }
     } catch (e) {
       submitErrorMsg.innerText = 'Network error. Please try again.';
       submitErrorMsg.style.display = 'block';
+      updatePopupHeight();
       const progressEl = wrapper.querySelector('#vv-upload-progress');
       if (progressEl) progressEl.style.display = 'none';
     } finally { btn.disabled = false; }
@@ -889,6 +911,7 @@
 
       const captureOptions = {
         quality: 0.6,
+        backgroundColor: '#ffffff',
         width: window.innerWidth,
         height: window.innerHeight,
         style: {
