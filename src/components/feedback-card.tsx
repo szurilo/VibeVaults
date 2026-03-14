@@ -52,6 +52,7 @@ interface FeedbackMetadata {
     language?: string
     logs?: Array<{ type: string; time: string; content: string }>
     dom_selector?: string
+    is_manual?: boolean
 }
 
 interface FeedbackCardProps {
@@ -370,7 +371,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
 
                 </div>
 
-                {mode === 'edit' && feedback.metadata && (
+                {mode === 'edit' && feedback.metadata && !feedback.metadata.is_manual && (
                     <div className="mt-6 pt-5 border-t border-gray-100 flex flex-col gap-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="flex items-center gap-2.5 min-w-0">
