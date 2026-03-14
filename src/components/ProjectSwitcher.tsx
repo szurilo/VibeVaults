@@ -74,7 +74,7 @@ export default function ProjectSwitcher({
                             {projects.length > 0 && (
                                 <>
                                     <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                        Your Projects
+                                        Projects
                                     </DropdownMenuLabel>
                                     {[...projects].reverse().map((project) => (
                                         <DropdownMenuItem

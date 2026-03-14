@@ -63,7 +63,7 @@ export default function WorkspaceSwitcher({
             document.cookie = `selectedProjectId=; path=/; max-age=0`;
             setShowNewWorkspaceDialog(false);
             setName('');
-            router.refresh();
+            router.push('/dashboard');
         } catch (error) {
             console.error(error);
         } finally {
