@@ -10,17 +10,17 @@ export default function SubscribePage() {
     const router = useRouter();
     const supabase = createClient();
 
-    const handleLogout = async () => {
+    const handleSignOut = async () => {
         await supabase.auth.signOut();
         router.push('/auth/login');
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-background px-4">
+        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] px-4">
             <Card className="w-full max-w-md text-center">
                 <CardHeader>
                     <div className="flex justify-center mb-4">
-                        <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-primary shadow-xl border border-gray-100">
                             <CreditCard className="h-8 w-8" />
                         </div>
                     </div>
@@ -37,15 +37,13 @@ export default function SubscribePage() {
                                 Subscribe Now
                             </a>
                         </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleLogout}
-                            className="text-muted-foreground hover:text-red-600"
+                        <button
+                            onClick={handleSignOut}
+                            className="cursor-pointer text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-md transition-colors mx-auto"
                         >
-                            <LogOut className="mr-2 h-4 w-4" />
-                            Log out
-                        </Button>
+                            <LogOut className="w-4 h-4" />
+                            <span>Sign Out</span>
+                        </button>
                     </div>
                 </CardContent>
             </Card>

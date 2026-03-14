@@ -70,7 +70,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     // New: Subscription protection for /dashboard
-    if (request.nextUrl.pathname.startsWith('/dashboard') && !request.nextUrl.pathname.startsWith('/dashboard/payment-success') && !request.nextUrl.pathname.startsWith('/dashboard/subscribe') && user) {
+    if (request.nextUrl.pathname.startsWith('/dashboard') && !request.nextUrl.pathname.startsWith('/dashboard/payment-success') && !request.nextUrl.pathname.startsWith('/dashboard/subscribe') && !request.nextUrl.pathname.startsWith('/dashboard/account') && user) {
         const { data: profile, error } = await supabase
             .from('profiles')
             .select('subscription_status, trial_ends_at')
