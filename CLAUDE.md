@@ -36,7 +36,7 @@ src/
   app/
     api/            # API routes (widget/, stripe/, auth/, workspaces/, projects/)
     auth/           # Auth pages (login, register, callback, confirm)
-    dashboard/      # Dashboard pages (feedback, project-settings, settings, account)
+    dashboard/      # Dashboard pages (feedback, project-settings, settings, account, subscribe)
     share/          # Public read-only board sharing
     page.tsx        # Landing page
   components/       # React components (feedback-card, AppSidebar, Onboarding, etc.)
@@ -75,6 +75,11 @@ tests/              # Playwright E2E tests
 - `public/widget.js` → API routes at `/api/widget/*`
 - Feedback submission: `POST /api/widget` (validates sender is in `workspace_invites`)
 - Real-time replies: SSE via `/api/widget/stream` + Supabase Realtime
+- **Rate limiting**: 30 req/min per IP on all widget endpoints (`src/lib/widget-helpers.ts`)
+- **Content limit**: 5000 chars max for feedback/reply content
+- **Trial gate**: `validateApiKey()` checks owner's subscription/trial status — widget disabled post-trial
+- **File uploads**: `/api/widget/upload` + `/api/dashboard/upload` → Supabase Storage (`feedback-attachments` bucket), 10MB/file, 10 files/request
+- **Email safety**: All user content in emails sanitized via `esc()` in `lib/notifications.ts`
 
 ### Notification System
 - DB triggers: `notify_new_feedback`, `notify_new_reply`, `notify_project_created`
@@ -93,13 +98,17 @@ tests/              # Playwright E2E tests
 | `feedback_replies` | `id`, `feedback_id`, `content`, `author_role`, `author_name` |
 | `notifications` | `id`, `user_id`, `project_id`, `feedback_id`, `type`, `title`, `message`, `read` |
 | `email_preferences` | `email`, `notify_replies`, `notify_new_feedback`, `notify_project_created` |
+| `feedback_attachments` | `id`, `feedback_id`, `reply_id`, `project_id`, `file_name`, `file_url`, `file_size`, `mime_type`, `uploaded_by` |
 
 ## API Routes
 | Route | Method | Purpose |
 |---|---|---|
 | `/api/widget` | GET/POST | Widget config + feedback submission |
+| `/api/widget/feedbacks` | GET | List feedbacks for widget (includes reply_count) |
 | `/api/widget/reply` | POST | Widget reply submission |
+| `/api/widget/upload` | POST | Widget file attachment upload |
 | `/api/widget/stream` | GET | SSE real-time chat stream |
+| `/api/dashboard/upload` | POST | Dashboard file attachment upload |
 | `/api/projects` | POST | Create project |
 | `/api/workspaces/invites` | POST | Create workspace invite |
 | `/api/stripe/checkout` | POST | Stripe checkout |

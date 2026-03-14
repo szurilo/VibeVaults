@@ -2,7 +2,7 @@
 
 ## 1. Project Overview & State
 **VibeVaults** is a B2B SaaS application providing an embeddable feedback widget (`public/widget.js`) for clients to seamlessly collect user feedback and engage in real-time chat directly from their websites. It supports multi-workspace, multi-project architecture with role-based access (owners, team members, clients).
-**Current State**: In active development (mostly functional) — currently focused on refining the onboarding flow, stabilising role-based access, continuous UI/UX dashboard refinement, and E2E test coverage.
+**Current State**: In active development (mostly functional) — currently focused on security hardening, file attachment support, widget abuse prevention (rate limiting, content limits), trial enforcement, and continuous UI/UX dashboard refinement.
 
 ## 2. Architecture & Tech Stack
 - **Frontend**: Next.js 16.1.4 (App Router, Turbopack) combined with React 19.
@@ -47,6 +47,14 @@
 - **UI/UX Refinements**: Continuous focus on premium aesthetic. Polished feedback widget UX (clean resets of text/screenshots), solved visual overflows in notifications, standardised components. Renamed "Team" to "Users" across the UI.
 - **E2E Testing**: Playwright-based end-to-end test infrastructure (`tests/dashboard.spec.ts`, `tests/feedback-flow.spec.ts`) with GitHub Actions CI integration.
 - **Copywriting / Promotional Expansion**: Refining the landing page (`src/app/page.tsx`) to effectively promote product selling points and encourage sign-ups.
+- **File Attachments**: Full attachment support for feedbacks and replies. New `feedback_attachments` table stores file metadata (name, URL, size, MIME type, uploader). Files stored in Supabase Storage (`feedback-attachments` bucket). Two upload routes: `/api/widget/upload` (validates API key + sender invite) and `/api/dashboard/upload` (authenticated user + RLS). Widget and dashboard both support file upload with preview. Feedback card shows image thumbnails with lightbox viewer and non-image files as download links. Real-time attachment updates via Supabase Realtime. Constraints: 10MB max per file, 10 files per request, MIME type allowlist (images, PDFs, Office docs, text/csv).
+- **Widget Security & Abuse Prevention**:
+  - **Rate Limiting**: In-memory per-IP rate limiter (30 req/min) in `src/lib/widget-helpers.ts`, applied to all widget API endpoints. Auto-cleans expired entries every 5 minutes.
+  - **Content Length Limits**: 5000 character max for feedback and reply content, enforced server-side.
+  - **Trial/Subscription Gate**: `validateApiKey()` now checks workspace owner's `subscription_status` and `trial_ends_at` — widget returns 403 if trial expired and no active subscription.
+  - **HTML Injection Fix**: All user-generated content in email templates sanitized via `esc()` function in `src/lib/notifications.ts` (escapes `&`, `<`, `>`, `"`).
+- **Subscribe Page**: New `/dashboard/subscribe` page shown when trial expires. Displays "Your trial has expired" with options to subscribe (Stripe checkout) or log out.
+- **Client Workspace Trigger Fix**: Updated `handle_new_workspace_for_user()` DB trigger — only skips default workspace creation for `member` invites, not `client` invites. Clients still get their own workspace.
 
 ## 5. Key Components Reference
 | Component | Path | Purpose |
@@ -70,10 +78,12 @@
 ## 6. API Routes
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/widget` | GET | Serve widget config/script |
-| `/api/widget/feedbacks` | POST | Submit feedback from widget |
+| `/api/widget` | GET/POST | Widget config + feedback submission |
+| `/api/widget/feedbacks` | GET | List feedbacks for widget (includes reply_count) |
 | `/api/widget/reply` | POST | Submit reply from widget chat |
+| `/api/widget/upload` | POST | Upload attachments from widget |
 | `/api/widget/stream` | GET | SSE stream for real-time chat |
+| `/api/dashboard/upload` | POST | Upload attachments from dashboard |
 | `/api/projects` | POST | Create new project |
 | `/api/workspaces/invites` | POST | Create workspace invite |
 | `/api/auth/callback` | GET | Supabase auth callback handler |
@@ -102,3 +112,5 @@
 | `feedbacks` | User-submitted feedback entries with status, metadata, screenshots |
 | `feedback_replies` | Threaded replies on feedback items (real-time enabled) |
 | `notifications` | In-app notification records |
+| `email_preferences` | Per-user email notification preferences |
+| `feedback_attachments` | File attachments for feedbacks/replies (name, URL, size, MIME type, uploader) |
