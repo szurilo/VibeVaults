@@ -125,22 +125,18 @@
     }
 }
 
-/* Gentle glow highlight when navigating to an anchor-linked card */
-@keyframes anchor-glow {
-    0% {
-        box-shadow: 0 0 0 0 rgba(32, 156, 238, 0.4);
-    }
-
-    40% {
-        box-shadow: 0 0 12px 4px rgba(32, 156, 238, 0.25);
-    }
-
-    100% {
+/* Pulsating highlight when navigating to a highlighted element */
+@keyframes highlight-pulse {
+    0%, 100% {
         box-shadow: 0 0 0 0 rgba(32, 156, 238, 0);
+    }
+
+    50% {
+        box-shadow: 0 0 14px 4px rgba(32, 156, 238, 0.3);
     }
 }
 
-.anchor-glow-active {
-    animation: anchor-glow 2.5s ease-out;
+.pulse-active {
+    animation: highlight-pulse 1.2s ease-in-out 3;
     scroll-margin-top: 2rem;
 }

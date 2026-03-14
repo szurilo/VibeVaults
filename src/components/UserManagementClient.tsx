@@ -13,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { MailCheck, UserX, AlertCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AnchorHighlight } from "@/components/AnchorHighlight";
+import { Highlight } from "@/components/Highlight";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -431,7 +431,7 @@ export function UserManagementClient({
             </div>
 
             {isOwner && (
-                <AnchorHighlight id="invite-users" className="rounded-xl">
+                <Highlight id="invite-users" className="rounded-xl">
                     <Card>
                         <CardHeader>
                             <CardTitle>Invite Users</CardTitle>
@@ -502,7 +502,7 @@ export function UserManagementClient({
                             </form>
                         </CardContent>
                     </Card>
-                </AnchorHighlight>
+                </Highlight>
             )}
         </div>
     );

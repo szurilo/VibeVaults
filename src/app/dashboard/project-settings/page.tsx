@@ -14,7 +14,7 @@ import { EditProjectCard } from "@/components/EditProjectCard";
 
 import { ShareProjectCard } from "@/components/ShareProjectCard";
 import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
-import { AnchorHighlight } from "@/components/AnchorHighlight";
+import { Highlight } from "@/components/Highlight";
 
 
 export default async function SettingsPage() {
@@ -49,15 +49,15 @@ export default async function SettingsPage() {
                 <div className="col-span-full space-y-6">
                     {currentProject ? (
                         <>
-                            <AnchorHighlight id="edit-project" className="rounded-xl">
+                            <Highlight id="edit-project" className="rounded-xl">
                                 <EditProjectCard project={currentProject} />
-                            </AnchorHighlight>
-                            <AnchorHighlight id="embed-widget" className="rounded-xl">
+                            </Highlight>
+                            <Highlight id="embed-widget" className="rounded-xl">
                                 <EmbedWidgetCard project={currentProject} />
-                            </AnchorHighlight>
-                            <AnchorHighlight id="share-board" className="rounded-xl">
+                            </Highlight>
+                            <Highlight id="share-board" className="rounded-xl">
                                 <ShareProjectCard project={currentProject} />
-                            </AnchorHighlight>
+                            </Highlight>
                             <DeleteProjectCard project={currentProject} />
                         </>
                     ) : (

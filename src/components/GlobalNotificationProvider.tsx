@@ -42,9 +42,13 @@ export function GlobalNotificationProvider({ children, userId }: { children: Rea
                         action: {
                             label: "View",
                             onClick: () => {
-                                // Navigate to the project dashboard
+                                // Tell NotificationBell to mark this notification as read
+                                window.dispatchEvent(new CustomEvent('vibe-notification-viewed', { detail: notification }));
+
+                                // Navigate to the project dashboard with feedback anchor
                                 document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
-                                router.push("/dashboard/feedback");
+                                const hash = notification.feedback_id ? `#${notification.feedback_id}` : '';
+                                router.push(`/dashboard/feedback${hash}`);
                                 router.refresh();
                             }
                         },
