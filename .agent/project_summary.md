@@ -65,7 +65,7 @@
 | `ProjectSwitcher` | `src/components/ProjectSwitcher.tsx` | Sidebar project dropdown with create option |
 | `WorkspaceSwitcher` | `src/components/WorkspaceSwitcher.tsx` | Sidebar workspace dropdown with create option |
 | `AppSidebar` | `src/components/AppSidebar.tsx` | Main dashboard sidebar layout |
-| `UserManagementClient` | `src/components/UserManagementClient.tsx` | Users page: member list, invite form, leave/revoke |
+| `UserManagement` | `src/components/UserManagement.tsx` | Users page: member list, invite form, leave/revoke |
 | `feedback-card` | `src/components/feedback-card.tsx` | Feedback detail card with real-time chat, status, replies |
 | `GlobalNotificationProvider` | `src/components/GlobalNotificationProvider.tsx` | Real-time notification context via Supabase Realtime |
 | `NotificationBell` | `src/components/NotificationBell.tsx` | Header notification dropdown with live updates |

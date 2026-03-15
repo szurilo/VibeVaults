@@ -42,13 +42,14 @@ function formatRelativeTime(dateString: string) {
     return date.toLocaleDateString();
 }
 
-export function UserManagementClient({
+export function UserManagement({
     workspaceId,
     members,
     invites,
     projects = [],
     isOwner,
     currentUserId,
+    currentUserEmail,
     selectedProjectId
 }: {
     workspaceId: string;
@@ -57,6 +58,7 @@ export function UserManagementClient({
     projects?: any[];
     isOwner: boolean;
     currentUserId?: string;
+    currentUserEmail?: string;
     selectedProjectId?: string;
 }) {
     const [email, setEmail] = useState('');
@@ -83,6 +85,11 @@ export function UserManagementClient({
         }
 
         const normalizedEmail = email.trim().toLowerCase();
+
+        if (currentUserEmail && normalizedEmail === currentUserEmail.toLowerCase()) {
+            setEmailError('You cannot invite yourself');
+            return;
+        }
 
         if (role === 'member') {
             const alreadyMember = members.some(m => m.profiles?.email?.toLowerCase() === normalizedEmail);

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { UserManagementClient } from "@/components/UserManagementClient";
+import { UserManagement } from "@/components/UserManagement";
 
 export default async function UserSettingsPage() {
     const supabase = await createClient();
@@ -97,13 +97,14 @@ export default async function UserSettingsPage() {
                 </h1>
             </div>
 
-            <UserManagementClient
+            <UserManagement
                 workspaceId={selectedWorkspaceId}
                 members={members || []}
                 invites={invites || []}
                 projects={projects || []}
                 isOwner={isOwner}
                 currentUserId={user?.id}
+                currentUserEmail={user?.email}
                 selectedProjectId={selectedProjectId}
             />
         </div>
