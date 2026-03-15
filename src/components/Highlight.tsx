@@ -18,33 +18,39 @@ export function Highlight({
 }) {
     const ref = useRef<HTMLDivElement>(null);
 
+    const deactivate = useCallback(() => {
+        ref.current?.classList.remove('pulse-active', 'highlight-persist');
+    }, []);
+
     const activate = useCallback(() => {
         if (window.location.hash === `#${id}` && ref.current) {
-            ref.current.classList.remove('pulse-active');
+            ref.current.classList.remove('pulse-active', 'highlight-persist');
             // Force reflow so re-adding the class restarts the animation
             void ref.current.offsetWidth;
-            ref.current.classList.add('pulse-active');
+            ref.current.classList.add('pulse-active', 'highlight-persist');
             ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-            const timeout = setTimeout(() => {
-                ref.current?.classList.remove('pulse-active');
-            }, 4000);
-
-            return () => clearTimeout(timeout);
         }
     }, [id]);
 
     useEffect(() => {
-        const cleanup = activate();
+        activate();
 
         const onHashChange = () => activate();
         window.addEventListener('hashchange', onHashChange);
 
-        return () => {
-            cleanup?.();
-            window.removeEventListener('hashchange', onHashChange);
+        // Remove highlight when the user clicks outside this element
+        const onClickOutside = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) {
+                deactivate();
+            }
         };
-    }, [activate]);
+        document.addEventListener('click', onClickOutside);
+
+        return () => {
+            window.removeEventListener('hashchange', onHashChange);
+            document.removeEventListener('click', onClickOutside);
+        };
+    }, [activate, deactivate]);
 
     return (
         <div ref={ref} id={id} className={className}>

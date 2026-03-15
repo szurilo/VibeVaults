@@ -2,15 +2,17 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { Bell, Check, CheckCircle2, Circle, MessageSquare, PlusCircle } from "lucide-react"
+import { Bell, Check, CheckCircle2, Circle, MessageSquare, PlusCircle, Trash2, XIcon } from "lucide-react"
 import {
     Sheet,
+    SheetClose,
     SheetContent,
     SheetHeader,
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 
@@ -82,6 +84,16 @@ export function NotificationBell({ userId }: { userId: string }) {
             .eq('is_read', false)
     }
 
+    const clearAll = async () => {
+        setNotifications([])
+        setUnreadCount(0)
+
+        await supabase
+            .from('notifications')
+            .delete()
+            .eq('user_id', userId)
+    }
+
     const handleNotificationClick = async (notification: any) => {
         if (!notification.is_read) {
             await markAsRead(notification.id)
@@ -109,14 +121,14 @@ export function NotificationBell({ userId }: { userId: string }) {
                 <Button variant="ghost" size="icon" className="relative cursor-pointer hover:bg-gray-100 rounded-full h-8 w-8">
                     <Bell className="w-4 h-4 text-gray-600" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-0 right-0 h-3.5 w-3.5 rounded-full bg-red-500 border-2 border-white flex items-center justify-center text-[8px] font-bold text-white shrink-0">
+                        <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] font-semibold shadow-sm">
                             {unreadCount > 9 ? '9+' : unreadCount}
-                        </span>
+                        </Badge>
                     )}
                 </Button>
             </SheetTrigger>
-            <SheetContent side="top" className="w-full sm:max-w-md mx-auto max-h-[85vh] p-0 flex flex-col bg-gray-50 border-gray-200 sm:rounded-b-xl sm:border-x sm:border-b shadow-xl overflow-hidden">
-                <div className="p-4 pr-12 bg-white border-b border-gray-100 flex items-center justify-between shadow-sm z-10 sm:rounded-b-none sm:rounded-none">
+            <SheetContent side="top" showCloseButton={false} className="w-full sm:max-w-md mx-auto max-h-[85vh] p-0 flex flex-col bg-gray-50 border-gray-200 sm:rounded-b-xl sm:border-x sm:border-b shadow-xl overflow-hidden">
+                <div className="p-4 bg-white border-b border-gray-100 flex items-center justify-between shadow-sm z-10 sm:rounded-b-none sm:rounded-none">
                     <SheetHeader className="p-0 text-left">
                         <SheetTitle className="text-lg font-bold flex items-center gap-2 m-0 text-gray-900">
                             Notifications
@@ -127,17 +139,34 @@ export function NotificationBell({ userId }: { userId: string }) {
                             )}
                         </SheetTitle>
                     </SheetHeader>
-                    {unreadCount > 0 && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-[11px] h-7 px-2 text-gray-500 hover:text-gray-900"
-                            onClick={markAllAsRead}
-                        >
-                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                            Mark all read
-                        </Button>
-                    )}
+                    <div className="flex items-center gap-1">
+                        {unreadCount > 0 && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-[11px] h-7 px-2 text-gray-500 hover:text-gray-900 cursor-pointer"
+                                onClick={markAllAsRead}
+                            >
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                                Mark all read
+                            </Button>
+                        )}
+                        {notifications.length > 0 && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-[11px] h-7 px-2 text-gray-500 hover:text-red-600 cursor-pointer"
+                                onClick={clearAll}
+                            >
+                                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                Clear all
+                            </Button>
+                        )}
+                        <SheetClose className="rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden cursor-pointer">
+                            <XIcon className="size-4" />
+                            <span className="sr-only">Close</span>
+                        </SheetClose>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto w-full custom-scrollbar">

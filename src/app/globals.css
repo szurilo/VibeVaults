@@ -127,16 +127,30 @@
 
 /* Pulsating highlight when navigating to a highlighted element */
 @keyframes highlight-pulse {
-    0%, 100% {
+    0% {
         box-shadow: 0 0 0 0 rgba(32, 156, 238, 0);
+        background-color: rgba(32, 156, 238, 0);
     }
 
     50% {
-        box-shadow: 0 0 14px 4px rgba(32, 156, 238, 0.3);
+        box-shadow: 0 0 20px 6px rgba(32, 156, 238, 0.45);
+        background-color: rgba(32, 156, 238, 0.08);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(32, 156, 238, 0);
+        background-color: rgba(32, 156, 238, 0);
     }
 }
 
 .pulse-active {
     animation: highlight-pulse 1.2s ease-in-out 3;
     scroll-margin-top: 2rem;
+}
+
+.highlight-persist {
+    box-shadow: 0 0 12px 3px rgba(32, 156, 238, 0.3);
+    background-color: rgba(32, 156, 238, 0.06);
+    scroll-margin-top: 2rem;
+    transition: box-shadow 0.4s ease-out, background-color 0.4s ease-out;
 }
