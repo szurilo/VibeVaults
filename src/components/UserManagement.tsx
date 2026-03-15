@@ -181,14 +181,16 @@ export function UserManagement({
         try {
             const { leaveWorkspaceAction } = await import('@/actions/workspaces');
             await leaveWorkspaceAction(workspaceId);
-            toast.success("Left Workspace", {
+            toast("Left Workspace", {
                 description: "You have successfully left the workspace.",
+                icon: <MailCheck className="h-4 w-4 text-green-500" />,
             });
             router.push('/dashboard');
         } catch (err) {
             const error = err as Error;
-            toast.error("Error", {
+            toast("Error", {
                 description: error.message || "Failed to leave workspace",
+                icon: <AlertCircle className="h-4 w-4 text-red-500" />,
             });
         } finally {
             setIsLeaving(false);
@@ -200,14 +202,16 @@ export function UserManagement({
         try {
             const { removeMemberAction } = await import('@/actions/workspaces');
             await removeMemberAction(workspaceId, userId);
-            toast.success("Access Revoked", {
+            toast("Access Revoked", {
                 description: `Successfully removed ${userName} from the workspace.`,
+                icon: <UserX className="h-4 w-4 text-muted-foreground" />,
             });
             router.refresh();
         } catch (err) {
             const error = err as Error;
-            toast.error("Error", {
+            toast("Error", {
                 description: error.message || "Failed to revoke access",
+                icon: <AlertCircle className="h-4 w-4 text-red-500" />,
             });
         } finally {
             setRevokingId(null);

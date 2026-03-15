@@ -12,7 +12,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { FeedbackStatusSelect } from "./feedback-status-select"
 import { cn } from "@/lib/utils"
-import { Calendar, Trash2, Globe, Monitor, Terminal, Info, ChevronRight, Activity, Cpu, MousePointer2, Paperclip, FileText, Image as ImageIcon } from "lucide-react"
+import { Calendar, Trash2, Globe, Monitor, Terminal, Info, ChevronRight, Activity, Cpu, MousePointer2, Paperclip, FileText, Image as ImageIcon, AlertCircle } from "lucide-react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -175,7 +175,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
             fetchAttachments()
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to send reply"
-            toast.error(message)
+            toast("Error", { description: message, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
             setIsUploadingReplyFiles(false)
         } finally {
             setIsSendingReply(false)
@@ -189,7 +189,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
             router.refresh()
         } catch (error) {
             const message = error instanceof Error ? error.message : "Failed to delete feedback"
-            toast.error(message)
+            toast("Error", { description: message, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
             setIsDeleting(false)
         }
     }
