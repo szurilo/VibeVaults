@@ -66,7 +66,7 @@ export function GlobalNotificationProvider({ children, userId }: { children: Rea
     return (
         <>
             {children}
-            <Toaster position="bottom-right" richColors />
+            <Toaster position="bottom-right" />
         </>
     )
 }
