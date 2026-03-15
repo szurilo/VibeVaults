@@ -15,6 +15,7 @@
   const API_FEEDBACKS = `${origin}/api/widget/feedbacks`;
   const API_STREAM = `${origin}/api/widget/stream`;
   const API_UPLOAD = `${origin}/api/widget/upload`;
+  const API_VERIFY = `${origin}/api/widget/verify-email`;
 
   const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
@@ -49,10 +50,8 @@
   let notifyRepliesSetting = localStorage.getItem(prefsKey) !== 'false';
 
 
-  // Hide the widget completely if the user has no identity (hasn't used an invite link)
-  if (!clientEmail) {
-    return;
-  }
+  // Track whether the user needs to verify their email before using the widget
+  let needsEmailVerification = !clientEmail;
 
   let selectedFeedbackId = null;
   let cachedFeedbacks = [];
@@ -314,6 +313,12 @@
     .btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-sm { padding: 8px 12px; font-size: 12px; }
     .success-view { display: none; text-align: center; padding: 40px 20px; }
+    .view-email-prompt { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; flex: 1; }
+    .view-email-prompt p { font-size: 14px; color: #6b7280; margin: 0 0 20px; line-height: 1.5; }
+    .view-email-prompt .email-prompt-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
+    .view-email-prompt .email-prompt-input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.1); }
+    .view-email-prompt .email-prompt-error { color: #b91c1c; font-size: 12px; margin-top: 8px; min-height: 18px; }
+    .view-email-prompt .btn { margin-top: 12px; width: 100%; }
     .branding { padding: 10px; text-align: center; font-size: 11px; color: #9ca3af; background: #f9fafb; border-top: 1px solid #f3f4f6; }
     .branding a { color: #209CEE; text-decoration: none; }
     .close-btn { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -418,6 +423,12 @@
           <div class="chat-messages" id="vv-chat"></div>
           <div id="vv-reply-section"></div>
         </div>
+        <div class="view-email-prompt" id="vv-email-prompt">
+          <p>Enter your email to get started</p>
+          <input type="email" class="email-prompt-input" id="vv-email-input" placeholder="you@example.com" />
+          <div class="email-prompt-error" id="vv-email-error"></div>
+          <button class="btn" id="vv-email-verify">Continue</button>
+        </div>
         <div class="success-view" id="vv-success">
           <div style="width:40px;height:40px;background:#ecfdf5;color:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
           <p style="font-weight:700;color:#1f2937;margin:0">Sent!</p><p style="font-size:14px;color:#6b7280;margin:8px 0 0">We'll chat soon.</p>
@@ -427,6 +438,13 @@
     </div>
   `;
   shadow.appendChild(wrapper);
+
+  // If user needs email verification, show the prompt view by default
+  if (needsEmailVerification) {
+    wrapper.querySelector('.view-form').style.display = 'none';
+    wrapper.querySelector('.nav').style.display = 'none';
+    wrapper.querySelector('#vv-email-prompt').style.display = 'flex';
+  }
 
   // Fetch project setting context asynchronously
   const fetchUrl = `${API_BASE}?key=${apiKey}${clientEmail ? '&sender=' + encodeURIComponent(clientEmail) : ''}`;
@@ -449,6 +467,9 @@
     wrapper.querySelector('.view-feedbacks').style.display = v === 'feedbacks' ? 'flex' : 'none';
     wrapper.querySelector('.view-detail').style.display = v === 'detail' ? 'flex' : 'none';
     wrapper.querySelector('#vv-success').style.display = v === 'success' ? 'block' : 'none';
+    wrapper.querySelector('#vv-email-prompt').style.display = v === 'email-prompt' ? 'flex' : 'none';
+    // Hide nav when showing email prompt
+    wrapper.querySelector('.nav').style.display = v === 'email-prompt' ? 'none' : 'flex';
     if (v === 'feedbacks') { fetchAllFeedbacks(); }
     if (v === 'detail') { startStream(); } else { stopAll(); }
   };
@@ -1001,6 +1022,9 @@
     wrapper.querySelector('.popup').classList.toggle('open', isOpen);
     if (isOpen) {
       wrapper.querySelector('.badge').style.display = 'none';
+      if (needsEmailVerification) {
+        switchView('email-prompt');
+      }
     } else {
       stopAll();
     }
@@ -1026,6 +1050,7 @@
   };
   wrapper.querySelector('#vv-back-btn').onclick = goBackToList;
   wrapper.querySelectorAll('.nav-item').forEach(i => i.onclick = () => {
+    if (needsEmailVerification) return; // Block navigation until email is verified
     if (i.dataset.view === 'feedbacks' && selectedFeedbackId) {
       // If user is in detail view and clicks "Feedbacks" tab, go back to list
       goBackToList();
@@ -1040,4 +1065,47 @@
       notifyRepliesSetting = e.target.checked;
     });
   }
+
+  // --- Email verification prompt ---
+  const verifyEmailBtn = wrapper.querySelector('#vv-email-verify');
+  const emailInput = wrapper.querySelector('#vv-email-input');
+  const emailError = wrapper.querySelector('#vv-email-error');
+
+  const handleEmailVerify = async () => {
+    const email = emailInput.value.trim().toLowerCase();
+    emailError.textContent = '';
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      emailError.textContent = 'Please enter a valid email address.';
+      return;
+    }
+
+    verifyEmailBtn.disabled = true;
+    verifyEmailBtn.textContent = 'Verifying...';
+
+    try {
+      const res = await fetch(`${API_VERIFY}?key=${apiKey}&email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+
+      if (data.authorized) {
+        clientEmail = email;
+        localStorage.setItem(emailKey, clientEmail);
+        needsEmailVerification = false;
+        switchView('form');
+      } else {
+        emailError.textContent = 'This email does not have access. Please contact the site owner.';
+      }
+    } catch (e) {
+      emailError.textContent = 'Network error. Please try again.';
+    } finally {
+      verifyEmailBtn.disabled = false;
+      verifyEmailBtn.textContent = 'Continue';
+    }
+  };
+
+  verifyEmailBtn.onclick = handleEmailVerify;
+  emailInput.onkeydown = (e) => {
+    emailError.textContent = '';
+    if (e.key === 'Enter') handleEmailVerify();
+  };
 })();

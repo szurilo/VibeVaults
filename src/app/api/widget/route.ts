@@ -84,7 +84,7 @@ export async function POST(request: Request) {
         if (memberProfile) {
             const { data: membership } = await adminSupabase
                 .from('workspace_members')
-                .select('id')
+                .select('user_id')
                 .eq('workspace_id', project.workspace_id)
                 .eq('user_id', memberProfile.id)
                 .single();
