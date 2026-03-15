@@ -70,7 +70,7 @@ export function AddFeedbackDialog({ projectId }: { projectId: string }) {
                             setContent(e.target.value);
                             if (errorMsg) setErrorMsg('');
                         }}
-                        className="min-h-[120px] resize-none"
+                        className="min-h-[120px] resize-none overflow-x-hidden field-sizing-fixed"
                     />
                     {errorMsg && (
                         <p className="text-red-500 text-sm mt-2 font-medium">{errorMsg}</p>

@@ -40,16 +40,42 @@ export async function POST(request: Request) {
     const { project, error, status } = await validateApiKey(apiKey);
     if (error) return corsError(error, status);
 
-    // Verify sender is invited
+    // Verify sender is authorized (workspace member OR invited client)
     const adminSupabase = createAdminClient();
-    const { data: invite } = await adminSupabase
-        .from('workspace_invites')
+
+    // Check if sender is a workspace member (owner/member) by matching email → profile → membership
+    const { data: memberProfile } = await adminSupabase
+        .from('profiles')
         .select('id')
-        .eq('workspace_id', project.workspace_id)
         .eq('email', senderEmail)
         .single();
 
-    if (!invite) return corsError("Unauthorized email address.", 403);
+    let isAuthorized = false;
+
+    if (memberProfile) {
+        const { data: membership } = await adminSupabase
+            .from('workspace_members')
+            .select('user_id')
+            .eq('workspace_id', project.workspace_id)
+            .eq('user_id', memberProfile.id)
+            .single();
+
+        if (membership) {
+            isAuthorized = true;
+        }
+    }
+
+    // Fall back to checking workspace_invites (for clients)
+    if (!isAuthorized) {
+        const { data: invite } = await adminSupabase
+            .from('workspace_invites')
+            .select('id')
+            .eq('workspace_id', project.workspace_id)
+            .eq('email', senderEmail)
+            .single();
+
+        if (!invite) return corsError("Unauthorized email address.", 403);
+    }
 
     // Collect files from formData
     const files: File[] = [];
