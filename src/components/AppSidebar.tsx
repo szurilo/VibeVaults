@@ -51,19 +51,26 @@ export function AppSidebar({
 
     const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
     const isOwner = activeWorkspace?.owner_id === user.id;
+    const isSubscribePage = pathname === "/dashboard/subscribe";
 
     return (
         <Sidebar>
             <SidebarHeader className="bg-white border-b border-gray-100 p-4">
                 <div className="flex items-center justify-between px-2">
-                    <Link href="/dashboard" className="cursor-pointer block">
-                        <span className="font-bold text-xl text-primary">VibeVaults</span>
-                    </Link>
-                    <NotificationBell userId={user.id} />
+                    <span className={`font-bold text-xl text-primary ${isSubscribePage ? "opacity-50" : ""}`}>
+                        {isSubscribePage ? (
+                            "VibeVaults"
+                        ) : (
+                            <Link href="/dashboard" className="cursor-pointer block">
+                                VibeVaults
+                            </Link>
+                        )}
+                    </span>
+                    {!isSubscribePage && <NotificationBell userId={user.id} />}
                 </div>
             </SidebarHeader>
 
-            <SidebarContent className="bg-white px-2 py-4 gap-6">
+            <SidebarContent className={`bg-white px-2 py-4 gap-6 ${isSubscribePage ? "pointer-events-none opacity-50" : ""}`}>
                 {/* Workspace Group */}
                 <div className="flex flex-col gap-2">
                     <div className="px-2">

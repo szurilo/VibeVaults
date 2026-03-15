@@ -12,7 +12,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { FeedbackStatusSelect } from "./feedback-status-select"
 import { cn } from "@/lib/utils"
-import { Calendar, Trash2, Globe, Monitor, Terminal, Info, ChevronRight, Activity, Cpu, MousePointer2, Paperclip, FileText, Image as ImageIcon } from "lucide-react"
+import { Calendar, Trash2, Globe, Monitor, Terminal, Info, ChevronRight, Activity, Cpu, MousePointer2, Paperclip, FileText, Image as ImageIcon, AlertCircle } from "lucide-react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -52,6 +52,7 @@ interface FeedbackMetadata {
     language?: string
     logs?: Array<{ type: string; time: string; content: string }>
     dom_selector?: string
+    is_manual?: boolean
 }
 
 interface FeedbackCardProps {
@@ -174,7 +175,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
             fetchAttachments()
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to send reply"
-            toast.error(message)
+            toast("Error", { description: message, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
             setIsUploadingReplyFiles(false)
         } finally {
             setIsSendingReply(false)
@@ -188,7 +189,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
             router.refresh()
         } catch (error) {
             const message = error instanceof Error ? error.message : "Failed to delete feedback"
-            toast.error(message)
+            toast("Error", { description: message, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
             setIsDeleting(false)
         }
     }
@@ -370,7 +371,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
 
                 </div>
 
-                {mode === 'edit' && feedback.metadata && (
+                {mode === 'edit' && feedback.metadata && !feedback.metadata.is_manual && (
                     <div className="mt-6 pt-5 border-t border-gray-100 flex flex-col gap-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="flex items-center gap-2.5 min-w-0">

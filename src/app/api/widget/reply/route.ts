@@ -61,16 +61,40 @@ export async function POST(request: Request) {
 
     const adminSupabase = createAdminClient();
 
-    // Verify sender is in workspace_invites
-    const { data: invite, error: inviteError } = await adminSupabase
-        .from('workspace_invites')
+    // Check if sender is a workspace member (owner/member) by matching email → profile → membership
+    const { data: memberProfile } = await adminSupabase
+        .from('profiles')
         .select('id')
-        .eq('workspace_id', apiKeyResult.workspaceId)
         .eq('email', senderEmail)
         .single();
 
-    if (inviteError || !invite) {
-        return corsError("Unauthorized email address. Access may have been revoked.", 403);
+    let isAuthorized = false;
+
+    if (memberProfile) {
+        const { data: membership } = await adminSupabase
+            .from('workspace_members')
+            .select('user_id')
+            .eq('workspace_id', apiKeyResult.workspaceId)
+            .eq('user_id', memberProfile.id)
+            .single();
+
+        if (membership) {
+            isAuthorized = true;
+        }
+    }
+
+    // Fall back to checking workspace_invites (for clients)
+    if (!isAuthorized) {
+        const { data: invite, error: inviteError } = await adminSupabase
+            .from('workspace_invites')
+            .select('id')
+            .eq('workspace_id', apiKeyResult.workspaceId)
+            .eq('email', senderEmail)
+            .single();
+
+        if (inviteError || !invite) {
+            return corsError("Unauthorized email address. Access may have been revoked.", 403);
+        }
     }
 
     // 1. Get Feedback & Project ID

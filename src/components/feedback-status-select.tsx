@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select';
 import { updateFeedbackStatus } from '@/actions/feedback';
 import { toast } from 'sonner';
+import { AlertCircle } from 'lucide-react';
 
 interface FeedbackStatusSelectProps {
     id: string;
@@ -25,7 +26,7 @@ export function FeedbackStatusSelect({ id, initialStatus }: FeedbackStatusSelect
             await updateFeedbackStatus(id, newStatus);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to update status';
-            toast.error(message);
+            toast("Error", { description: message, icon: <AlertCircle className="h-4 w-4 text-red-500" /> });
             setStatus(initialStatus); // Revert on error
         }
     };

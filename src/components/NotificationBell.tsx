@@ -46,8 +46,19 @@ export function NotificationBell({ userId }: { userId: string }) {
             fetchNotifications()
         }
 
+        const handleNotificationViewed = (e: Event) => {
+            const notification = (e as CustomEvent).detail;
+            if (notification?.id) {
+                markAsRead(notification.id);
+            }
+        }
+
         window.addEventListener('vibe-new-notification', handleNewNotification)
-        return () => window.removeEventListener('vibe-new-notification', handleNewNotification)
+        window.addEventListener('vibe-notification-viewed', handleNotificationViewed)
+        return () => {
+            window.removeEventListener('vibe-new-notification', handleNewNotification)
+            window.removeEventListener('vibe-notification-viewed', handleNotificationViewed)
+        }
     }, [fetchNotifications])
 
     const markAsRead = async (id: string) => {
@@ -77,10 +88,19 @@ export function NotificationBell({ userId }: { userId: string }) {
         }
         setIsOpen(false)
 
-        // Navigate by setting cookie and routing to feedback page
+        // Navigate by setting cookie and routing to feedback page with anchor
         document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
-        router.push("/dashboard/feedback");
+        const hash = notification.feedback_id ? `#${notification.feedback_id}` : '';
+        router.push(`/dashboard/feedback${hash}`);
         router.refresh();
+
+        // If already on /dashboard/feedback, router.push won't fire a native hashchange,
+        // so set the hash directly to trigger Highlight's listener.
+        if (notification.feedback_id && window.location.pathname === '/dashboard/feedback') {
+            requestAnimationFrame(() => {
+                window.location.hash = notification.feedback_id;
+            });
+        }
     }
 
     return (

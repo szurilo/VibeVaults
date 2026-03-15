@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { WorkspaceSettingsCard } from "@/components/WorkspaceSettingsCard";
 import { DeleteWorkspaceCard } from "@/components/DeleteWorkspaceCard";
-import { AnchorHighlight } from "@/components/AnchorHighlight";
+import { Highlight } from "@/components/Highlight";
 
 export default async function WorkspaceSettingsPage() {
     const supabase = await createClient();
@@ -67,9 +67,9 @@ export default async function WorkspaceSettingsPage() {
                 <div className="col-span-full space-y-6">
                     {workspace && isOwner ? (
                         <>
-                            <AnchorHighlight id="workspace-settings" className="rounded-xl">
+                            <Highlight id="workspace-settings" className="rounded-xl">
                                 <WorkspaceSettingsCard workspace={workspace} />
-                            </AnchorHighlight>
+                            </Highlight>
                             <DeleteWorkspaceCard workspace={workspace} />
                         </>
                     ) : workspace ? (

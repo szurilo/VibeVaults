@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { FeedbackCard } from "@/components/feedback-card";
+import { Highlight } from "@/components/Highlight";
 import { cookies } from "next/headers";
 import { AddFeedbackDialog } from "@/components/AddFeedbackDialog";
 
@@ -57,7 +58,9 @@ export default async function FeedbackListPage() {
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
                     {feedbacks.map((item: any) => (
-                        <FeedbackCard key={item.id} feedback={item} mode="edit" />
+                        <Highlight key={item.id} id={item.id} className="rounded-lg">
+                            <FeedbackCard feedback={item} mode="edit" />
+                        </Highlight>
                     ))}
                 </div>
             )}

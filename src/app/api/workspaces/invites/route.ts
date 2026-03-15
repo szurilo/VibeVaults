@@ -46,6 +46,11 @@ export async function POST(req: Request) {
             return new NextResponse("Forbidden: Only owners can invite members", { status: 403 });
         }
 
+        // Prevent self-invites (owner inviting themselves as member or client)
+        if (email.toLowerCase() === user.email?.toLowerCase()) {
+            return new NextResponse("You already have access to this workspace", { status: 400 });
+        }
+
         // Check if an invite already exists for this email in this workspace
         const { data: existingInvite } = await supabase
             .from('workspace_invites')
@@ -56,7 +61,7 @@ export async function POST(req: Request) {
 
         if (existingInvite) {
             if (existingInvite.role === 'client') {
-                return new NextResponse("This client already has access to the workspace", { status: 400 });
+                return new NextResponse("This client already has access to this workspace", { status: 400 });
             }
             return new NextResponse("An invitation is already pending for this email", { status: 400 });
         }
