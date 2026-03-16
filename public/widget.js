@@ -181,12 +181,7 @@
   };
 
   const updatePopupHeight = () => {
-    const popup = wrapper.querySelector('.popup');
-    if (!popup) return;
-    const hasExtras = pendingAttachments.length > 0 ||
-      wrapper.querySelector('#vv-submit-error')?.style.display === 'block' ||
-      wrapper.querySelector('#vv-text-error')?.style.display === 'block';
-    popup.classList.toggle('expanded', hasExtras);
+    // In compact mode the popup auto-sizes to content; no-op kept for call-site compatibility.
   };
 
   const refreshFeedbackPreviews = () => {
@@ -233,10 +228,10 @@
     .popup {
       position: absolute; bottom: 100px; right: 0; width: 380px; max-width: calc(100vw - 40px); height: 520px; max-height: calc(100vh - 140px);
       background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-      border: 1px solid #e5e7eb; overflow: hidden; animation: slideUp 0.3s ease-out; transition: height 0.2s ease;
+      border: 1px solid #e5e7eb; overflow: hidden; animation: slideUp 0.3s ease-out; transition: height 0.15s ease;
     }
-    .popup.expanded { height: 600px;
-    }
+    .popup.compact { height: auto; }
+    .popup.tall { height: 620px; }
     .popup ::-webkit-scrollbar { width: 6px; height: 6px; }
     .popup ::-webkit-scrollbar-track { background: transparent; }
     .popup ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
@@ -244,16 +239,16 @@
     
     @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .popup.open { display: flex; }
-    .header { padding: 16px 20px; background: #209CEE; color: white; position: relative; }
-    .header h3 { margin: 0; font-size: 16px; font-weight: 700; }
-    .header p { margin: 4px 0 0; font-size: 13px; opacity: 0.8; }
-    .nav { display: flex; background: #f1f5f9; padding: 4px; margin: 8px 20px 4px; border-radius: 8px; gap: 4px; flex-shrink: 0; }
-    .nav-item { flex: 1; padding: 8px 12px; font-size: 13px; font-weight: 600; color: #64748b; text-align: center; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
+    .header { padding: 12px 20px; background: #209CEE; color: white; position: relative; }
+    .header h3 { margin: 0; font-size: 15px; font-weight: 700; }
+    .header p { margin: 2px 0 0; font-size: 12px; opacity: 0.8; }
+    .nav { display: flex; background: #f1f5f9; padding: 4px; margin: 8px 20px 8px; border-radius: 8px; gap: 4px; flex-shrink: 0; }
+    .nav-item { flex: 1; padding: 8px 12px; font-size: 13px; font-weight: 600; color: #4a5568; text-align: center; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
     .nav-item.active { color: #0f172a; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
     .view-form { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-    .view-form-body { flex: 1; overflow-y: auto; padding: 4px 20px; display: flex; flex-direction: column; gap: 16px; }
-    .view-form-footer { flex-shrink: 0; padding: 0 20px 20px; }
+    .view-form-body { flex: 1; overflow-y: auto; padding: 4px 20px; display: flex; flex-direction: column; gap: 6px; }
+    .view-form-footer { flex-shrink: 0; padding: 0 20px 8px; }
     textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; background: white; color: #1f2937; }
     .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
 
@@ -293,10 +288,10 @@
       cursor: pointer; transition: color 0.15s;
     }
     .back-btn:hover { color: #209CEE; }
-    .detail-header { padding: 14px 20px; border-bottom: 1px solid #f3f4f6; }
-    .detail-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .detail-header { padding: 14px 0; border-bottom: 1px solid #f3f4f6; }
+    .detail-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 0 20px; }
     .detail-sender { font-size: 12px; color: #6b7280; font-weight: 500; }
-    .detail-content { font-size: 13px; color: #1f2937; line-height: 1.5; margin: 0; white-space: pre-wrap; }
+    .detail-content { font-size: 13px; color: #1f2937; line-height: 1.5; margin: 0; white-space: pre-wrap; max-height: 97.5px; overflow-y: auto; padding: 0 20px; }
 
     .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px 20px; }
     .msg-wrapper { display: flex; flex-direction: column; max-width: 90%; gap: 6px; }
@@ -344,17 +339,18 @@
     .checkbox-label { font-size: 13px; color: #4a5568; cursor: pointer; user-select: none; margin: 0; padding: 0; line-height: 1.4; }
 
     /* Attachments */
-    .attachments-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
-    .attach-btn { background: #f3f4f6; color: #1f2937; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; font-family: inherit; }
+    .attachments-bar { display: flex; gap: 8px; align-items: center; }
+    .attach-btn { background: #f3f4f6; color: #4a5568; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; font-family: inherit; }
     .attach-btn:hover { background: #e5e7eb; }
-    .attach-previews { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .attach-previews { display: flex; flex-wrap: wrap; gap: 8px; }
     .attach-preview { position: relative; width: 64px; height: 64px; border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden; background: #f9fafb; display: flex; align-items: center; justify-content: center; }
     .attach-preview img { width: 100%; height: 100%; object-fit: cover; }
     .attach-preview .file-icon { font-size: 10px; color: #6b7280; text-align: center; padding: 4px; word-break: break-all; line-height: 1.2; }
     .attach-preview .remove-attach { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; }
     .attach-preview .remove-attach:hover { background: rgba(0,0,0,0.7); }
     .upload-progress { font-size: 11px; color: #6b7280; margin-bottom: 8px; }
-    .reply-attach-previews { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 8px; }
+    .reply-attach-previews { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px; }
+    .reply-attach-previews:not(:empty) { padding-bottom: 8px; }
     .reply-attach-preview { position: relative; width: 48px; height: 48px; border-radius: 6px; border: 1px solid #e5e7eb; overflow: hidden; background: #f9fafb; display: flex; align-items: center; justify-content: center; }
     .reply-attach-preview img { width: 100%; height: 100%; object-fit: cover; }
     .reply-attach-preview .file-icon { font-size: 9px; color: #6b7280; text-align: center; padding: 2px; word-break: break-all; }
@@ -373,7 +369,7 @@
       <div class="bottom-text">Feedback</div>
       <div class="badge"></div>
     </button>
-    <div class="popup">
+    <div class="popup compact">
       <div class="header">
         <h3>Send Feedback</h3><p>We'd love to hear from you!</p>
         <button class="close-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
@@ -399,7 +395,6 @@
             <div class="attach-previews" id="vv-attach-previews"></div>
             <div class="upload-progress" id="vv-upload-progress" style="display:none;"></div>
             <textarea id="vv-textarea" placeholder="Describe your issue..."></textarea>
-            <div id="vv-text-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -12px; margin-bottom: 4px; padding-left: 4px;">Please describe your issue.</div>
             <div class="checkbox-wrapper">
               <input type="checkbox" id="vv-notify-replies" class="checkbox-input" ${notifyRepliesSetting ? 'checked' : ''} />
               <label for="vv-notify-replies" class="checkbox-label">Notify me when someone replies</label>
@@ -471,6 +466,10 @@
     wrapper.querySelector('#vv-email-prompt').style.display = v === 'email-prompt' ? 'flex' : 'none';
     // Hide nav when showing email prompt
     wrapper.querySelector('.nav').style.display = v === 'email-prompt' ? 'none' : 'flex';
+    // Compact popup for form/success views, taller for detail conversation, default for feedbacks list
+    const popup = wrapper.querySelector('.popup');
+    popup.classList.toggle('compact', v === 'form' || v === 'success' || v === 'email-prompt');
+    popup.classList.toggle('tall', v === 'detail');
     if (v === 'feedbacks') { fetchAllFeedbacks(); startListPolling(); } else { stopListPolling(); }
     if (v === 'detail') { startStream(); } else { stopStream(); stopPolling(); }
   };
@@ -565,6 +564,7 @@
     // Switch to detail view and fetch replies
     wrapper.querySelector('.view-feedbacks').style.display = 'none';
     wrapper.querySelector('.view-detail').style.display = 'flex';
+    wrapper.querySelector('.popup').classList.add('tall');
     // Highlight feedbacks tab in nav
     wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === 'feedbacks'));
     fetchReplies();
@@ -586,7 +586,7 @@
           <button class="btn btn-sm" id="vv-send-reply">Send</button>
         </div>
         <div id="vv-reply-error" style="display:none; color: #b91c1c; font-size: 12px; margin-top: 8px;"></div>
-      <style>#vv-reply-section { border-top: 1px solid #f3f4f6; padding: 12px 20px; }</style>
+      <style>#vv-reply-section { border-top: 1px solid #f3f4f6; padding: 8px 20px; }</style>
       `;
       section.querySelector('#vv-send-reply').onclick = sendReply;
       section.querySelector('#vv-reply-text').onkeydown = (e) => {
@@ -623,6 +623,7 @@
     stopPolling();
     wrapper.querySelector('.view-detail').style.display = 'none';
     wrapper.querySelector('.view-feedbacks').style.display = 'flex';
+    wrapper.querySelector('.popup').classList.remove('tall');
     fetchAllFeedbacks(); // Refresh list
     startListPolling();
   };
@@ -768,22 +769,21 @@
   // --- Send feedback ---
   const sendFeedback = async () => {
     const text = wrapper.querySelector('#vv-textarea').value.trim();
-    const textErrorMsg = wrapper.querySelector('#vv-text-error');
+    const btn = wrapper.querySelector('#vv-submit');
+    const submitErrorMsg = wrapper.querySelector('#vv-submit-error');
     if (!text) {
-      textErrorMsg.style.display = 'block';
-      updatePopupHeight();
+      submitErrorMsg.textContent = 'Please describe your issue.';
+      submitErrorMsg.style.display = 'block';
       return;
     }
-    textErrorMsg.style.display = 'none';
+    submitErrorMsg.style.display = 'none';
 
     if (!clientEmail) {
       alert("Missing identity: Please use the VibeVaults invite link provided by your agency to leave feedback.");
       return;
     }
 
-    const btn = wrapper.querySelector('#vv-submit');
-    const submitErrorMsg = wrapper.querySelector('#vv-submit-error');
-    submitErrorMsg.style.display = 'none';
+    btn.disabled = true;
     btn.disabled = true;
     try {
       const metadata = getMetadata();
