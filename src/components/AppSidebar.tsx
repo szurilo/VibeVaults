@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/sidebar"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { LayoutDashboard, MessageSquare, Settings, LogOut, Users } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Settings, LogOut, Users, ExternalLink } from "lucide-react"
 import { NotificationBell } from "@/components/NotificationBell"
 import { User } from "@supabase/supabase-js"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -50,6 +50,7 @@ export function AppSidebar({
     };
 
     const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
+    const activeProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
     const isOwner = activeWorkspace?.owner_id === user.id;
     const isSubscribePage = pathname === "/dashboard/subscribe";
 
@@ -111,6 +112,18 @@ export function AppSidebar({
                             selectedWorkspaceId={selectedWorkspaceId}
                         />
                     </div>
+                    {activeProject?.website_url && (
+                        <a
+                            href={activeProject.website_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-4 py-1 text-xs text-muted-foreground hover:text-primary transition-colors truncate"
+                            title={activeProject.website_url}
+                        >
+                            <ExternalLink className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{activeProject.website_url.replace(/^https?:\/\//, '')}</span>
+                        </a>
+                    )}
                     <SidebarMenu>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>

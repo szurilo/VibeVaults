@@ -110,18 +110,20 @@ export async function POST(request: Request) {
     }
 
     // 2. Insert the reply
-    const { error: replyError } = await adminSupabase
+    const { data: newReply, error: replyError } = await adminSupabase
         .from('feedback_replies')
         .insert({
             feedback_id: feedbackId,
             content,
             author_role: 'client',
             author_name: senderEmail
-        });
+        })
+        .select('id')
+        .single();
 
-    if (replyError) {
+    if (replyError || !newReply) {
         console.error("VibeVaults: Reply insert error", replyError);
-        return corsError(replyError.message, 500);
+        return corsError(replyError?.message || "Failed to create reply", 500);
     }
 
     // 3. Notify all workspace members
@@ -168,7 +170,7 @@ export async function POST(request: Request) {
         console.error("VibeVaults: Reply email notification error", e);
     }
 
-    return corsSuccess({ success: true });
+    return corsSuccess({ success: true, replyId: newReply.id });
 }
 
 // --- GET: Fetch replies for a feedback (API key auth) ---
@@ -193,7 +195,7 @@ export async function GET(request: Request) {
     const adminSupabase = createAdminClient();
     const { data: replies, error } = await adminSupabase
         .from('feedback_replies')
-        .select('*')
+        .select('*, feedback_attachments(id, file_name, file_url, file_size, mime_type)')
         .eq('feedback_id', feedbackId)
         .order('created_at', { ascending: true });
 
@@ -201,5 +203,12 @@ export async function GET(request: Request) {
         return corsError(error.message, 500);
     }
 
-    return corsSuccess({ replies });
+    // Flatten attachment join into an `attachments` property for each reply
+    const repliesWithAttachments = (replies || []).map(r => ({
+        ...r,
+        attachments: r.feedback_attachments || [],
+        feedback_attachments: undefined,
+    }));
+
+    return corsSuccess({ replies: repliesWithAttachments });
 }

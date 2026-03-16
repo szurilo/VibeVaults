@@ -56,6 +56,7 @@
   let selectedFeedbackId = null;
   let cachedFeedbacks = [];
   let pollInterval = null;
+  let listPollInterval = null;
   let eventSource = null;
   let sseSupported = typeof EventSource !== 'undefined';
   let domSelector = null;
@@ -116,7 +117,7 @@
   });
 
   // --- File Upload Helpers ---
-  const ALLOWED_TYPES = ['image/jpeg','image/png','image/gif','image/webp','image/svg+xml','application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','text/plain','text/csv'];
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain', 'text/csv'];
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
   const MAX_FILES = 10;
 
@@ -246,12 +247,12 @@
     .header { padding: 16px 20px; background: #209CEE; color: white; position: relative; }
     .header h3 { margin: 0; font-size: 16px; font-weight: 700; }
     .header p { margin: 4px 0 0; font-size: 13px; opacity: 0.8; }
-    .nav { display: flex; background: #f1f5f9; padding: 4px; margin: 16px 20px 4px; border-radius: 8px; gap: 4px; flex-shrink: 0; }
+    .nav { display: flex; background: #f1f5f9; padding: 4px; margin: 8px 20px 4px; border-radius: 8px; gap: 4px; flex-shrink: 0; }
     .nav-item { flex: 1; padding: 8px 12px; font-size: 13px; font-weight: 600; color: #64748b; text-align: center; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
     .nav-item.active { color: #0f172a; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
     .view-form { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-    .view-form-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .view-form-body { flex: 1; overflow-y: auto; padding: 4px 20px; display: flex; flex-direction: column; gap: 16px; }
     .view-form-footer { flex-shrink: 0; padding: 0 20px 20px; }
     textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; background: white; color: #1f2937; }
     .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
@@ -470,8 +471,8 @@
     wrapper.querySelector('#vv-email-prompt').style.display = v === 'email-prompt' ? 'flex' : 'none';
     // Hide nav when showing email prompt
     wrapper.querySelector('.nav').style.display = v === 'email-prompt' ? 'none' : 'flex';
-    if (v === 'feedbacks') { fetchAllFeedbacks(); }
-    if (v === 'detail') { startStream(); } else { stopAll(); }
+    if (v === 'feedbacks') { fetchAllFeedbacks(); startListPolling(); } else { stopListPolling(); }
+    if (v === 'detail') { startStream(); } else { stopStream(); stopPolling(); }
   };
 
   // --- Feedbacks list ---
@@ -489,7 +490,10 @@
 
   const fetchAllFeedbacks = async () => {
     const listEl = wrapper.querySelector('#vv-feedbacks-list');
-    listEl.innerHTML = '<div class="feedbacks-loading">Loading feedbacks...</div>';
+    // Only show loading spinner if list is empty (first load), not on poll refreshes
+    if (!listEl.querySelector('.feedback-item')) {
+      listEl.innerHTML = '<div class="feedbacks-loading">Loading feedbacks...</div>';
+    }
     try {
       const res = await fetch(`${API_FEEDBACKS}?key=${apiKey}`);
       if (!res.ok) {
@@ -615,13 +619,27 @@
 
   const goBackToList = () => {
     selectedFeedbackId = null;
-    stopAll();
+    stopStream();
+    stopPolling();
     wrapper.querySelector('.view-detail').style.display = 'none';
     wrapper.querySelector('.view-feedbacks').style.display = 'flex';
     fetchAllFeedbacks(); // Refresh list
+    startListPolling();
   };
 
   // --- Replies ---
+  const renderReplyAttachments = (attachments) => {
+    if (!attachments || attachments.length === 0) return '';
+    const items = attachments.map(a => {
+      const isImage = a.mime_type && a.mime_type.startsWith('image/');
+      if (isImage) {
+        return `<a class="msg-attachment" href="${a.file_url}" target="_blank" rel="noopener"><img src="${a.file_url}" alt="${escapeHtml(a.file_name)}" loading="lazy"></a>`;
+      }
+      return `<a class="msg-attachment-file" href="${a.file_url}" target="_blank" rel="noopener">${escapeHtml(a.file_name)}</a>`;
+    }).join('');
+    return `<div class="msg-attachments">${items}</div>`;
+  };
+
   const renderReplyBubble = (r) => `
     <div class="msg-wrapper ${r.author_role}" data-reply-id="${r.id || ''}">
       <div class="msg-meta ${r.author_role}">
@@ -631,6 +649,7 @@
       </div>
       <div class="message ${r.author_role}">
         ${escapeHtml(r.content)}
+        ${renderReplyAttachments(r.attachments)}
       </div>
     </div>
   `;
@@ -741,7 +760,10 @@
   const startPolling = () => { stopPolling(); pollInterval = setInterval(fetchReplies, 5000); };
   const stopPolling = () => { if (pollInterval) clearInterval(pollInterval); pollInterval = null; };
 
-  const stopAll = () => { stopStream(); stopPolling(); };
+  const startListPolling = () => { stopListPolling(); listPollInterval = setInterval(fetchAllFeedbacks, 10000); };
+  const stopListPolling = () => { if (listPollInterval) clearInterval(listPollInterval); listPollInterval = null; };
+
+  const stopAll = () => { stopStream(); stopPolling(); stopListPolling(); };
 
   // --- Send feedback ---
   const sendFeedback = async () => {
@@ -976,11 +998,11 @@
         body: JSON.stringify({ feedbackId: selectedFeedbackId, content: text, apiKey, senderEmail: clientEmail })
       });
       if (res.ok) {
-        await res.json();
+        const replyData = await res.json();
         // Upload reply attachments if any
         if (replyAttachments.length > 0) {
           try {
-            await uploadFiles(replyAttachments, selectedFeedbackId, null);
+            await uploadFiles(replyAttachments, selectedFeedbackId, replyData.replyId || null);
           } catch (uploadErr) {
             console.error('[VibeVaults] Reply attachment upload failed:', uploadErr);
           }
