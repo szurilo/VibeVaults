@@ -311,7 +311,7 @@
     .success-view { display: none; text-align: center; padding: 40px 20px; }
     .view-email-prompt { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; flex: 1; }
     .view-email-prompt p { font-size: 14px; color: #6b7280; margin: 0 0 20px; line-height: 1.5; }
-    .view-email-prompt .email-prompt-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
+    .view-email-prompt .email-prompt-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; box-sizing: border-box; background: #fff; color: #1f2937; }
     .view-email-prompt .email-prompt-input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.1); }
     .view-email-prompt .email-prompt-error { color: #b91c1c; font-size: 12px; margin-top: 8px; min-height: 18px; }
     .view-email-prompt .btn { margin-top: 12px; width: 100%; }
@@ -578,6 +578,9 @@
       section.innerHTML = `
         <div class="reply-attach-previews" id="vv-reply-attach-previews"></div>
         <div class="chat-input" style="border-top: none; padding: 0;">
+          <button type="button" id="vv-reply-capture-btn" style="background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; cursor: pointer; display: flex; align-items: center; color: #6b7280;" title="Screenshot">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          </button>
           <button type="button" id="vv-reply-attach-btn" style="background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; cursor: pointer; display: flex; align-items: center; color: #6b7280;" title="Attach files">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
           </button>
@@ -593,6 +596,8 @@
         section.querySelector('#vv-reply-error').style.display = 'none';
         if (e.key === 'Enter') sendReply();
       };
+      // Reply screenshot capture
+      section.querySelector('#vv-reply-capture-btn').onclick = () => captureScreenshotAndElement('reply');
       // Reply file attachment
       const replyFileInput = section.querySelector('#vv-reply-file-input');
       section.querySelector('#vv-reply-attach-btn').onclick = () => replyFileInput.click();
@@ -842,7 +847,7 @@
   };
 
   // --- Inspector Mode ---
-  const captureScreenshotAndElement = () => {
+  const captureScreenshotAndElement = (target = 'form') => {
     wrapper.querySelector('.popup').classList.remove('open');
     wrapper.querySelector('.badge').style.display = 'block';
 
@@ -922,34 +927,40 @@
         else domSelector = currentTarget.tagName.toLowerCase();
       }
 
-      const capBtn = wrapper.querySelector('#vv-capture-btn');
-      const originalText = capBtn.innerHTML;
-      capBtn.innerHTML = 'Capturing...';
-      capBtn.disabled = true;
+      const capBtn = target === 'reply'
+        ? wrapper.querySelector('#vv-reply-capture-btn')
+        : wrapper.querySelector('#vv-capture-btn');
+      const originalText = capBtn ? capBtn.innerHTML : '';
+      if (capBtn) { capBtn.innerHTML = 'Capturing...'; capBtn.disabled = true; }
 
       const finishCapture = async (dataUrl) => {
-        // Convert data URL to File object
         const res = await fetch(dataUrl);
         const blob = await res.blob();
         const screenshotFile = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' });
 
-        // Remove existing screenshot from pendingAttachments
-        pendingAttachments = pendingAttachments.filter(f => f.name !== 'screenshot.jpg');
-
-        // Enforce max files limit
-        if (pendingAttachments.length >= MAX_FILES) {
-          alert('Maximum ' + MAX_FILES + ' files allowed.');
-          cleanup();
-          capBtn.innerHTML = originalText;
-          capBtn.disabled = false;
-          return;
+        if (target === 'reply') {
+          replyAttachments = replyAttachments.filter(f => f.name !== 'screenshot.jpg');
+          if (replyAttachments.length >= MAX_FILES) {
+            alert('Maximum ' + MAX_FILES + ' files allowed.');
+            cleanup();
+            if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
+            return;
+          }
+          replyAttachments.unshift(screenshotFile);
+          refreshReplyPreviews();
+        } else {
+          pendingAttachments = pendingAttachments.filter(f => f.name !== 'screenshot.jpg');
+          if (pendingAttachments.length >= MAX_FILES) {
+            alert('Maximum ' + MAX_FILES + ' files allowed.');
+            cleanup();
+            if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
+            return;
+          }
+          pendingAttachments.unshift(screenshotFile);
+          refreshFeedbackPreviews();
         }
-
-        pendingAttachments.unshift(screenshotFile); // screenshot first
-        refreshFeedbackPreviews();
         cleanup();
-        capBtn.innerHTML = originalText;
-        capBtn.disabled = false;
+        if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
       };
 
       const captureOptions = {
