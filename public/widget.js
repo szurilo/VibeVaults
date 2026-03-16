@@ -56,6 +56,7 @@
   let selectedFeedbackId = null;
   let cachedFeedbacks = [];
   let pollInterval = null;
+  let listPollInterval = null;
   let eventSource = null;
   let sseSupported = typeof EventSource !== 'undefined';
   let domSelector = null;
@@ -116,7 +117,7 @@
   });
 
   // --- File Upload Helpers ---
-  const ALLOWED_TYPES = ['image/jpeg','image/png','image/gif','image/webp','image/svg+xml','application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','text/plain','text/csv'];
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain', 'text/csv'];
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
   const MAX_FILES = 10;
 
@@ -180,12 +181,7 @@
   };
 
   const updatePopupHeight = () => {
-    const popup = wrapper.querySelector('.popup');
-    if (!popup) return;
-    const hasExtras = pendingAttachments.length > 0 ||
-      wrapper.querySelector('#vv-submit-error')?.style.display === 'block' ||
-      wrapper.querySelector('#vv-text-error')?.style.display === 'block';
-    popup.classList.toggle('expanded', hasExtras);
+    // In compact mode the popup auto-sizes to content; no-op kept for call-site compatibility.
   };
 
   const refreshFeedbackPreviews = () => {
@@ -232,10 +228,10 @@
     .popup {
       position: absolute; bottom: 100px; right: 0; width: 380px; max-width: calc(100vw - 40px); height: 520px; max-height: calc(100vh - 140px);
       background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-      border: 1px solid #e5e7eb; overflow: hidden; animation: slideUp 0.3s ease-out; transition: height 0.2s ease;
+      border: 1px solid #e5e7eb; overflow: hidden; animation: slideUp 0.3s ease-out; transition: height 0.15s ease;
     }
-    .popup.expanded { height: 600px;
-    }
+    .popup.compact { height: auto; }
+    .popup.tall { height: 620px; }
     .popup ::-webkit-scrollbar { width: 6px; height: 6px; }
     .popup ::-webkit-scrollbar-track { background: transparent; }
     .popup ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
@@ -243,16 +239,16 @@
     
     @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .popup.open { display: flex; }
-    .header { padding: 16px 20px; background: #209CEE; color: white; position: relative; }
-    .header h3 { margin: 0; font-size: 16px; font-weight: 700; }
-    .header p { margin: 4px 0 0; font-size: 13px; opacity: 0.8; }
-    .nav { display: flex; background: #f1f5f9; padding: 4px; margin: 16px 20px 4px; border-radius: 8px; gap: 4px; flex-shrink: 0; }
-    .nav-item { flex: 1; padding: 8px 12px; font-size: 13px; font-weight: 600; color: #64748b; text-align: center; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
+    .header { padding: 12px 20px; background: #209CEE; color: white; position: relative; }
+    .header h3 { margin: 0; font-size: 15px; font-weight: 700; }
+    .header p { margin: 2px 0 0; font-size: 12px; opacity: 0.8; }
+    .nav { display: flex; background: #f1f5f9; padding: 4px; margin: 8px 20px 8px; border-radius: 8px; gap: 4px; flex-shrink: 0; }
+    .nav-item { flex: 1; padding: 8px 12px; font-size: 13px; font-weight: 600; color: #4a5568; text-align: center; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
     .nav-item.active { color: #0f172a; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
     .view-form { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-    .view-form-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-    .view-form-footer { flex-shrink: 0; padding: 0 20px 20px; }
+    .view-form-body { flex: 1; overflow-y: auto; padding: 4px 20px; display: flex; flex-direction: column; gap: 6px; }
+    .view-form-footer { flex-shrink: 0; padding: 0 20px 8px; }
     textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; background: white; color: #1f2937; }
     .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
 
@@ -292,10 +288,10 @@
       cursor: pointer; transition: color 0.15s;
     }
     .back-btn:hover { color: #209CEE; }
-    .detail-header { padding: 14px 20px; border-bottom: 1px solid #f3f4f6; }
-    .detail-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .detail-header { padding: 14px 0; border-bottom: 1px solid #f3f4f6; }
+    .detail-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 0 20px; }
     .detail-sender { font-size: 12px; color: #6b7280; font-weight: 500; }
-    .detail-content { font-size: 13px; color: #1f2937; line-height: 1.5; margin: 0; white-space: pre-wrap; }
+    .detail-content { font-size: 13px; color: #1f2937; line-height: 1.5; margin: 0; white-space: pre-wrap; max-height: 97.5px; overflow-y: auto; padding: 0 20px; }
 
     .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px 20px; }
     .msg-wrapper { display: flex; flex-direction: column; max-width: 90%; gap: 6px; }
@@ -315,7 +311,7 @@
     .success-view { display: none; text-align: center; padding: 40px 20px; }
     .view-email-prompt { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; flex: 1; }
     .view-email-prompt p { font-size: 14px; color: #6b7280; margin: 0 0 20px; line-height: 1.5; }
-    .view-email-prompt .email-prompt-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
+    .view-email-prompt .email-prompt-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; box-sizing: border-box; background: #fff; color: #1f2937; }
     .view-email-prompt .email-prompt-input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.1); }
     .view-email-prompt .email-prompt-error { color: #b91c1c; font-size: 12px; margin-top: 8px; min-height: 18px; }
     .view-email-prompt .btn { margin-top: 12px; width: 100%; }
@@ -343,17 +339,18 @@
     .checkbox-label { font-size: 13px; color: #4a5568; cursor: pointer; user-select: none; margin: 0; padding: 0; line-height: 1.4; }
 
     /* Attachments */
-    .attachments-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
-    .attach-btn { background: #f3f4f6; color: #1f2937; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; font-family: inherit; }
+    .attachments-bar { display: flex; gap: 8px; align-items: center; }
+    .attach-btn { background: #f3f4f6; color: #4a5568; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; font-family: inherit; }
     .attach-btn:hover { background: #e5e7eb; }
-    .attach-previews { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .attach-previews { display: flex; flex-wrap: wrap; gap: 8px; }
     .attach-preview { position: relative; width: 64px; height: 64px; border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden; background: #f9fafb; display: flex; align-items: center; justify-content: center; }
     .attach-preview img { width: 100%; height: 100%; object-fit: cover; }
     .attach-preview .file-icon { font-size: 10px; color: #6b7280; text-align: center; padding: 4px; word-break: break-all; line-height: 1.2; }
     .attach-preview .remove-attach { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; }
     .attach-preview .remove-attach:hover { background: rgba(0,0,0,0.7); }
     .upload-progress { font-size: 11px; color: #6b7280; margin-bottom: 8px; }
-    .reply-attach-previews { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 8px; }
+    .reply-attach-previews { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px; }
+    .reply-attach-previews:not(:empty) { padding-bottom: 8px; }
     .reply-attach-preview { position: relative; width: 48px; height: 48px; border-radius: 6px; border: 1px solid #e5e7eb; overflow: hidden; background: #f9fafb; display: flex; align-items: center; justify-content: center; }
     .reply-attach-preview img { width: 100%; height: 100%; object-fit: cover; }
     .reply-attach-preview .file-icon { font-size: 9px; color: #6b7280; text-align: center; padding: 2px; word-break: break-all; }
@@ -372,7 +369,7 @@
       <div class="bottom-text">Feedback</div>
       <div class="badge"></div>
     </button>
-    <div class="popup">
+    <div class="popup compact">
       <div class="header">
         <h3>Send Feedback</h3><p>We'd love to hear from you!</p>
         <button class="close-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
@@ -398,7 +395,6 @@
             <div class="attach-previews" id="vv-attach-previews"></div>
             <div class="upload-progress" id="vv-upload-progress" style="display:none;"></div>
             <textarea id="vv-textarea" placeholder="Describe your issue..."></textarea>
-            <div id="vv-text-error" style="display:none; color: #ef4444; font-size: 12px; margin-top: -12px; margin-bottom: 4px; padding-left: 4px;">Please describe your issue.</div>
             <div class="checkbox-wrapper">
               <input type="checkbox" id="vv-notify-replies" class="checkbox-input" ${notifyRepliesSetting ? 'checked' : ''} />
               <label for="vv-notify-replies" class="checkbox-label">Notify me when someone replies</label>
@@ -470,8 +466,12 @@
     wrapper.querySelector('#vv-email-prompt').style.display = v === 'email-prompt' ? 'flex' : 'none';
     // Hide nav when showing email prompt
     wrapper.querySelector('.nav').style.display = v === 'email-prompt' ? 'none' : 'flex';
-    if (v === 'feedbacks') { fetchAllFeedbacks(); }
-    if (v === 'detail') { startStream(); } else { stopAll(); }
+    // Compact popup for form/success views, taller for detail conversation, default for feedbacks list
+    const popup = wrapper.querySelector('.popup');
+    popup.classList.toggle('compact', v === 'form' || v === 'success' || v === 'email-prompt');
+    popup.classList.toggle('tall', v === 'detail');
+    if (v === 'feedbacks') { fetchAllFeedbacks(); startListPolling(); } else { stopListPolling(); }
+    if (v === 'detail') { startStream(); } else { stopStream(); stopPolling(); }
   };
 
   // --- Feedbacks list ---
@@ -489,7 +489,10 @@
 
   const fetchAllFeedbacks = async () => {
     const listEl = wrapper.querySelector('#vv-feedbacks-list');
-    listEl.innerHTML = '<div class="feedbacks-loading">Loading feedbacks...</div>';
+    // Only show loading spinner if list is empty (first load), not on poll refreshes
+    if (!listEl.querySelector('.feedback-item')) {
+      listEl.innerHTML = '<div class="feedbacks-loading">Loading feedbacks...</div>';
+    }
     try {
       const res = await fetch(`${API_FEEDBACKS}?key=${apiKey}`);
       if (!res.ok) {
@@ -561,6 +564,7 @@
     // Switch to detail view and fetch replies
     wrapper.querySelector('.view-feedbacks').style.display = 'none';
     wrapper.querySelector('.view-detail').style.display = 'flex';
+    wrapper.querySelector('.popup').classList.add('tall');
     // Highlight feedbacks tab in nav
     wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === 'feedbacks'));
     fetchReplies();
@@ -574,6 +578,9 @@
       section.innerHTML = `
         <div class="reply-attach-previews" id="vv-reply-attach-previews"></div>
         <div class="chat-input" style="border-top: none; padding: 0;">
+          <button type="button" id="vv-reply-capture-btn" style="background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; cursor: pointer; display: flex; align-items: center; color: #6b7280;" title="Screenshot">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          </button>
           <button type="button" id="vv-reply-attach-btn" style="background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; cursor: pointer; display: flex; align-items: center; color: #6b7280;" title="Attach files">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
           </button>
@@ -582,13 +589,15 @@
           <button class="btn btn-sm" id="vv-send-reply">Send</button>
         </div>
         <div id="vv-reply-error" style="display:none; color: #b91c1c; font-size: 12px; margin-top: 8px;"></div>
-      <style>#vv-reply-section { border-top: 1px solid #f3f4f6; padding: 12px 20px; }</style>
+      <style>#vv-reply-section { border-top: 1px solid #f3f4f6; padding: 8px 20px; }</style>
       `;
       section.querySelector('#vv-send-reply').onclick = sendReply;
       section.querySelector('#vv-reply-text').onkeydown = (e) => {
         section.querySelector('#vv-reply-error').style.display = 'none';
         if (e.key === 'Enter') sendReply();
       };
+      // Reply screenshot capture
+      section.querySelector('#vv-reply-capture-btn').onclick = () => captureScreenshotAndElement('reply');
       // Reply file attachment
       const replyFileInput = section.querySelector('#vv-reply-file-input');
       section.querySelector('#vv-reply-attach-btn').onclick = () => replyFileInput.click();
@@ -615,13 +624,28 @@
 
   const goBackToList = () => {
     selectedFeedbackId = null;
-    stopAll();
+    stopStream();
+    stopPolling();
     wrapper.querySelector('.view-detail').style.display = 'none';
     wrapper.querySelector('.view-feedbacks').style.display = 'flex';
+    wrapper.querySelector('.popup').classList.remove('tall');
     fetchAllFeedbacks(); // Refresh list
+    startListPolling();
   };
 
   // --- Replies ---
+  const renderReplyAttachments = (attachments) => {
+    if (!attachments || attachments.length === 0) return '';
+    const items = attachments.map(a => {
+      const isImage = a.mime_type && a.mime_type.startsWith('image/');
+      if (isImage) {
+        return `<a class="msg-attachment" href="${a.file_url}" target="_blank" rel="noopener"><img src="${a.file_url}" alt="${escapeHtml(a.file_name)}" loading="lazy"></a>`;
+      }
+      return `<a class="msg-attachment-file" href="${a.file_url}" target="_blank" rel="noopener">${escapeHtml(a.file_name)}</a>`;
+    }).join('');
+    return `<div class="msg-attachments">${items}</div>`;
+  };
+
   const renderReplyBubble = (r) => `
     <div class="msg-wrapper ${r.author_role}" data-reply-id="${r.id || ''}">
       <div class="msg-meta ${r.author_role}">
@@ -631,6 +655,7 @@
       </div>
       <div class="message ${r.author_role}">
         ${escapeHtml(r.content)}
+        ${renderReplyAttachments(r.attachments)}
       </div>
     </div>
   `;
@@ -741,27 +766,29 @@
   const startPolling = () => { stopPolling(); pollInterval = setInterval(fetchReplies, 5000); };
   const stopPolling = () => { if (pollInterval) clearInterval(pollInterval); pollInterval = null; };
 
-  const stopAll = () => { stopStream(); stopPolling(); };
+  const startListPolling = () => { stopListPolling(); listPollInterval = setInterval(fetchAllFeedbacks, 10000); };
+  const stopListPolling = () => { if (listPollInterval) clearInterval(listPollInterval); listPollInterval = null; };
+
+  const stopAll = () => { stopStream(); stopPolling(); stopListPolling(); };
 
   // --- Send feedback ---
   const sendFeedback = async () => {
     const text = wrapper.querySelector('#vv-textarea').value.trim();
-    const textErrorMsg = wrapper.querySelector('#vv-text-error');
+    const btn = wrapper.querySelector('#vv-submit');
+    const submitErrorMsg = wrapper.querySelector('#vv-submit-error');
     if (!text) {
-      textErrorMsg.style.display = 'block';
-      updatePopupHeight();
+      submitErrorMsg.textContent = 'Please describe your issue.';
+      submitErrorMsg.style.display = 'block';
       return;
     }
-    textErrorMsg.style.display = 'none';
+    submitErrorMsg.style.display = 'none';
 
     if (!clientEmail) {
       alert("Missing identity: Please use the VibeVaults invite link provided by your agency to leave feedback.");
       return;
     }
 
-    const btn = wrapper.querySelector('#vv-submit');
-    const submitErrorMsg = wrapper.querySelector('#vv-submit-error');
-    submitErrorMsg.style.display = 'none';
+    btn.disabled = true;
     btn.disabled = true;
     try {
       const metadata = getMetadata();
@@ -820,7 +847,7 @@
   };
 
   // --- Inspector Mode ---
-  const captureScreenshotAndElement = () => {
+  const captureScreenshotAndElement = (target = 'form') => {
     wrapper.querySelector('.popup').classList.remove('open');
     wrapper.querySelector('.badge').style.display = 'block';
 
@@ -900,34 +927,40 @@
         else domSelector = currentTarget.tagName.toLowerCase();
       }
 
-      const capBtn = wrapper.querySelector('#vv-capture-btn');
-      const originalText = capBtn.innerHTML;
-      capBtn.innerHTML = 'Capturing...';
-      capBtn.disabled = true;
+      const capBtn = target === 'reply'
+        ? wrapper.querySelector('#vv-reply-capture-btn')
+        : wrapper.querySelector('#vv-capture-btn');
+      const originalText = capBtn ? capBtn.innerHTML : '';
+      if (capBtn) { capBtn.innerHTML = 'Capturing...'; capBtn.disabled = true; }
 
       const finishCapture = async (dataUrl) => {
-        // Convert data URL to File object
         const res = await fetch(dataUrl);
         const blob = await res.blob();
         const screenshotFile = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' });
 
-        // Remove existing screenshot from pendingAttachments
-        pendingAttachments = pendingAttachments.filter(f => f.name !== 'screenshot.jpg');
-
-        // Enforce max files limit
-        if (pendingAttachments.length >= MAX_FILES) {
-          alert('Maximum ' + MAX_FILES + ' files allowed.');
-          cleanup();
-          capBtn.innerHTML = originalText;
-          capBtn.disabled = false;
-          return;
+        if (target === 'reply') {
+          replyAttachments = replyAttachments.filter(f => f.name !== 'screenshot.jpg');
+          if (replyAttachments.length >= MAX_FILES) {
+            alert('Maximum ' + MAX_FILES + ' files allowed.');
+            cleanup();
+            if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
+            return;
+          }
+          replyAttachments.unshift(screenshotFile);
+          refreshReplyPreviews();
+        } else {
+          pendingAttachments = pendingAttachments.filter(f => f.name !== 'screenshot.jpg');
+          if (pendingAttachments.length >= MAX_FILES) {
+            alert('Maximum ' + MAX_FILES + ' files allowed.');
+            cleanup();
+            if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
+            return;
+          }
+          pendingAttachments.unshift(screenshotFile);
+          refreshFeedbackPreviews();
         }
-
-        pendingAttachments.unshift(screenshotFile); // screenshot first
-        refreshFeedbackPreviews();
         cleanup();
-        capBtn.innerHTML = originalText;
-        capBtn.disabled = false;
+        if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
       };
 
       const captureOptions = {
@@ -976,11 +1009,11 @@
         body: JSON.stringify({ feedbackId: selectedFeedbackId, content: text, apiKey, senderEmail: clientEmail })
       });
       if (res.ok) {
-        await res.json();
+        const replyData = await res.json();
         // Upload reply attachments if any
         if (replyAttachments.length > 0) {
           try {
-            await uploadFiles(replyAttachments, selectedFeedbackId, null);
+            await uploadFiles(replyAttachments, selectedFeedbackId, replyData.replyId || null);
           } catch (uploadErr) {
             console.error('[VibeVaults] Reply attachment upload failed:', uploadErr);
           }
