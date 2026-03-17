@@ -10,6 +10,7 @@ import { updatePreferencesAction } from "@/actions/preferences";
 export default function UnsubscribeForm({ initialPreferences, token, isAgency }: { initialPreferences: any, token: string, isAgency?: boolean }) {
     const [notifyNewFeedback, setNotifyNewFeedback] = useState(initialPreferences.notify_new_feedback !== false);
     const [notifyReplies, setNotifyReplies] = useState(initialPreferences.notify_replies);
+    const [notifyProjectCreated, setNotifyProjectCreated] = useState(initialPreferences.notify_project_created !== false);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
@@ -17,7 +18,7 @@ export default function UnsubscribeForm({ initialPreferences, token, isAgency }:
         setLoading(true);
         setSuccess(false);
         try {
-            await updatePreferencesAction(token, notifyReplies, isAgency ? notifyNewFeedback : undefined);
+            await updatePreferencesAction(token, notifyReplies, isAgency ? notifyNewFeedback : undefined, isAgency ? notifyProjectCreated : undefined);
             setSuccess(true);
         } catch (error) {
             console.error("Failed to update preferences", error);
@@ -29,7 +30,8 @@ export default function UnsubscribeForm({ initialPreferences, token, isAgency }:
 
     const hasChanged =
         notifyReplies !== initialPreferences.notify_replies ||
-        (isAgency && notifyNewFeedback !== (initialPreferences.notify_new_feedback !== false));
+        (isAgency && notifyNewFeedback !== (initialPreferences.notify_new_feedback !== false)) ||
+        (isAgency && notifyProjectCreated !== (initialPreferences.notify_project_created !== false));
 
     return (
         <div className="space-y-6">
@@ -38,7 +40,7 @@ export default function UnsubscribeForm({ initialPreferences, token, isAgency }:
                     <div className="space-y-0.5">
                         <Label htmlFor="notify-new-feedback" className="text-base">New Feedback</Label>
                         <p className="text-sm text-gray-500">
-                            Receive an email when a client leaves new feedback on your projects.
+                            Receive an email when someone leaves new feedback on your projects.
                         </p>
                     </div>
                     <Switch
@@ -53,7 +55,7 @@ export default function UnsubscribeForm({ initialPreferences, token, isAgency }:
                 <div className="space-y-0.5">
                     <Label htmlFor="notify-replies" className="text-base">Reply Notifications</Label>
                     <p className="text-sm text-gray-500">
-                        Receive an email when {isAgency ? "a client" : "the agency"} replies to your feedback.
+                        Receive an email when {isAgency ? "someone" : "the agency"} replies to your feedback.
                     </p>
                 </div>
                 <Switch
@@ -62,6 +64,22 @@ export default function UnsubscribeForm({ initialPreferences, token, isAgency }:
                     onCheckedChange={(checked) => { setNotifyReplies(checked); setSuccess(false); }}
                 />
             </div>
+
+            {isAgency && (
+                <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                        <Label htmlFor="notify-project-created" className="text-base">New Projects</Label>
+                        <p className="text-sm text-gray-500">
+                            Receive an email when a new project is created in your workspace.
+                        </p>
+                    </div>
+                    <Switch
+                        id="notify-project-created"
+                        checked={notifyProjectCreated}
+                        onCheckedChange={(checked) => { setNotifyProjectCreated(checked); setSuccess(false); }}
+                    />
+                </div>
+            )}
 
             <Button
                 onClick={handleSave}

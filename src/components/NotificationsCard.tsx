@@ -77,7 +77,7 @@ export function NotificationsCard({ initialPreferences }: NotificationsCardProps
                             <div className="space-y-0.5">
                                 <Label htmlFor="notify-new-feedback" className="text-base">New Feedback</Label>
                                 <p className="text-sm text-gray-500">
-                                    Receive an email when a client leaves new feedback on your projects.
+                                    Receive an email when someone leaves new feedback on your projects.
                                 </p>
                             </div>
                             <Switch
@@ -91,7 +91,7 @@ export function NotificationsCard({ initialPreferences }: NotificationsCardProps
                             <div className="space-y-0.5">
                                 <Label htmlFor="notify-agency-replies" className="text-base">Feedback Replies</Label>
                                 <p className="text-sm text-gray-500">
-                                    Receive an email when a client replies to an existing feedback thread.
+                                    Receive an email when someone replies to an existing feedback thread.
                                 </p>
                             </div>
                             <Switch
@@ -105,7 +105,7 @@ export function NotificationsCard({ initialPreferences }: NotificationsCardProps
                             <div className="space-y-0.5">
                                 <Label htmlFor="notify-project-created" className="text-base">New Projects</Label>
                                 <p className="text-sm text-gray-500">
-                                    Receive an email when a team member creates a new project in your workspace.
+                                    Receive an email when someone creates a new project in your workspace.
                                 </p>
                             </div>
                             <Switch

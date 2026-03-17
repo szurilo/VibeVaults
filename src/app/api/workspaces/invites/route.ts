@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { sendWorkspaceInviteNotification, sendClientInviteNotification } from "@/lib/notifications";
+import { getNotificationPrefs } from "@/lib/notification-prefs";
 
 export async function POST(req: Request) {
     try {
@@ -136,11 +137,14 @@ export async function POST(req: Request) {
                 ? `${BASE_URL}/auth/confirm?token_hash=${hashedToken}&type=${verificationType}&next=/dashboard`
                 : `${BASE_URL}/auth/login?invite=${invite.id}`;
 
+            const { unsubscribeToken: wsUnsubToken } = await getNotificationPrefs(email, 'replies');
+
             await sendWorkspaceInviteNotification({
                 to: email,
                 inviterName: user.user_metadata?.full_name || user.email || 'A colleague',
                 workspaceName: workspace?.name || 'a workspace',
-                inviteLink
+                inviteLink,
+                unsubscribeToken: wsUnsubToken
             });
         }
 
@@ -159,10 +163,13 @@ export async function POST(req: Request) {
                 siteUrl.searchParams.set('vv_email', email);
                 const clientInviteLink = siteUrl.toString();
 
+                const { unsubscribeToken } = await getNotificationPrefs(email, 'replies');
+
                 await sendClientInviteNotification({
                     to: email,
                     projectName: project.name,
-                    inviteLink: clientInviteLink
+                    inviteLink: clientInviteLink,
+                    unsubscribeToken
                 });
             }
         }
