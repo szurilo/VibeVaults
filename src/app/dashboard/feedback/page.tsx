@@ -43,7 +43,9 @@ export default async function FeedbackListPage() {
                     )}
                 </h1>
                 {currentProject && (
-                    <AddFeedbackDialog projectId={currentProject.id} />
+                    <Highlight id="add-feedback" className="rounded-lg">
+                        <AddFeedbackDialog projectId={currentProject.id} />
+                    </Highlight>
                 )}
             </div>
 
