@@ -437,9 +437,17 @@ export async function sendWelcomeNotification({
                         </p>
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
-                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
-                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
-                            </p>
+                            <table style="border-collapse: collapse; margin-bottom: 16px;">
+                                <tr>
+                                    <td style="vertical-align: middle; padding-right: 14px;">
+                                        <img src="${BASE_URL}/avatar.jpg" alt="József Tar" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; display: block;" />
+                                    </td>
+                                    <td style="vertical-align: middle;">
+                                        <p style="margin: 0; font-size: 14px; font-weight: 600; color: #1a202c;">József Tar</p>
+                                        <p style="margin: 0; font-size: 13px; color: #718096;">Founder, VibeVaults</p>
+                                    </td>
+                                </tr>
+                            </table>
                         </div>
                         
                     </div>
