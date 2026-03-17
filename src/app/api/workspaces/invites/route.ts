@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { sendWorkspaceInviteNotification, sendClientInviteNotification } from "@/lib/notifications";
+import { getNotificationPrefs } from "@/lib/notification-prefs";
 
 export async function POST(req: Request) {
     try {
@@ -159,10 +160,13 @@ export async function POST(req: Request) {
                 siteUrl.searchParams.set('vv_email', email);
                 const clientInviteLink = siteUrl.toString();
 
+                const { unsubscribeToken } = await getNotificationPrefs(email, 'replies');
+
                 await sendClientInviteNotification({
                     to: email,
                     projectName: project.name,
-                    inviteLink: clientInviteLink
+                    inviteLink: clientInviteLink,
+                    unsubscribeToken
                 });
             }
         }
