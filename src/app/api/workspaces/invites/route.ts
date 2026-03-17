@@ -137,11 +137,14 @@ export async function POST(req: Request) {
                 ? `${BASE_URL}/auth/confirm?token_hash=${hashedToken}&type=${verificationType}&next=/dashboard`
                 : `${BASE_URL}/auth/login?invite=${invite.id}`;
 
+            const { unsubscribeToken: wsUnsubToken } = await getNotificationPrefs(email, 'replies');
+
             await sendWorkspaceInviteNotification({
                 to: email,
                 inviterName: user.user_metadata?.full_name || user.email || 'A colleague',
                 workspaceName: workspace?.name || 'a workspace',
-                inviteLink
+                inviteLink,
+                unsubscribeToken: wsUnsubToken
             });
         }
 

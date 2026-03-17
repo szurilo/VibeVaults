@@ -76,7 +76,7 @@ export async function sendFeedbackNotification({
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
-                                You received this because you have notifications enabled for <strong>${esc(projectName)}</strong>.
+                                You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
                             </p>
 
@@ -147,7 +147,7 @@ export async function sendProjectCreatedNotification({
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
-                                You received this because you are a member of <strong>${esc(workspaceName)}</strong>.
+                                You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
                             </p>
                             
@@ -217,7 +217,7 @@ export async function sendReplyNotification({
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
-                                You received this because you have notifications enabled for <strong>${esc(projectName)}</strong>.
+                                You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
                             </p>
 
@@ -274,7 +274,7 @@ export async function sendAgencyReplyNotification({
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
-                                You received this because you have notifications enabled for <strong>${esc(projectName)}</strong>.
+                                You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
                             </p>
 
@@ -330,7 +330,7 @@ export async function sendClientInviteNotification({
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
-                                You received this because you were invited to review <strong>${esc(projectName)}</strong>.
+                                You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
                             </p>
 
@@ -354,8 +354,9 @@ export async function sendWorkspaceInviteNotification({
     to,
     inviterName,
     workspaceName,
-    inviteLink
-}: { to: string, inviterName: string, workspaceName: string, inviteLink: string }) {
+    inviteLink,
+    unsubscribeToken
+}: { to: string, inviterName: string, workspaceName: string, inviteLink: string, unsubscribeToken?: string }) {
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
@@ -383,12 +384,19 @@ export async function sendWorkspaceInviteNotification({
                         </div>
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
+                                You received this because you have notifications enabled.
+                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                            </p>
+
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
-                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.<br>
-                                If you didn't expect this invitation, please ignore this email.
+                                This is an automatically generated email, please do not reply.<br>
+                                If you have questions, reach out to
+                                <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
                         </div>
-                        
+
                     </div>
                 </div>
             `
