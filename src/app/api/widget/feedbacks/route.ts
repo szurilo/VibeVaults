@@ -35,6 +35,7 @@ export async function GET(request: Request) {
             feedback_replies(id)
         `)
         .eq('project_id', project.id)
+        .neq('status', 'completed')
         .order('created_at', { ascending: false });
 
     if (feedbackError) {

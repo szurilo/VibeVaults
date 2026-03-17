@@ -118,7 +118,7 @@ export default function WorkspaceSwitcher({
                                         <DropdownMenuItem
                                             key={w.id}
                                             onSelect={() => handleWorkspaceChange(w.id)}
-                                            className="cursor-pointer flex items-center gap-2"
+                                            className="flex items-center gap-2"
                                         >
                                             <Avatar className="h-6 w-6 rounded-md border border-gray-100">
                                                 <AvatarImage src={w.brand_logo_url} alt={w.name} className="object-contain" />
@@ -142,7 +142,7 @@ export default function WorkspaceSwitcher({
                                         <DropdownMenuItem
                                             key={w.id}
                                             onSelect={() => handleWorkspaceChange(w.id)}
-                                            className="cursor-pointer flex items-center gap-2"
+                                            className="flex items-center gap-2"
                                         >
                                             <Avatar className="h-6 w-6 rounded-md border border-gray-100">
                                                 <AvatarImage src={w.brand_logo_url} alt={w.name} className="object-contain" />
@@ -159,7 +159,7 @@ export default function WorkspaceSwitcher({
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 onSelect={() => setShowNewWorkspaceDialog(true)}
-                                className="cursor-pointer flex items-center gap-2 text-blue-600 focus:text-blue-600 focus:bg-blue-50"
+                                className="flex items-center gap-2 text-blue-600 focus:text-blue-600 focus:bg-blue-50"
                             >
                                 <Plus className="h-4 w-4" />
                                 <span>Create Workspace</span>
