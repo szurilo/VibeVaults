@@ -15,7 +15,6 @@ export default async function UserSettingsPage() {
 
     const cookieStore = await cookies();
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
-    let selectedProjectId = cookieStore.get("selectedProjectId")?.value;
 
     if (workspaces && workspaces.length > 0) {
         if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
@@ -78,13 +77,6 @@ export default async function UserSettingsPage() {
         ? allInvites
         : allInvites?.filter(i => i.role === 'client') || [];
 
-    // Fetch all projects for this workspace to allow sending targeted client invites
-    const { data: projects } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('workspace_id', selectedWorkspaceId)
-        .order('created_at', { ascending: true });
-
     return (
         <div>
             <div className="flex justify-between items-center mb-8">
@@ -101,11 +93,9 @@ export default async function UserSettingsPage() {
                 workspaceId={selectedWorkspaceId}
                 members={members || []}
                 invites={invites || []}
-                projects={projects || []}
                 isOwner={isOwner}
                 currentUserId={user?.id}
                 currentUserEmail={user?.email}
-                selectedProjectId={selectedProjectId}
             />
         </div>
     );

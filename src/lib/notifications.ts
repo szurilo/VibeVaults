@@ -298,36 +298,63 @@ export async function sendAgencyReplyNotification({
 
 export async function sendClientInviteNotification({
     to,
-    projectName,
-    inviteLink,
+    workspaceName,
+    projects,
     unsubscribeToken
-}: { to: string, projectName: string, inviteLink: string, unsubscribeToken?: string }) {
+}: { to: string, workspaceName: string, projects: { name: string, url: string }[], unsubscribeToken?: string }) {
     try {
+        const firstProject = projects[0];
+
+        const projectListHtml = projects.length > 0
+            ? projects.map(p => `
+                <tr>
+                    <td style="padding: 8px 0; vertical-align: middle;">
+                        <span style="font-size: 14px; font-weight: 600; color: #1a202c;">${esc(p.name)}</span>
+                    </td>
+                    <td style="padding: 8px 0; vertical-align: middle; text-align: right;">
+                        <a href="${p.url}" style="font-size: 13px; color: #209CEE; text-decoration: none; font-weight: 500;">Visit site &rarr;</a>
+                    </td>
+                </tr>
+            `).join('')
+            : '';
+
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
             to,
-            subject: `You've been invited to review ${esc(projectName)}`,
+            subject: `You've been invited to provide feedback for ${esc(workspaceName)}`,
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                        
+
                         <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">Feedback Invite</h2>
-                        
+
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            You have been invited to provide structural and visual feedback for <strong>${esc(projectName)}</strong>.
+                            You have been invited to provide structural and visual feedback for <strong>${esc(workspaceName)}</strong>.
                         </p>
-                        
+
                         <p style="margin-bottom: 32px; font-size: 16px; color: #4a5568;">
-                            Click the button below to open the website securely. A feedback widget will appear in the bottom right corner, ready to record your notes.
+                            A feedback widget will appear in the bottom right corner of each site, ready to record your notes.
                         </p>
-                        
-                        <div style="margin-top: 32px;">
-                            <a href="${inviteLink}" 
-                               style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
-                               Open & Review Site
-                            </a>
+
+                        ${projectListHtml ? `
+                        <div style="background-color: #f9fafb; padding: 16px 20px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #f1f5f9;">
+                            <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.05em;">Projects</p>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                ${projectListHtml}
+                            </table>
                         </div>
-                        
+                        ` : ''}
+
+                        ${firstProject ? `
+                        <div style="margin-top: 32px;">
+                            <a href="${firstProject.url}"
+                               style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
+                               Get Started
+                            </a>
+                            ${projects.length > 1 ? `<p style="margin-top: 12px; font-size: 13px; color: #718096;">You have access to all projects in this workspace.</p>` : ''}
+                        </div>
+                        ` : ''}
+
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.

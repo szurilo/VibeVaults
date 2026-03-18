@@ -12,7 +12,6 @@ import { toast } from "sonner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { MailCheck, UserX, AlertCircle } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Highlight } from "@/components/Highlight";
 import {
     AlertDialog,
@@ -46,25 +45,20 @@ export function UserManagement({
     workspaceId,
     members,
     invites,
-    projects = [],
     isOwner,
     currentUserId,
     currentUserEmail,
-    selectedProjectId
 }: {
     workspaceId: string;
     members: any[];
     invites: any[];
-    projects?: any[];
     isOwner: boolean;
     currentUserId?: string;
     currentUserEmail?: string;
-    selectedProjectId?: string;
 }) {
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
     const [role, setRole] = useState<'member' | 'client'>('member');
-    const [selectedProjectIdState, setSelectedProjectIdState] = useState<string>(selectedProjectId || projects[0]?.id || '');
     const [isInviting, setIsInviting] = useState(false);
     const [isLeaving, setIsLeaving] = useState(false);
     const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -112,11 +106,6 @@ export function UserManagement({
             }
         }
 
-        if (role === 'client' && !selectedProjectId) {
-            setEmailError('Please select a project for the client to review');
-            return;
-        }
-
         setIsInviting(true);
         try {
             const res = await fetch('/api/workspaces/invites', {
@@ -126,7 +115,6 @@ export function UserManagement({
                     email: email.trim(),
                     workspaceId,
                     role,
-                    projectId: role === 'client' ? selectedProjectIdState : undefined
                 })
             });
 
@@ -228,6 +216,7 @@ export function UserManagement({
                 <Card>
                     <CardHeader>
                         <CardTitle>Users</CardTitle>
+                        <p className="text-sm text-muted-foreground">These users have workspace access.</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {members.map((member) => (
@@ -477,37 +466,14 @@ export function UserManagement({
                                         </div>
                                         <div className="flex items-start space-x-3">
                                             <RadioGroupItem value="client" id="r2" className="mt-1" />
-                                            <div className="flex flex-col w-full">
+                                            <div className="flex flex-col">
                                                 <Label htmlFor="r2" className="font-normal cursor-pointer">Client</Label>
-                                                <span className="text-xs text-muted-foreground mt-0.5 mb-2">Whitelist for leaving feedback via widget. Cannot access dashboard.</span>
-
-                                                {role === 'client' && projects.length > 0 && (
-                                                    <div className="mt-2 space-y-2">
-                                                        <Label className="text-xs font-semibold">Select Project to Review</Label>
-                                                        <Select value={selectedProjectIdState} onValueChange={setSelectedProjectIdState}>
-                                                            <SelectTrigger className="w-full h-9 bg-white">
-                                                                <SelectValue placeholder="Select a project..." />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {projects.map(p => (
-                                                                    <SelectItem key={p.id} value={p.id}>
-                                                                        {p.name}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                )}
-                                                {role === 'client' && projects.length === 0 && (
-                                                    <p className="text-xs text-orange-600 font-medium mt-1">
-                                                        You must create a project first before inviting a client.
-                                                    </p>
-                                                )}
+                                                <span className="text-xs text-muted-foreground mt-0.5">Whitelist for leaving feedback via widget. Cannot access dashboard.</span>
                                             </div>
                                         </div>
                                     </RadioGroup>
                                 </div>
-                                <Button type="submit" disabled={isInviting || (role === 'client' && projects.length === 0)} className="w-full cursor-pointer">
+                                <Button type="submit" disabled={isInviting} className="w-full cursor-pointer">
                                     {isInviting ? "Sending..." : "Send Invite"}
                                 </Button>
                             </form>

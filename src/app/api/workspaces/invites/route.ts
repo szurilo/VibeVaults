@@ -16,16 +16,13 @@ import { getNotificationPrefs } from "@/lib/notification-prefs";
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { email, workspaceId, role = 'member', projectId } = body;
+        const { email, workspaceId, role = 'member' } = body;
 
         if (!email || !workspaceId) {
             return new NextResponse("Email and Workspace ID are required", { status: 400 });
         }
         if (role !== 'member' && role !== 'client') {
             return new NextResponse("Invalid role", { status: 400 });
-        }
-        if (role === 'client' && !projectId) {
-            return new NextResponse("Project ID is required for client invites", { status: 400 });
         }
 
         const supabase = await createClient();
@@ -148,30 +145,37 @@ export async function POST(req: Request) {
             });
         }
 
-        // For 'client' role, we generate a magic link (if they are new) or standard tracking link (if existing) 
-        // to direct them to the project website
-        if (role === 'client' && projectId) {
-            const { data: project } = await supabase
+        // For 'client' role, send a workspace-level invite email listing all projects
+        // Use admin client to bypass RLS (the authed user may not own all projects in edge cases)
+        if (role === 'client') {
+            const adminSupabaseClient = createAdminClient();
+            const { data: projects } = await adminSupabaseClient
                 .from('projects')
                 .select('name, website_url')
-                .eq('id', projectId)
-                .single();
+                .eq('workspace_id', workspaceId)
+                .order('created_at', { ascending: true });
 
-            if (project && project.website_url) {
-                // Determine base base website url for the client to review
-                const siteUrl = new URL(project.website_url);
-                siteUrl.searchParams.set('vv_email', email);
-                const clientInviteLink = siteUrl.toString();
-
-                const { unsubscribeToken } = await getNotificationPrefs(email, 'replies');
-
-                await sendClientInviteNotification({
-                    to: email,
-                    projectName: project.name,
-                    inviteLink: clientInviteLink,
-                    unsubscribeToken
-                });
+            const projectList: { name: string, url: string }[] = [];
+            for (const p of (projects || [])) {
+                if (!p.website_url) continue;
+                try {
+                    const siteUrl = new URL(p.website_url);
+                    siteUrl.searchParams.set('vv_email', email);
+                    projectList.push({ name: p.name, url: siteUrl.toString() });
+                } catch {
+                    // website_url is not a valid URL, include project name with raw url
+                    projectList.push({ name: p.name, url: p.website_url });
+                }
             }
+
+            const { unsubscribeToken } = await getNotificationPrefs(email, 'replies');
+
+            await sendClientInviteNotification({
+                to: email,
+                workspaceName: workspace?.name || 'a workspace',
+                projects: projectList,
+                unsubscribeToken
+            });
         }
 
         return NextResponse.json(invite);
