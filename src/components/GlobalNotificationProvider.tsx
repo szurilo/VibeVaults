@@ -45,10 +45,15 @@ export function GlobalNotificationProvider({ children, userId }: { children: Rea
                                 // Tell NotificationBell to mark this notification as read
                                 window.dispatchEvent(new CustomEvent('vibe-notification-viewed', { detail: notification }));
 
-                                // Navigate to the project dashboard with feedback anchor
-                                document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
-                                const hash = notification.feedback_id ? `#${notification.feedback_id}` : '';
-                                router.push(`/dashboard/feedback${hash}`);
+                                if (notification.project_id) {
+                                    // Navigate to the project dashboard with feedback anchor
+                                    document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
+                                    const hash = notification.feedback_id ? `#${notification.feedback_id}` : '';
+                                    router.push(`/dashboard/feedback${hash}`);
+                                } else {
+                                    // Workspace-level notification (member removed/left)
+                                    router.push('/dashboard');
+                                }
                                 router.refresh();
                             }
                         },

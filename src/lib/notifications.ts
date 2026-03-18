@@ -434,6 +434,108 @@ export async function sendWorkspaceInviteNotification({
     }
 }
 
+export async function sendMemberRemovedNotification({
+    to,
+    workspaceName,
+    removedByName
+}: { to: string, workspaceName: string, removedByName: string }) {
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            to,
+            subject: `You've been removed from ${esc(workspaceName)}`,
+            html: `
+                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">Access Revoked</h2>
+
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
+                            <strong>${esc(removedByName)}</strong> has removed you from the workspace <strong>${esc(workspaceName)}</strong>.
+                        </p>
+
+                        <div style="background-color: #f9fafb; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #f1f5f9;">
+                            <p style="margin: 0; color: #1a202c; line-height: 1.6; font-size: 16px;">
+                                You no longer have access to the projects and feedback in this workspace. If you believe this was a mistake, please contact the workspace owner.
+                            </p>
+                        </div>
+
+                        <a href="${BASE_URL}/dashboard"
+                           style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;">
+                           Go to Dashboard
+                        </a>
+
+                        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
+                                This is an automatically generated email, please do not reply.<br>
+                                If you have questions, reach out to
+                                <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
+                            </p>
+                        </div>
+
+                    </div>
+                </div>
+            `
+        });
+        return { data, error };
+    } catch (e) {
+        console.error('Error in sendMemberRemovedNotification:', e);
+        return { data: null, error: e };
+    }
+}
+
+export async function sendMemberLeftNotification({
+    to,
+    workspaceName,
+    memberName
+}: { to: string, workspaceName: string, memberName: string }) {
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            to,
+            subject: `${esc(memberName)} left ${esc(workspaceName)}`,
+            html: `
+                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">Member Left</h2>
+
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
+                            <strong>${esc(memberName)}</strong> has left your workspace <strong>${esc(workspaceName)}</strong>.
+                        </p>
+
+                        <div style="background-color: #f9fafb; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #f1f5f9;">
+                            <p style="margin: 0; color: #1a202c; line-height: 1.6; font-size: 16px;">
+                                They will no longer have access to the projects and feedback in this workspace.
+                            </p>
+                        </div>
+
+                        <a href="${BASE_URL}/dashboard/settings/users"
+                           style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;">
+                           Manage Members
+                        </a>
+
+                        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
+                                This is an automatically generated email, please do not reply.<br>
+                                If you have questions, reach out to
+                                <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
+                            </p>
+                        </div>
+
+                    </div>
+                </div>
+            `
+        });
+        return { data, error };
+    } catch (e) {
+        console.error('Error in sendMemberLeftNotification:', e);
+        return { data: null, error: e };
+    }
+}
+
 export async function sendWelcomeNotification({
     to,
     name = 'there'
