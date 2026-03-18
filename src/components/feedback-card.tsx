@@ -25,7 +25,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -77,11 +77,20 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const [attachments, setAttachments] = useState<any[]>([])
     const [replyFiles, setReplyFiles] = useState<File[]>([])
     const [isUploadingReplyFiles, setIsUploadingReplyFiles] = useState(false)
+    const repliesContainerRef = useRef<HTMLDivElement>(null)
 
     const status = feedback.status || 'open'
     const supabase = createClient()
     const router = useRouter()
 
+    const scrollToBottom = useCallback(() => {
+        requestAnimationFrame(() => {
+            const el = repliesContainerRef.current
+            if (el) el.scrollTop = el.scrollHeight
+        })
+    }, [])
+
+    const replyCountRef = useRef(0)
     const fetchReplies = useCallback(async () => {
         setIsFetchingReplies(true)
         try {
@@ -92,19 +101,22 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                 .order('created_at', { ascending: true })
 
             if (error) throw error
-            // Flatten the join into an attachments property
             const repliesWithAttachments = (data || []).map(r => ({
                 ...r,
                 attachments: r.feedback_attachments || [],
                 feedback_attachments: undefined,
             }))
+            const newCount = repliesWithAttachments.length
+            const hadNewReply = newCount > replyCountRef.current
+            replyCountRef.current = newCount
             setReplies(repliesWithAttachments)
+            if (hadNewReply) scrollToBottom()
         } catch (err) {
             console.error("Error fetching replies:", err)
         } finally {
             setIsFetchingReplies(false)
         }
-    }, [feedback.id, supabase])
+    }, [feedback.id, supabase, scrollToBottom])
 
     const fetchAttachments = useCallback(async () => {
         try {
@@ -538,7 +550,10 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                 "h-8 px-3 text-[11px] font-semibold flex items-center gap-2",
                                 showReplies ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "text-gray-500"
                             )}
-                            onClick={() => setShowReplies(!showReplies)}
+                            onClick={() => {
+                                setShowReplies(!showReplies)
+                                if (!showReplies) scrollToBottom()
+                            }}
                         >
                             <MessageSquare className="w-3.5 h-3.5" />
                             {replies.length > 0 ? `${replies.length} Replies` : 'Write Reply'}
@@ -552,7 +567,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                             <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">No conversation yet</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                        <div ref={repliesContainerRef} className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar ">
                                             {replies.map((reply) => (
                                                 <div
                                                     key={reply.id}
