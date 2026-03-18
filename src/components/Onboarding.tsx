@@ -63,14 +63,12 @@ interface OnboardingProps {
     workspaceId?: string;
     isOwner?: boolean;
     completedSteps?: string[];
-    hasProjects?: boolean;
 }
 
 export default function Onboarding({
     workspaceId,
     isOwner = true,
     completedSteps = [],
-    hasProjects = false,
 }: OnboardingProps) {
     const router = useRouter();
     const [localCompleted, setLocalCompleted] = useState<string[]>(completedSteps);
@@ -85,9 +83,7 @@ export default function Onboarding({
         if (stored === 'true') setCollapsed(true);
     }, []);
 
-    // "Create a project" is auto-checked if projects exist
     const isStepCompleted = (stepId: string) => {
-        if (stepId === 'create_project' && hasProjects) return true;
         return localCompleted.includes(stepId);
     };
 
@@ -104,8 +100,6 @@ export default function Onboarding({
     };
 
     const handleToggleStep = async (stepId: string) => {
-        if (stepId === 'create_project' && hasProjects) return;
-
         const wasCompleted = localCompleted.includes(stepId);
         const newCompleted = wasCompleted
             ? localCompleted.filter(s => s !== stepId)
@@ -116,10 +110,7 @@ export default function Onboarding({
         try {
             await toggleOnboardingStepAction(stepId);
 
-            const nowAllDone = steps.every(s => {
-                if (s.id === 'create_project' && hasProjects) return true;
-                return newCompleted.includes(s.id);
-            });
+            const nowAllDone = steps.every(s => newCompleted.includes(s.id));
 
             if (nowAllDone) {
                 localStorage.removeItem('onboarding_collapsed');
@@ -137,13 +128,9 @@ export default function Onboarding({
 
     const handleStepGoClick = (item: OnboardingStep) => {
         if (item.action === 'dialog') {
-            // "Create a project" → open inline dialog
-            if (!hasProjects) {
-                setShowCreateProjectDialog(true);
-            }
+            setShowCreateProjectDialog(true);
             return;
         }
-        // Default: navigate via Link (handled by the Link component)
     };
 
     const progressPercent = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
@@ -230,18 +217,11 @@ export default function Onboarding({
                         <div className="space-y-3">
                             {steps.map((item) => {
                                 const checked = isStepCompleted(item.id);
-                                const isAutoChecked = item.id === 'create_project' && hasProjects;
-                                const isGoDisabled = item.action === 'dialog' && hasProjects;
-
                                 const goButtonContent = (
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        className={`cursor-pointer shrink-0 ${isGoDisabled
-                                            ? 'text-muted-foreground opacity-50 cursor-not-allowed'
-                                            : 'text-primary hover:text-primary hover:bg-primary/10'
-                                            }`}
-                                        disabled={isGoDisabled}
+                                        className="cursor-pointer shrink-0 text-primary hover:text-primary hover:bg-primary/10"
                                         onClick={item.action ? (e) => { e.preventDefault(); handleStepGoClick(item); } : undefined}
                                     >
                                         <ExternalLink className="w-4 h-4 mr-1" />
@@ -261,7 +241,6 @@ export default function Onboarding({
                                             <Checkbox
                                                 id={item.id}
                                                 checked={checked}
-                                                disabled={isAutoChecked}
                                                 onCheckedChange={() => handleToggleStep(item.id)}
                                                 className="cursor-pointer"
                                             />
@@ -282,7 +261,7 @@ export default function Onboarding({
                                             )}
                                         </div>
                                         {/* Go button: use Link for navigation, button for actions */}
-                                        {item.action || isGoDisabled ? (
+                                        {item.action ? (
                                             goButtonContent
                                         ) : (
                                             <Button

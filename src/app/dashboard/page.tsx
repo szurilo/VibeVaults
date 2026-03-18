@@ -88,7 +88,6 @@ export default async function DashboardPage() {
                     workspaceId={selectedWorkspaceId}
                     isOwner={isOwner}
                     completedSteps={completedSteps}
-                    hasProjects={!!(projects && projects.length > 0)}
                 />
             )}
 
