@@ -36,17 +36,18 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
 
-    const { feedbackId, content, apiKey, senderEmail } = await request.json();
+    const { feedbackId, content, apiKey, senderEmail, hasAttachments } = await request.json();
 
-    if (!feedbackId || !content || !apiKey || !senderEmail) {
+    if (!feedbackId || !apiKey || !senderEmail) {
         return corsError("Missing required fields", 400);
     }
+    const replyContent = typeof content === "string" ? content.trim() : "";
 
-    if (typeof content !== "string" || content.trim().length === 0) {
-        return corsError("Reply content is required.", 400);
+    if (!replyContent && !hasAttachments) {
+        return corsError("Reply must include text or attachments.", 400);
     }
 
-    if (content.length > 5000) {
+    if (replyContent.length > 5000) {
         return corsError("Reply content is too long (max 5000 characters).", 400);
     }
 
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
         .from('feedback_replies')
         .insert({
             feedback_id: feedbackId,
-            content,
+            content: replyContent,
             author_role: 'client',
             author_name: senderEmail
         })
@@ -157,7 +158,7 @@ export async function POST(request: Request) {
                             await sendAgencyReplyNotification({
                                 to: email,
                                 projectName: projectData.name,
-                                replyContent: content,
+                                replyContent: replyContent,
                                 senderName: senderEmail,
                                 unsubscribeToken: prefs.unsubscribeToken
                             });

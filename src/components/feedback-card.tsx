@@ -25,7 +25,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -77,28 +77,46 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const [attachments, setAttachments] = useState<any[]>([])
     const [replyFiles, setReplyFiles] = useState<File[]>([])
     const [isUploadingReplyFiles, setIsUploadingReplyFiles] = useState(false)
+    const repliesContainerRef = useRef<HTMLDivElement>(null)
 
     const status = feedback.status || 'open'
     const supabase = createClient()
     const router = useRouter()
 
+    const scrollToBottom = useCallback(() => {
+        requestAnimationFrame(() => {
+            const el = repliesContainerRef.current
+            if (el) el.scrollTop = el.scrollHeight
+        })
+    }, [])
+
+    const replyCountRef = useRef(0)
     const fetchReplies = useCallback(async () => {
         setIsFetchingReplies(true)
         try {
             const { data, error } = await supabase
                 .from('feedback_replies')
-                .select('*')
+                .select('*, feedback_attachments(id, file_name, file_url, file_size, mime_type)')
                 .eq('feedback_id', feedback.id)
                 .order('created_at', { ascending: true })
 
             if (error) throw error
-            setReplies(data || [])
+            const repliesWithAttachments = (data || []).map(r => ({
+                ...r,
+                attachments: r.feedback_attachments || [],
+                feedback_attachments: undefined,
+            }))
+            const newCount = repliesWithAttachments.length
+            const hadNewReply = newCount > replyCountRef.current
+            replyCountRef.current = newCount
+            setReplies(repliesWithAttachments)
+            if (hadNewReply) scrollToBottom()
         } catch (err) {
             console.error("Error fetching replies:", err)
         } finally {
             setIsFetchingReplies(false)
         }
-    }, [feedback.id, supabase])
+    }, [feedback.id, supabase, scrollToBottom])
 
     const fetchAttachments = useCallback(async () => {
         try {
@@ -106,6 +124,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                 .from('feedback_attachments')
                 .select('*')
                 .eq('feedback_id', feedback.id)
+                .is('reply_id', null)
                 .order('created_at', { ascending: true })
 
             if (error) throw error
@@ -121,7 +140,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
         fetchReplies()
         fetchAttachments()
 
-        // Subscribe to Realtime for new replies on this feedback
+        // Subscribe to Realtime for new replies and attachments on this feedback
         const channel = supabase
             .channel(`replies-${feedback.id}`)
             .on(
@@ -132,13 +151,23 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                     table: 'feedback_replies',
                     filter: `feedback_id=eq.${feedback.id}`,
                 },
-                (payload) => {
-                    const newReply = payload.new as any
-                    setReplies((prev) => {
-                        // Avoid duplicates
-                        if (prev.some((r) => r.id === newReply.id)) return prev
-                        return [...prev, newReply]
-                    })
+                () => {
+                    // Refetch replies with attachments for complete data
+                    fetchReplies()
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'feedback_attachments',
+                    filter: `feedback_id=eq.${feedback.id}`,
+                },
+                () => {
+                    // Refetch both replies (for reply attachments) and feedback attachments
+                    fetchReplies()
+                    fetchAttachments()
                 }
             )
             .subscribe()
@@ -153,13 +182,14 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
         if (!newReply.trim() && replyFiles.length === 0) return
         setIsSendingReply(true)
         try {
-            const replyResult = await sendAgencyReplyAction(feedback.id, newReply || "(attachment)")
+            const replyResult = await sendAgencyReplyAction(feedback.id, newReply.trim())
 
             // Upload reply files if any
             if (replyFiles.length > 0) {
                 setIsUploadingReplyFiles(true)
                 const formData = new FormData()
                 formData.append('feedbackId', feedback.id)
+                if (replyResult?.replyId) formData.append('replyId', replyResult.replyId)
                 for (const f of replyFiles) formData.append('files', f)
 
                 await fetch('/api/dashboard/upload', {
@@ -520,7 +550,10 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                 "h-8 px-3 text-[11px] font-semibold flex items-center gap-2",
                                 showReplies ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "text-gray-500"
                             )}
-                            onClick={() => setShowReplies(!showReplies)}
+                            onClick={() => {
+                                setShowReplies(!showReplies)
+                                if (!showReplies) scrollToBottom()
+                            }}
                         >
                             <MessageSquare className="w-3.5 h-3.5" />
                             {replies.length > 0 ? `${replies.length} Replies` : 'Write Reply'}
@@ -534,7 +567,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                             <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">No conversation yet</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                        <div ref={repliesContainerRef} className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar ">
                                             {replies.map((reply) => (
                                                 <div
                                                     key={reply.id}
@@ -552,6 +585,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                             {new Date(reply.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                     </div>
+                                                    {reply.content && (
                                                     <div
                                                         className={cn(
                                                             "px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-xs",
@@ -562,6 +596,56 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                     >
                                                         {reply.content}
                                                     </div>
+                                                    )}
+                                                    {reply.attachments && reply.attachments.length > 0 && (
+                                                        <div className="flex flex-wrap gap-2 mt-1">
+                                                            {reply.attachments.map((att: any) => (
+                                                                isImageFile(att.mime_type) ? (
+                                                                    <Sheet key={att.id}>
+                                                                        <SheetTrigger asChild>
+                                                                            <div className="relative rounded-lg overflow-hidden border border-gray-200 cursor-pointer group w-[120px] h-[80px] shadow-sm">
+                                                                                <img src={att.file_url} alt={att.file_name} className="w-full h-full object-cover" />
+                                                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                                                                    <div className="bg-white/95 shadow-md text-gray-800 text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                                                                        View
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </SheetTrigger>
+                                                                        <SheetContent className="w-full sm:max-w-5xl h-full flex flex-col p-0">
+                                                                            <div className="px-8 pt-8 flex-none">
+                                                                                <SheetHeader>
+                                                                                    <SheetTitle className="flex items-center gap-2 text-xl">
+                                                                                        <ImageIcon className="w-5 h-5 text-blue-600" />
+                                                                                        {att.file_name}
+                                                                                    </SheetTitle>
+                                                                                    <SheetDescription>
+                                                                                        Uploaded by {att.uploaded_by || reply.author_name || 'Unknown'}
+                                                                                    </SheetDescription>
+                                                                                </SheetHeader>
+                                                                            </div>
+                                                                            <div className="flex-1 min-h-0 flex flex-col px-8 pb-8 mt-6">
+                                                                                <div className="bg-slate-950 rounded-xl flex-1 flex flex-col overflow-hidden ring-1 ring-white/10 shadow-2xl items-center justify-center p-2 sm:p-6">
+                                                                                    <img src={att.file_url} alt={att.file_name} className="max-w-full max-h-full object-contain rounded-lg border border-white/10 drop-shadow-2xl" />
+                                                                                </div>
+                                                                            </div>
+                                                                        </SheetContent>
+                                                                    </Sheet>
+                                                                ) : (
+                                                                    <a
+                                                                        key={att.id}
+                                                                        href={att.file_url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors text-sm text-gray-700 shadow-sm"
+                                                                    >
+                                                                        <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                                                                        <span className="truncate max-w-[140px]">{att.file_name}</span>
+                                                                    </a>
+                                                                )
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                             {isFetchingReplies && (
@@ -577,15 +661,20 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                     {replyFiles.length > 0 && (
                                         <div className="flex flex-wrap gap-2 mb-2">
                                             {replyFiles.map((file, idx) => (
-                                                <div key={idx} className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-600">
+                                                <div key={idx} className="relative w-12 h-12 rounded-md border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center group">
                                                     {file.type.startsWith('image/') ? (
-                                                        <ImageIcon className="w-3 h-3 text-gray-400" />
+                                                        <img
+                                                            src={URL.createObjectURL(file)}
+                                                            alt={file.name}
+                                                            className="w-full h-full object-cover"
+                                                        />
                                                     ) : (
-                                                        <FileText className="w-3 h-3 text-gray-400" />
+                                                        <span className="text-[9px] font-semibold text-gray-500 text-center px-0.5 break-all leading-tight">
+                                                            {file.name.split('.').pop()?.toUpperCase() || 'FILE'}
+                                                        </span>
                                                     )}
-                                                    <span className="truncate max-w-[100px]">{file.name}</span>
                                                     <button
-                                                        className="text-gray-400 hover:text-red-500 ml-1"
+                                                        className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/50 text-white flex items-center justify-center text-[9px] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                                                         onClick={() => setReplyFiles(prev => prev.filter((_, i) => i !== idx))}
                                                     >
                                                         ✕

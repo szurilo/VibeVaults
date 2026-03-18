@@ -101,6 +101,25 @@ export async function GET(request: Request) {
                 .on(
                     "postgres_changes",
                     {
+                        event: "INSERT",
+                        schema: "public",
+                        table: "feedback_attachments",
+                        filter: `feedback_id=eq.${feedbackId}`,
+                    },
+                    (payload) => {
+                        try {
+                            const data = JSON.stringify(payload.new);
+                            controller.enqueue(
+                                encoder.encode(`event: new_attachment\ndata: ${data}\n\n`)
+                            );
+                        } catch {
+                            // Connection may have been closed
+                        }
+                    }
+                )
+                .on(
+                    "postgres_changes",
+                    {
                         event: "UPDATE",
                         schema: "public",
                         table: "feedbacks",

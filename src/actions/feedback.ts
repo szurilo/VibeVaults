@@ -75,7 +75,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
     if (checkError || !feedback) throw new Error("Feedback not found");
     const project = feedback.projects as unknown as { id: string; name: string };
 
-    const { error: replyError } = await supabase
+    const { data: replyData, error: replyError } = await supabase
         .from('feedback_replies')
         .insert({
             feedback_id: feedbackId,
@@ -83,9 +83,11 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
             user_id: user.id,
             author_role: 'agency',
             author_name: user.email || 'Support'
-        });
+        })
+        .select('id')
+        .single();
 
-    if (replyError) throw replyError;
+    if (replyError || !replyData) throw replyError || new Error("Failed to create reply");
 
     // Mark associated notifications as read
     await supabase.from('notifications').update({ is_read: true }).eq('feedback_id', feedbackId);
@@ -106,6 +108,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
     }
 
     revalidatePath('/dashboard/feedback');
+    return { replyId: replyData.id };
 }
 
 

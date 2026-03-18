@@ -546,15 +546,25 @@
     selectedFeedbackId = feedbackId;
     const feedback = cachedFeedbacks.find(f => f.id === feedbackId);
 
-    // Render detail header
+    // Render detail header with feedback-level attachments
     const headerEl = wrapper.querySelector('#vv-detail-header');
     if (feedback) {
+      const feedbackAttachmentsHtml = feedback.attachments && feedback.attachments.length > 0
+        ? `<div class="msg-attachments" style="margin-top:10px; padding:0 20px;">${feedback.attachments.map(a => {
+          const isImage = a.mime_type && a.mime_type.startsWith('image/');
+          if (isImage) {
+            return `<a class="msg-attachment" href="${a.file_url}" target="_blank" rel="noopener"><img src="${a.file_url}" alt="${escapeHtml(a.file_name)}" loading="lazy"></a>`;
+          }
+          return `<a class="msg-attachment-file" href="${a.file_url}" target="_blank" rel="noopener">${escapeHtml(a.file_name)}</a>`;
+        }).join('')}</div>`
+        : '';
       headerEl.innerHTML = `
         <div class="detail-header-top">
           <span class="feedback-status ${getStatusClass(feedback.status)}">${feedback.status || 'open'}</span>
           <span class="detail-sender">${escapeHtml(feedback.sender)}</span>
         </div>
         <p class="detail-content">${escapeHtml(feedback.content)}</p>
+        ${feedbackAttachmentsHtml}
       `;
     }
 
@@ -653,35 +663,11 @@
         <span style="color:#d1d5db;">•</span>
         <span>${new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
-      <div class="message ${r.author_role}">
-        ${escapeHtml(r.content)}
-        ${renderReplyAttachments(r.attachments)}
-      </div>
+      ${r.content ? `<div class="message ${r.author_role}">${escapeHtml(r.content)}</div>` : ''}
+      ${renderReplyAttachments(r.attachments)}
     </div>
   `;
 
-  const appendReply = (reply) => {
-    const chatEl = wrapper.querySelector('#vv-chat');
-    if (!chatEl) return;
-
-    // Check if user is near the bottom before appending
-    const wasAtBottom = chatEl.scrollHeight - chatEl.scrollTop - chatEl.clientHeight < 60;
-
-    // Remove the "no replies" placeholder if present
-    const noReplies = chatEl.querySelector('.chat-no-replies');
-    if (noReplies) noReplies.remove();
-
-    // Avoid duplicates (same reply ID)
-    if (reply.id && chatEl.querySelector(`[data-reply-id="${reply.id}"]`)) return;
-
-    const div = document.createElement('div');
-    div.innerHTML = renderReplyBubble(reply);
-    chatEl.appendChild(div.firstElementChild);
-
-    if (wasAtBottom) {
-      chatEl.scrollTop = chatEl.scrollHeight;
-    }
-  };
 
   const fetchReplies = async () => {
     if (!selectedFeedbackId) return;
@@ -717,11 +703,14 @@
       const url = `${API_STREAM}?feedbackId=${selectedFeedbackId}&key=${apiKey}`;
       eventSource = new EventSource(url);
 
-      eventSource.addEventListener('new_reply', (e) => {
-        try {
-          const reply = JSON.parse(e.data);
-          appendReply(reply);
-        } catch (err) { console.error('[VibeVaults] Failed to parse reply:', err); }
+      eventSource.addEventListener('new_reply', () => {
+        // Refetch all replies to get complete data including attachments
+        fetchReplies();
+      });
+
+      eventSource.addEventListener('new_attachment', () => {
+        // Refetch replies to pick up newly uploaded attachments
+        fetchReplies();
       });
 
       eventSource.addEventListener('status_update', (e) => {
@@ -997,7 +986,7 @@
     const errEl = wrapper.querySelector('#vv-reply-error');
     if (!textEl) return;
     const text = textEl.value.trim();
-    if (!text || !selectedFeedbackId || !clientEmail) return;
+    if ((!text && replyAttachments.length === 0) || !selectedFeedbackId || !clientEmail) return;
     const btn = wrapper.querySelector('#vv-send-reply');
     btn.disabled = true;
     if (errEl) errEl.style.display = 'none';
@@ -1006,7 +995,7 @@
       const res = await fetch(API_REPLY, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feedbackId: selectedFeedbackId, content: text, apiKey, senderEmail: clientEmail })
+        body: JSON.stringify({ feedbackId: selectedFeedbackId, content: text || '', apiKey, senderEmail: clientEmail, hasAttachments: replyAttachments.length > 0 })
       });
       if (res.ok) {
         const replyData = await res.json();
