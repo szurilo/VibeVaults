@@ -48,6 +48,12 @@ export async function DELETE() {
             }
         }
 
+        // Delete email_preferences (keyed by email, not user_id, so no FK cascade)
+        await adminAuthClient
+            .from("email_preferences")
+            .delete()
+            .eq("email", user.email);
+
         // Delete the user from Supabase Auth (cascades to DB tables via FK)
         // This is where the admin privileges are required
         const { error: deleteError } = await adminAuthClient.auth.admin.deleteUser(

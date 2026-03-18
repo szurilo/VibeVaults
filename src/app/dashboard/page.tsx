@@ -38,6 +38,8 @@ export default async function DashboardPage() {
         if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
             selectedWorkspaceId = workspaces[0].id;
         }
+    } else {
+        selectedWorkspaceId = undefined;
     }
 
     let projectsQuery = supabase.from('projects').select('*');
@@ -81,12 +83,11 @@ export default async function DashboardPage() {
                 </h1>
             </div>
 
-            {!hasOnboarded && (
+            {!hasOnboarded && selectedWorkspaceId && (
                 <Onboarding
                     workspaceId={selectedWorkspaceId}
                     isOwner={isOwner}
                     completedSteps={completedSteps}
-                    hasProjects={!!(projects && projects.length > 0)}
                 />
             )}
 

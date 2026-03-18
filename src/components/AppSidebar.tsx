@@ -104,6 +104,7 @@ export function AppSidebar({
                 </div>
 
                 {/* Projects Group */}
+                {selectedWorkspaceId && (
                 <div className="flex flex-col gap-2">
                     <div className="px-2">
                         <ProjectSwitcher
@@ -153,6 +154,7 @@ export function AppSidebar({
                         </SidebarMenuItem>
                     </SidebarMenu>
                 </div>
+                )}
             </SidebarContent>
 
             <SidebarFooter className="bg-white border-t border-gray-100 p-4">

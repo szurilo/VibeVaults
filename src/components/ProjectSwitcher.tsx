@@ -62,7 +62,7 @@ export default function ProjectSwitcher({
                                             {activeProject ? activeProject.name : 'No projects'}
                                         </span>
                                         <span className="truncate text-xs text-gray-500 w-full text-left">
-                                            Current Project
+                                            {activeProject ? 'Current Project' : 'Create one to get started'}
                                         </span>
                                     </div>
                                 </div>
@@ -80,7 +80,7 @@ export default function ProjectSwitcher({
                                         <DropdownMenuItem
                                             key={project.id}
                                             onSelect={() => handleProjectChange(project.id)}
-                                            className="cursor-pointer flex items-center gap-2"
+                                            className="flex items-center gap-2"
                                         >
                                             <Avatar className="h-6 w-6 rounded-md border border-gray-100 bg-gray-50 flex shrink-0 items-center justify-center">
                                                 <FolderOpen className="w-3 h-3 text-gray-500" />
@@ -91,10 +91,10 @@ export default function ProjectSwitcher({
                                 </>
                             )}
 
-                            <DropdownMenuSeparator />
+                            {projects.length > 0 && <DropdownMenuSeparator />}
                             <DropdownMenuItem
                                 onSelect={() => setShowNewProjectDialog(true)}
-                                className="cursor-pointer flex items-center gap-2 text-blue-600 focus:text-blue-600 focus:bg-blue-50"
+                                className="flex items-center gap-2 text-blue-600 focus:text-blue-600 focus:bg-blue-50"
                             >
                                 <Plus className="h-4 w-4" />
                                 <span>Create Project</span>

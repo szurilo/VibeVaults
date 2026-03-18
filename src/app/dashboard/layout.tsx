@@ -88,6 +88,8 @@ export default async function DashboardLayout({
         if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
             selectedWorkspaceId = workspaces[0].id;
         }
+    } else {
+        selectedWorkspaceId = undefined;
     }
 
 

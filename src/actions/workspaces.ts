@@ -1,8 +1,9 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
-import { sendWelcomeNotification } from '@/lib/notifications';
+import { sendWelcomeNotification, sendMemberRemovedNotification, sendMemberLeftNotification } from '@/lib/notifications';
 
 export async function createWorkspaceAction(name: string) {
     const supabase = await createClient();
@@ -58,6 +59,14 @@ export async function createWorkspaceAction(name: string) {
 
 export async function removeMemberAction(workspaceId: string, userId: string) {
     const supabase = await createClient();
+    const adminSupabase = createAdminClient();
+
+    // Gather info before deleting membership
+    const [{ data: { user: currentUser } }, { data: workspace }, { data: removedProfile }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from('workspaces').select('name').eq('id', workspaceId).single(),
+        adminSupabase.from('profiles').select('email').eq('id', userId).single()
+    ]);
 
     const { error } = await supabase
         .from('workspace_members')
@@ -69,14 +78,41 @@ export async function removeMemberAction(workspaceId: string, userId: string) {
         throw new Error(error.message);
     }
 
+    // Send in-app notification + email to removed member (fire-and-forget)
+    const workspaceName = workspace?.name || 'Unknown workspace';
+    const removerName = currentUser?.email?.split('@')[0] || 'The workspace owner';
+
+    adminSupabase.from('notifications').insert({
+        user_id: userId,
+        type: 'member_removed',
+        title: 'Access Revoked',
+        message: `You have been removed from ${workspaceName}`
+    }).then(() => {});
+
+    if (removedProfile?.email) {
+        sendMemberRemovedNotification({
+            to: removedProfile.email,
+            workspaceName,
+            removedByName: removerName
+        }).catch(e => console.error('Failed to send member removed email:', e));
+    }
+
     revalidatePath('/dashboard/settings/users');
 }
 
 export async function leaveWorkspaceAction(workspaceId: string) {
     const supabase = await createClient();
+    const adminSupabase = createAdminClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error('Not authenticated');
+
+    // Gather info before deleting membership
+    const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('name, owner_id')
+        .eq('id', workspaceId)
+        .single();
 
     const { error } = await supabase
         .from('workspace_members')
@@ -86,6 +122,33 @@ export async function leaveWorkspaceAction(workspaceId: string) {
 
     if (error) {
         throw new Error(error.message);
+    }
+
+    // Send in-app notification + email to workspace owner (fire-and-forget)
+    const workspaceName = workspace?.name || 'Unknown workspace';
+    const memberName = user.email?.split('@')[0] || 'A member';
+
+    if (workspace?.owner_id) {
+        adminSupabase.from('notifications').insert({
+            user_id: workspace.owner_id,
+            type: 'member_left',
+            title: 'Member Left',
+            message: `${memberName} has left ${workspaceName}`
+        }).then(() => {});
+
+        const { data: ownerProfile } = await adminSupabase
+            .from('profiles')
+            .select('email')
+            .eq('id', workspace.owner_id)
+            .single();
+
+        if (ownerProfile?.email) {
+            sendMemberLeftNotification({
+                to: ownerProfile.email,
+                workspaceName,
+                memberName
+            }).catch(e => console.error('Failed to send member left email:', e));
+        }
     }
 
     revalidatePath('/dashboard');
