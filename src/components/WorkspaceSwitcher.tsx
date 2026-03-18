@@ -71,15 +71,12 @@ export default function WorkspaceSwitcher({
         }
     };
 
-    if (!workspaces || workspaces.length === 0) {
-        return null;
-    }
+    const hasWorkspaces = workspaces && workspaces.length > 0;
+    const activeWorkspace = hasWorkspaces ? (workspaces.find(w => w.id === selectedWorkspaceId) || workspaces[0]) : null;
+    const hasOwnWorkspace = hasWorkspaces && workspaces.some(w => w.owner_id === user.id);
 
-    const activeWorkspace = workspaces.find(w => w.id === selectedWorkspaceId) || workspaces[0];
-    const hasOwnWorkspace = workspaces.some(w => w.owner_id === user.id);
-
-    const ownedWorkspaces = workspaces.filter(w => w.owner_id === user.id);
-    const invitedWorkspaces = workspaces.filter(w => w.owner_id !== user.id);
+    const ownedWorkspaces = hasWorkspaces ? workspaces.filter(w => w.owner_id === user.id) : [];
+    const invitedWorkspaces = hasWorkspaces ? workspaces.filter(w => w.owner_id !== user.id) : [];
 
     return (
         <Dialog open={showNewWorkspaceDialog} onOpenChange={setShowNewWorkspaceDialog}>
@@ -88,22 +85,38 @@ export default function WorkspaceSwitcher({
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <SidebarMenuButton size="lg" className="w-full justify-between gap-2 h-auto py-2 cursor-pointer bg-white border border-gray-100 shadow-sm hover:bg-gray-50">
-                                <div className="flex items-center gap-2 overflow-hidden">
-                                    <Avatar className="h-8 w-8 rounded-md border border-gray-200 shrink-0">
-                                        <AvatarImage src={activeWorkspace?.brand_logo_url} alt={activeWorkspace?.name} className="object-contain" />
-                                        <AvatarFallback className="bg-primary/10 text-primary rounded-md">
-                                            {activeWorkspace?.name.charAt(0).toUpperCase() || "W"}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex flex-col items-start text-sm overflow-hidden flex-1">
-                                        <span className="truncate font-medium w-full text-left">
-                                            {activeWorkspace?.name}
-                                        </span>
-                                        <span className="truncate text-xs text-gray-500 w-full text-left">
-                                            Current Workspace
-                                        </span>
+                                {hasWorkspaces ? (
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <Avatar className="h-8 w-8 rounded-md border border-gray-200 shrink-0">
+                                            <AvatarImage src={activeWorkspace?.brand_logo_url} alt={activeWorkspace?.name} className="object-contain" />
+                                            <AvatarFallback className="bg-primary/10 text-primary rounded-md">
+                                                {activeWorkspace?.name.charAt(0).toUpperCase() || "W"}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col items-start text-sm overflow-hidden flex-1">
+                                            <span className="truncate font-medium w-full text-left">
+                                                {activeWorkspace?.name}
+                                            </span>
+                                            <span className="truncate text-xs text-gray-500 w-full text-left">
+                                                Current Workspace
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <div className="h-8 w-8 rounded-md border border-dashed border-gray-300 flex items-center justify-center shrink-0">
+                                            <Plus className="h-4 w-4 text-blue-600" />
+                                        </div>
+                                        <div className="flex flex-col items-start text-sm overflow-hidden flex-1">
+                                            <span className="truncate font-medium w-full text-left">
+                                                No Workspace
+                                            </span>
+                                            <span className="truncate text-xs text-gray-500 w-full text-left">
+                                                Create one to get started
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                                 <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
                             </SidebarMenuButton>
                         </DropdownMenuTrigger>
@@ -156,7 +169,7 @@ export default function WorkspaceSwitcher({
                                 </>
                             )}
 
-                            <DropdownMenuSeparator />
+                            {hasWorkspaces && <DropdownMenuSeparator />}
                             <DropdownMenuItem
                                 onSelect={() => setShowNewWorkspaceDialog(true)}
                                 className="flex items-center gap-2 text-blue-600 focus:text-blue-600 focus:bg-blue-50"

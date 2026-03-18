@@ -20,6 +20,8 @@ export default async function UserSettingsPage() {
         if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
             selectedWorkspaceId = workspaces[0].id;
         }
+    } else {
+        selectedWorkspaceId = undefined;
     }
 
     if (!selectedWorkspaceId) {

@@ -62,7 +62,7 @@ export default function ProjectSwitcher({
                                             {activeProject ? activeProject.name : 'No projects'}
                                         </span>
                                         <span className="truncate text-xs text-gray-500 w-full text-left">
-                                            Current Project
+                                            {activeProject ? 'Current Project' : 'Create one to get started'}
                                         </span>
                                     </div>
                                 </div>
@@ -91,7 +91,7 @@ export default function ProjectSwitcher({
                                 </>
                             )}
 
-                            <DropdownMenuSeparator />
+                            {projects.length > 0 && <DropdownMenuSeparator />}
                             <DropdownMenuItem
                                 onSelect={() => setShowNewProjectDialog(true)}
                                 className="flex items-center gap-2 text-blue-600 focus:text-blue-600 focus:bg-blue-50"
