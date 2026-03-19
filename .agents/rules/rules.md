@@ -2,7 +2,7 @@
 trigger: always_on
 ---
 
-Use Next.js 16.1.1
+Use Next.js 16.1.4
 In Next.js 16 and above middleware.ts is replaced by proxy.ts. Same goes for Supabase middleware.ts.
 Use Shadcn whenever it suits.
 Shadcn components e.g. Cards should look the same unless I tell you otherwise.
