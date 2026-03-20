@@ -95,6 +95,19 @@
 - Email: Resend via `lib/notifications.ts` with per-user preferences. New email functions: `sendMemberRemovedNotification()`, `sendMemberLeftNotification()`.
 - Toast: Unified via `GlobalNotificationProvider`.
 
+### Email Digest & Cooldown System
+- **Goal**: Reduce Resend email volume by batching notifications instead of sending per-event.
+- **Digest logic** (`src/lib/email-digest.ts`):
+  - **Feedback emails**: 15-min digest window (`FEEDBACK_DIGEST_WINDOW_MS`) per recipient per project. First email sent immediately, subsequent queued.
+  - **Reply emails**: 10-min cooldown (`REPLY_COOLDOWN_MS`) per recipient per feedback thread. First email sent immediately, subsequent queued.
+- **Queue table**: `email_digest_queue` — stores pending (unsent) and sent (with `sent_at`) email records for cooldown checks.
+- **Cron endpoint**: `GET /api/cron/digest` (Vercel cron every 15 min, `vercel.json`) — processes pending queue items, groups by recipient + type, sends via Resend batch API (`sendBatchEmails()`).
+- **Digest email templates**: `sendFeedbackDigestEmail()` and `sendReplyDigestEmail()` in `notifications.ts`.
+- **Email frequency preference**: `email_preferences.email_frequency` column — `'digest'` (default) or `'realtime'` (reserved for future paid tier).
+- **Localhost safety**: All email preferences default to off when `NODE_ENV !== 'production'` — no dev email noise.
+- **Self-notification prevention**: Reply emails are never sent to the person who wrote the reply (in both `sendAgencyReplyAction` and widget reply route).
+- **Reply email wording**: Uses sender's email in template (not hardcoded "Support") — "New reply received!", "{sender} has responded...", "Says:".
+
 ### Public Sharing
 - Read-only project board sharing via tokenised links (`/share/[token]`). Managed in `ShareProjectCard` with server actions in `actions/project-sharing.ts`.
 
@@ -158,6 +171,7 @@
 | `/api/auth/delete-account` | POST | Delete user account (cleans up email prefs, Stripe customer) |
 | `/api/stripe/checkout` | POST | Stripe checkout session |
 | `/api/stripe/webhook` | POST | Stripe webhook handler |
+| `/api/cron/digest` | GET | Processes queued digest emails (Vercel cron, every 15 min) |
 
 ## 7. Server Actions
 | Action | Path | Purpose |
@@ -182,10 +196,12 @@
 | `feedback_replies` | Threaded replies on feedback items (real-time enabled) |
 | `feedback_attachments` | File attachments for feedbacks/replies (name, URL, size, MIME type, uploader) |
 | `notifications` | In-app notification records. `project_id` is nullable for workspace-level notifications |
-| `email_preferences` | Per-user email notification preferences (keyed by email) |
+| `email_preferences` | Per-user email notification preferences (keyed by email). Includes `email_frequency` (`digest`/`realtime`) |
+| `email_digest_queue` | Queued/sent email records for digest batching and cooldown checks |
 
 ## 9. Recent Database Migrations
 | Migration | Purpose |
 |---|---|
 | `20260315000000_simplify_notification_messages.sql` | Simplified trigger messages, all workspace members notified on replies |
 | `20260318000000_nullable_notification_project_id.sql` | Made `notifications.project_id` nullable for workspace-level notifications |
+| `20260319000000_add_email_digest.sql` | Added `email_digest_queue` table + `email_frequency` column on `email_preferences` |

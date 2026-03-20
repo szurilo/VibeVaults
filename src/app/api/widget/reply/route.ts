@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
 import { sendAgencyReplyNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
+import { shouldSendReplyImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
 
 export async function OPTIONS() {
     return optionsResponse();
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
         return corsError(replyError?.message || "Failed to create reply", 500);
     }
 
-    // 3. Notify all workspace members
+    // 3. Notify all workspace members (with reply cooldown per thread)
     try {
         const { data: projectData } = await adminSupabase
             .from('projects')
@@ -149,18 +150,39 @@ export async function POST(request: Request) {
                     .in('id', memberIds);
 
                 if (profiles) {
+                    const replyPayload = { replyContent, senderName: senderEmail, projectName: projectData.name };
+
                     for (const p of profiles) {
                         const email = p.email;
-                        if (!email) continue;
+                        if (!email || email === senderEmail) continue;
 
                         const prefs = await getNotificationPrefs(email, 'replies');
-                        if (prefs.shouldNotify) {
+                        if (!prefs.shouldNotify) continue;
+
+                        const sendNow = await shouldSendReplyImmediately(email, feedbackId);
+
+                        if (sendNow) {
                             await sendAgencyReplyNotification({
                                 to: email,
                                 projectName: projectData.name,
                                 replyContent: replyContent,
                                 senderName: senderEmail,
                                 unsubscribeToken: prefs.unsubscribeToken
+                            });
+                            await recordEmailSent({
+                                recipientEmail: email,
+                                notificationType: 'agency_reply',
+                                projectId: feedback.project_id,
+                                feedbackId,
+                                payload: replyPayload
+                            });
+                        } else {
+                            await queueDigestEmail({
+                                recipientEmail: email,
+                                notificationType: 'agency_reply',
+                                projectId: feedback.project_id,
+                                feedbackId,
+                                payload: replyPayload
                             });
                         }
                     }

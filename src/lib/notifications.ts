@@ -180,6 +180,7 @@ interface SendReplyEmailParams {
     projectName: string;
     replyContent: string;
     originalFeedback: string;
+    senderName: string;
     unsubscribeToken?: string;
 }
 
@@ -188,6 +189,7 @@ export async function sendReplyNotification({
     projectName,
     replyContent,
     originalFeedback,
+    senderName,
     unsubscribeToken
 }: SendReplyEmailParams) {
     try {
@@ -198,15 +200,15 @@ export async function sendReplyNotification({
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                        
-                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">New reply from Support</h2>
-                        
+
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">New reply received!</h2>
+
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            Support has responded to your feedback on <strong>${esc(projectName)}</strong>.
+                            <strong>${esc(senderName)}</strong> has responded to your feedback on <strong>${esc(projectName)}</strong>.
                         </p>
 
                         <div style="background-color: #f0f9ff; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #e0f2fe;">
-                            <p style="margin: 0; font-weight: 600; color: #0369a1; font-size: 14px; margin-bottom: 8px;">Support Says:</p>
+                            <p style="margin: 0; font-weight: 600; color: #0369a1; font-size: 14px; margin-bottom: 8px;">Says:</p>
                             <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${esc(replyContent)}"</p>
                         </div>
 
@@ -578,13 +580,188 @@ export async function sendWelcomeNotification({
                                 </tr>
                             </table>
                         </div>
-                        
+
                     </div>
                 </div>
             `
         });
         return { data, error };
     } catch (e) {
+        return { data: null, error: e };
+    }
+}
+
+// ─── Digest Email Templates ────────────────────────────────────────────────
+
+interface DigestFeedbackItem {
+    content: string;
+    sender?: string;
+    projectName: string;
+}
+
+export async function sendFeedbackDigestEmail({
+    to,
+    items,
+    unsubscribeToken
+}: { to: string; items: DigestFeedbackItem[]; unsubscribeToken?: string }) {
+    const count = items.length;
+    const projectNames = [...new Set(items.map(i => i.projectName))];
+    const projectLabel = projectNames.length === 1 ? esc(projectNames[0]) : `${projectNames.length} projects`;
+
+    const itemsHtml = items.slice(0, 10).map(item => `
+        <div style="padding: 12px 16px; border-left: 3px solid #209CEE; margin-bottom: 12px; background: #f9fafb; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0 0 4px; font-size: 13px; color: #718096;">${esc(item.projectName)}${item.sender ? ` &mdash; ${esc(item.sender)}` : ''}</p>
+            <p style="margin: 0; font-size: 15px; color: #1a202c; line-height: 1.5;">"${esc(item.content.slice(0, 200))}${item.content.length > 200 ? '…' : ''}"</p>
+        </div>
+    `).join('');
+
+    const moreHtml = count > 10 ? `<p style="font-size: 14px; color: #718096; margin-bottom: 24px;">…and ${count - 10} more</p>` : '';
+
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            to,
+            subject: `${count} new feedback${count > 1 ? 's' : ''} for ${projectLabel}`,
+            html: `
+                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">${count} new feedback${count > 1 ? 's' : ''} received</h2>
+
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
+                            Here's a summary of recent feedback for <strong>${projectLabel}</strong>.
+                        </p>
+
+                        ${itemsHtml}
+                        ${moreHtml}
+
+                        <a href="${BASE_URL}/dashboard/feedback"
+                           style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;">
+                           View All in Dashboard
+                        </a>
+
+                        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
+                                You received this because you have notifications enabled.
+                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                            </p>
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
+                                This is an automatically generated email, please do not reply.<br>
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `
+        });
+        return { data, error };
+    } catch (e) {
+        console.error('Error in sendFeedbackDigestEmail:', e);
+        return { data: null, error: e };
+    }
+}
+
+interface DigestReplyItem {
+    replyContent: string;
+    senderName: string;
+    projectName: string;
+    feedbackContentPreview?: string;
+}
+
+export async function sendReplyDigestEmail({
+    to,
+    items,
+    unsubscribeToken
+}: { to: string; items: DigestReplyItem[]; unsubscribeToken?: string }) {
+    const count = items.length;
+
+    const itemsHtml = items.slice(0, 10).map(item => `
+        <div style="padding: 12px 16px; border-left: 3px solid #0369a1; margin-bottom: 12px; background: #f0f9ff; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0 0 4px; font-size: 13px; color: #718096;">${esc(item.projectName)} &mdash; ${esc(item.senderName)}</p>
+            <p style="margin: 0; font-size: 15px; color: #0369a1; line-height: 1.5;">"${esc(item.replyContent.slice(0, 200))}${item.replyContent.length > 200 ? '…' : ''}"</p>
+            ${item.feedbackContentPreview ? `<p style="margin: 6px 0 0; font-size: 13px; color: #718096; font-style: italic;">Re: "${esc(item.feedbackContentPreview.slice(0, 100))}${item.feedbackContentPreview.length > 100 ? '…' : ''}"</p>` : ''}
+        </div>
+    `).join('');
+
+    const moreHtml = count > 10 ? `<p style="font-size: 14px; color: #718096; margin-bottom: 24px;">…and ${count - 10} more</p>` : '';
+
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            to,
+            subject: `${count} new repl${count > 1 ? 'ies' : 'y'} on your feedback`,
+            html: `
+                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">${count} new repl${count > 1 ? 'ies' : 'y'}</h2>
+
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
+                            Here's a summary of recent replies on your feedback threads.
+                        </p>
+
+                        ${itemsHtml}
+                        ${moreHtml}
+
+                        <a href="${BASE_URL}/dashboard/feedback"
+                           style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;">
+                           View in Dashboard
+                        </a>
+
+                        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
+                                You received this because you have notifications enabled.
+                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                            </p>
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
+                                This is an automatically generated email, please do not reply.<br>
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `
+        });
+        return { data, error };
+    } catch (e) {
+        console.error('Error in sendReplyDigestEmail:', e);
+        return { data: null, error: e };
+    }
+}
+
+// ─── Resend Batch API Helper ───────────────────────────────────────────────
+
+interface BatchEmailParams {
+    from: string;
+    to: string;
+    subject: string;
+    html: string;
+}
+
+/**
+ * Send multiple emails in a single Resend batch API call.
+ * Falls back to individual sends if batch fails.
+ */
+export async function sendBatchEmails(emails: BatchEmailParams[]) {
+    if (emails.length === 0) return;
+    if (emails.length === 1) {
+        return resend.emails.send(emails[0]);
+    }
+
+    try {
+        const { data, error } = await resend.batch.send(emails);
+        if (error) {
+            console.error('VibeVaults: Batch send failed, falling back to individual sends', error);
+            for (const email of emails) {
+                await resend.emails.send(email);
+            }
+        }
+        return { data, error };
+    } catch (e) {
+        console.error('VibeVaults: Batch send exception, falling back to individual sends', e);
+        for (const email of emails) {
+            try { await resend.emails.send(email); } catch { /* best effort */ }
+        }
         return { data: null, error: e };
     }
 }

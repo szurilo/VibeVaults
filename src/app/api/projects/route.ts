@@ -74,7 +74,7 @@ export async function POST(req: Request) {
         return new NextResponse(error.message, { status: 500 });
     }
 
-    // Notify workspace members via email
+    // Notify workspace members via email (batch API for multiple recipients)
     try {
         const adminSupabase = createAdminClient();
 
@@ -93,20 +93,21 @@ export async function POST(req: Request) {
 
             if (profiles) {
                 const creatorName = user.email?.split('@')[0] || 'A team member';
+
                 for (const p of profiles) {
                     const email = p.email;
                     if (!email) continue;
 
                     const prefs = await getNotificationPrefs(email, 'project_created');
-                    if (prefs.shouldNotify) {
-                        await sendProjectCreatedNotification({
-                            to: email,
-                            projectName: name,
-                            creatorName,
-                            workspaceName: workspace.name,
-                            unsubscribeToken: prefs.unsubscribeToken
-                        });
-                    }
+                    if (!prefs.shouldNotify) continue;
+
+                    await sendProjectCreatedNotification({
+                        to: email,
+                        projectName: name,
+                        creatorName,
+                        workspaceName: workspace.name,
+                        unsubscribeToken: prefs.unsubscribeToken
+                    });
                 }
             }
         }

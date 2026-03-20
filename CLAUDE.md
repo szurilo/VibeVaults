@@ -87,6 +87,15 @@ tests/              # Playwright E2E tests
 - DB triggers: `notify_new_feedback`, `notify_new_reply`, `notify_project_created`
 - In-app: `GlobalNotificationProvider` + `NotificationBell` via Supabase Realtime
 - Email: Resend via `lib/notifications.ts` with per-user preferences
+- **Email digest system** (`src/lib/email-digest.ts`):
+  - Feedback emails: 15-min digest window per recipient per project (first email immediate, subsequent queued)
+  - Reply emails: 10-min cooldown per recipient per feedback thread
+  - `email_digest_queue` table tracks sent/pending emails
+  - Cron endpoint `/api/cron/digest` (every 15 min via Vercel cron) processes queued items into batch digest emails
+  - `email_preferences.email_frequency`: `'digest'` (default) or `'realtime'` (future paid tier)
+  - **Localhost**: all email preferences default to off — no dev email noise
+  - **Self-notification prevention**: reply emails never sent to the person who wrote the reply
+  - Resend batch API used for multi-recipient digest sends
 
 ## Database Tables (Current)
 | Table | Key Columns |
@@ -99,7 +108,8 @@ tests/              # Playwright E2E tests
 | `feedbacks` | `id`, `project_id`, `content`, `type`, `sender`, `status`, `metadata` |
 | `feedback_replies` | `id`, `feedback_id`, `content`, `author_role`, `author_name` |
 | `notifications` | `id`, `user_id`, `project_id`, `feedback_id`, `type`, `title`, `message`, `read` |
-| `email_preferences` | `email`, `notify_replies`, `notify_new_feedback`, `notify_project_created` |
+| `email_preferences` | `email`, `notify_replies`, `notify_new_feedback`, `notify_project_created`, `email_frequency` |
+| `email_digest_queue` | `id`, `recipient_email`, `notification_type`, `project_id`, `feedback_id`, `payload`, `sent_at`, `created_at` |
 | `feedback_attachments` | `id`, `feedback_id`, `reply_id`, `project_id`, `file_name`, `file_url`, `file_size`, `mime_type`, `uploaded_by` |
 
 ## API Routes
@@ -118,3 +128,4 @@ tests/              # Playwright E2E tests
 | `/api/stripe/webhook` | POST | Stripe webhook |
 | `/api/auth/callback` | GET | Supabase auth callback |
 | `/api/auth/turnstile` | POST | Turnstile verification |
+| `/api/cron/digest` | GET | Processes queued digest emails (Vercel cron, every 15 min) |
