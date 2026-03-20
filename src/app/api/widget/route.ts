@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
 import { sendFeedbackNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
+import { shouldSendFeedbackImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
 
 export async function OPTIONS() {
     return optionsResponse();
@@ -137,11 +138,10 @@ export async function POST(request: Request) {
         return corsError(insertError.message, 500);
     }
 
-    // Notify all workspace members
+    // Notify all workspace members (digest-aware: immediate for first, queue for subsequent)
     try {
         const adminSupabase = createAdminClient();
 
-        // Fetch workspace members separately from profiles for maximum query reliability
         const { data: memberRows } = await adminSupabase
             .from('workspace_members')
             .select('user_id')
@@ -155,12 +155,18 @@ export async function POST(request: Request) {
                 .in('id', memberIds);
 
             if (profiles) {
+                const emailPayload = { content, sender, metadata, projectName: project.name };
+
                 for (const p of profiles) {
                     const email = p.email;
                     if (!email) continue;
 
                     const prefs = await getNotificationPrefs(email, 'new_feedback');
-                    if (prefs.shouldNotify) {
+                    if (!prefs.shouldNotify) continue;
+
+                    const sendNow = await shouldSendFeedbackImmediately(email, project.id);
+
+                    if (sendNow) {
                         await sendFeedbackNotification({
                             to: email,
                             projectName: project.name,
@@ -168,6 +174,19 @@ export async function POST(request: Request) {
                             sender,
                             metadata,
                             unsubscribeToken: prefs.unsubscribeToken
+                        });
+                        await recordEmailSent({
+                            recipientEmail: email,
+                            notificationType: 'new_feedback',
+                            projectId: project.id,
+                            payload: emailPayload
+                        });
+                    } else {
+                        await queueDigestEmail({
+                            recipientEmail: email,
+                            notificationType: 'new_feedback',
+                            projectId: project.id,
+                            payload: emailPayload
                         });
                     }
                 }

@@ -140,7 +140,7 @@ function ConfirmContent() {
                         <p className="text-xs text-muted-foreground mt-2 text-center">
                             If you continue to experience issues, please contact{' '}
                             <a href="mailto:support@vibe-vaults.com" className="underline hover:text-primary">
-                                support
+                                support@vibe-vaults.com
                             </a>.
                         </p>
                     </CardFooter>

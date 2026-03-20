@@ -12,7 +12,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Loader2, Check, Bell, Mail } from 'lucide-react';
+import { Loader2, Check, Mail, Clock } from 'lucide-react';
 
 interface NotificationsCardProps {
     initialPreferences: {
@@ -69,7 +69,7 @@ export function NotificationsCard({ initialPreferences }: NotificationsCardProps
                             Email Notifications
                         </CardTitle>
                         <CardDescription>
-                            Control which email notifications you want to receive.
+                            Control which email notifications you want to receive. To reduce noise, emails are batched into periodic digests rather than sent individually.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6 pt-2">
@@ -91,7 +91,7 @@ export function NotificationsCard({ initialPreferences }: NotificationsCardProps
                             <div className="space-y-0.5">
                                 <Label htmlFor="notify-agency-replies" className="text-base">Feedback Replies</Label>
                                 <p className="text-sm text-gray-500">
-                                    Receive an email when someone replies to an existing feedback thread.
+                                    Receive an email when someone replies to feedback you're involved in.
                                 </p>
                             </div>
                             <Switch
@@ -113,6 +113,12 @@ export function NotificationsCard({ initialPreferences }: NotificationsCardProps
                                 checked={notifyProjectCreated}
                                 onCheckedChange={(c) => { setNotifyProjectCreated(c); setSuccess(false); }}
                             />
+                        </div>
+                        <div className="flex items-start gap-2.5 rounded-lg bg-blue-50 border border-blue-100 p-3.5 mt-2">
+                            <Clock className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                            <p className="text-sm text-blue-700 leading-snug">
+                                Emails are grouped into digests every 15 minutes. The first notification is sent immediately &mdash; follow-ups within the same window are bundled into a single summary email.
+                            </p>
                         </div>
                     </CardContent>
                 </div>

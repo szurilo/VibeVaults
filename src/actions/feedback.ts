@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendReplyNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
+import { shouldSendReplyImmediately, shouldSendFeedbackImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
 
 
 export async function updateFeedbackStatus(id: string, status: string) {
@@ -92,18 +93,40 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
     // Mark associated notifications as read
     await supabase.from('notifications').update({ is_read: true }).eq('feedback_id', feedbackId);
 
-    // Send notification to client if they provided an email
-    if (feedback.sender && feedback.sender.includes('@')) {
+    // Send notification to feedback sender (skip if replier IS the sender)
+    if (feedback.sender && feedback.sender.includes('@') && feedback.sender !== user.email) {
         const prefs = await getNotificationPrefs(feedback.sender, 'replies');
 
         if (prefs.shouldNotify) {
-            await sendReplyNotification({
-                to: feedback.sender,
-                projectName: project.name,
-                replyContent: content,
-                originalFeedback: feedback.content,
-                unsubscribeToken: prefs.unsubscribeToken
-            });
+            const senderName = user.email || 'Someone';
+            const replyPayload = { replyContent: content, senderName, projectName: project.name, originalFeedback: feedback.content };
+            const sendNow = await shouldSendReplyImmediately(feedback.sender, feedbackId);
+
+            if (sendNow) {
+                await sendReplyNotification({
+                    to: feedback.sender,
+                    projectName: project.name,
+                    replyContent: content,
+                    originalFeedback: feedback.content,
+                    senderName,
+                    unsubscribeToken: prefs.unsubscribeToken
+                });
+                await recordEmailSent({
+                    recipientEmail: feedback.sender,
+                    notificationType: 'reply',
+                    projectId: project.id,
+                    feedbackId,
+                    payload: replyPayload
+                });
+            } else {
+                await queueDigestEmail({
+                    recipientEmail: feedback.sender,
+                    notificationType: 'reply',
+                    projectId: project.id,
+                    feedbackId,
+                    payload: replyPayload
+                });
+            }
         }
     }
 
@@ -143,15 +166,13 @@ export async function addManualFeedbackAction(projectId: string, content: string
 
     if (insertError) throw new Error(insertError.message);
 
-    // Notify all workspace members via email
+    // Notify all workspace members via email (digest-aware)
     try {
         const { createAdminClient } = await import("@/lib/supabase/admin");
         const { sendFeedbackNotification } = await import("@/lib/notifications");
-        const { getNotificationPrefs } = await import("@/lib/notification-prefs");
-        
+
         const adminSupabase = createAdminClient();
-        
-        // Get project details for the email
+
         const { data: projectData } = await adminSupabase
             .from('projects')
             .select('name, workspace_id')
@@ -173,12 +194,18 @@ export async function addManualFeedbackAction(projectId: string, content: string
                     .in('id', memberIds);
 
                 if (profiles) {
+                    const emailPayload = { content, sender: user.email || 'Agency Member', metadata: { is_manual: true }, projectName: projectData.name };
+
                     for (const p of profiles) {
                         const email = p.email;
                         if (!email) continue;
 
                         const prefs = await getNotificationPrefs(email, 'new_feedback');
-                        if (prefs.shouldNotify) {
+                        if (!prefs.shouldNotify) continue;
+
+                        const sendNow = await shouldSendFeedbackImmediately(email, projectId);
+
+                        if (sendNow) {
                             await sendFeedbackNotification({
                                 to: email,
                                 projectName: projectData.name,
@@ -186,6 +213,19 @@ export async function addManualFeedbackAction(projectId: string, content: string
                                 sender: user.email || 'Agency Member',
                                 metadata: { is_manual: true },
                                 unsubscribeToken: prefs.unsubscribeToken
+                            });
+                            await recordEmailSent({
+                                recipientEmail: email,
+                                notificationType: 'new_feedback',
+                                projectId,
+                                payload: emailPayload
+                            });
+                        } else {
+                            await queueDigestEmail({
+                                recipientEmail: email,
+                                notificationType: 'new_feedback',
+                                projectId,
+                                payload: emailPayload
                             });
                         }
                     }
