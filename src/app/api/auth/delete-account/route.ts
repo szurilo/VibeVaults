@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { cleanupWorkspaceStorage } from "@/lib/storage-cleanup";
 
 export async function DELETE() {
     const supabase = await createClient();
@@ -53,6 +54,18 @@ export async function DELETE() {
             .from("email_preferences")
             .delete()
             .eq("email", user.email);
+
+        // Clean up storage files for owned workspaces before cascade deletes DB records
+        const { data: ownedWorkspaces } = await adminAuthClient
+            .from("workspaces")
+            .select("id")
+            .eq("owner_id", user.id);
+
+        if (ownedWorkspaces) {
+            for (const workspace of ownedWorkspaces) {
+                await cleanupWorkspaceStorage(adminAuthClient, workspace.id);
+            }
+        }
 
         // Delete the user from Supabase Auth (cascades to DB tables via FK)
         // This is where the admin privileges are required
