@@ -91,7 +91,7 @@ tests/              # Playwright E2E tests
   - Feedback emails: 15-min digest window per recipient per project (first email immediate, subsequent queued)
   - Reply emails: 10-min cooldown per recipient per feedback thread
   - `email_digest_queue` table tracks sent/pending emails
-  - Cron endpoint `/api/cron/digest` (every 15 min via Vercel cron) processes queued items into batch digest emails
+  - Cron endpoint `/api/cron/digest` (every 15 min via Supabase pg_cron + pg_net) processes queued items into batch digest emails
   - `email_preferences.email_frequency`: `'digest'` (default) or `'realtime'` (future paid tier)
   - **Localhost**: all email preferences default to off — no dev email noise
   - **Self-notification prevention**: reply emails never sent to the person who wrote the reply
@@ -128,4 +128,4 @@ tests/              # Playwright E2E tests
 | `/api/stripe/webhook` | POST | Stripe webhook |
 | `/api/auth/callback` | GET | Supabase auth callback |
 | `/api/auth/turnstile` | POST | Turnstile verification |
-| `/api/cron/digest` | GET | Processes queued digest emails (Vercel cron, every 15 min) |
+| `/api/cron/digest` | GET | Processes queued digest emails (Supabase pg_cron, every 15 min) |

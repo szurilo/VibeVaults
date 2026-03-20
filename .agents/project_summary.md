@@ -101,7 +101,7 @@
   - **Feedback emails**: 15-min digest window (`FEEDBACK_DIGEST_WINDOW_MS`) per recipient per project. First email sent immediately, subsequent queued.
   - **Reply emails**: 10-min cooldown (`REPLY_COOLDOWN_MS`) per recipient per feedback thread. First email sent immediately, subsequent queued.
 - **Queue table**: `email_digest_queue` — stores pending (unsent) and sent (with `sent_at`) email records for cooldown checks.
-- **Cron endpoint**: `GET /api/cron/digest` (Vercel cron every 15 min, `vercel.json`) — processes pending queue items, groups by recipient + type, sends via Resend batch API (`sendBatchEmails()`).
+- **Cron scheduling**: Supabase `pg_cron` + `pg_net` every 15 min (migration `20260320000000_pg_cron_email_digest.sql`). Calls `GET https://vibe-vaults.com/api/cron/digest`. No auth needed (endpoint is idempotent). No Vercel cron dependency.
 - **Digest email templates**: `sendFeedbackDigestEmail()` and `sendReplyDigestEmail()` in `notifications.ts`.
 - **Email frequency preference**: `email_preferences.email_frequency` column — `'digest'` (default) or `'realtime'` (reserved for future paid tier).
 - **Localhost safety**: All email preferences default to off when `NODE_ENV !== 'production'` — no dev email noise.
@@ -171,7 +171,7 @@
 | `/api/auth/delete-account` | POST | Delete user account (cleans up email prefs, Stripe customer) |
 | `/api/stripe/checkout` | POST | Stripe checkout session |
 | `/api/stripe/webhook` | POST | Stripe webhook handler |
-| `/api/cron/digest` | GET | Processes queued digest emails (Vercel cron, every 15 min) |
+| `/api/cron/digest` | GET | Processes queued digest emails (Supabase pg_cron, every 15 min) |
 
 ## 7. Server Actions
 | Action | Path | Purpose |
@@ -199,9 +199,11 @@
 | `email_preferences` | Per-user email notification preferences (keyed by email). Includes `email_frequency` (`digest`/`realtime`) |
 | `email_digest_queue` | Queued/sent email records for digest batching and cooldown checks |
 
+
 ## 9. Recent Database Migrations
 | Migration | Purpose |
 |---|---|
 | `20260315000000_simplify_notification_messages.sql` | Simplified trigger messages, all workspace members notified on replies |
 | `20260318000000_nullable_notification_project_id.sql` | Made `notifications.project_id` nullable for workspace-level notifications |
 | `20260319000000_add_email_digest.sql` | Added `email_digest_queue` table + `email_frequency` column on `email_preferences` |
+| `20260320000000_pg_cron_email_digest.sql` | pg_cron + pg_net setup, `app_config` table, scheduled digest processing every 15 min |

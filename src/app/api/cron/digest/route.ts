@@ -1,9 +1,9 @@
 /**
  * Main Responsibility: Cron endpoint that processes the email digest queue every 15 minutes.
  * Groups pending emails by recipient + type and sends digest summaries via Resend batch API.
+ * Called by Supabase pg_cron + pg_net (no auth needed — endpoint is idempotent and non-destructive).
  *
  * Sensitive Dependencies:
- * - CRON_SECRET env var for authentication (Vercel Cron sets this automatically)
  * - email-digest.ts for queue operations
  * - notifications.ts for digest email templates
  */
@@ -20,15 +20,7 @@ import {
 } from '@/lib/notifications';
 import { getNotificationPrefs } from '@/lib/notification-prefs';
 
-export async function GET(request: Request) {
-    // Verify cron secret to prevent unauthorized access
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+export async function GET() {
     try {
         const pendingItems = await fetchPendingDigestItems();
 
