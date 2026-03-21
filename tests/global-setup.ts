@@ -43,8 +43,7 @@ export default async function globalSetup() {
 
     // Complete onboarding: create a project
     await page.locator('text=Getting Started 🚀').waitFor({ state: 'visible', timeout: 15000 });
-    const createProjectRow = page.locator('div').filter({ has: page.locator('label', { hasText: 'Create a project' }) }).first();
-    await createProjectRow.getByRole('button', { name: /go/i }).click();
+    await page.getByRole('button', { name: /Create a project/i }).click();
 
     await page.getByRole('dialog').waitFor({ state: 'visible' });
     await page.locator('#createProjectName').fill('E2E Test Project');
