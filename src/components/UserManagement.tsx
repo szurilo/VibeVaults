@@ -169,6 +169,9 @@ export function UserManagement({
         try {
             const { leaveWorkspaceAction } = await import('@/actions/workspaces');
             await leaveWorkspaceAction(workspaceId);
+            // Clear the cookie so dashboard layout picks a different workspace
+            document.cookie = `selectedWorkspaceId=; path=/; max-age=0`;
+            document.cookie = `selectedProjectId=; path=/; max-age=0`;
             toast("Left Workspace", {
                 description: "You have successfully left the workspace.",
                 icon: <MailCheck className="h-4 w-4 text-green-500" />,

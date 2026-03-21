@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DangerZoneCard } from "@/components/DangerZoneCard";
+import { cleanupProjectStorage } from "@/lib/storage-cleanup";
 
 interface DeleteProjectCardProps {
     project: {
@@ -17,6 +18,8 @@ export function DeleteProjectCard({ project }: DeleteProjectCardProps) {
 
     const handleDeleteProject = async () => {
         if (!project) return;
+
+        await cleanupProjectStorage(supabase, project.id);
 
         const { error } = await supabase
             .from('projects')

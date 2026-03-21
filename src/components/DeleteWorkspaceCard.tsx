@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DangerZoneCard } from "@/components/DangerZoneCard";
+import { cleanupWorkspaceStorage } from "@/lib/storage-cleanup";
 
 interface DeleteWorkspaceCardProps {
     workspace: {
@@ -17,6 +18,8 @@ export function DeleteWorkspaceCard({ workspace }: DeleteWorkspaceCardProps) {
 
     const handleDeleteWorkspace = async () => {
         if (!workspace) return;
+
+        await cleanupWorkspaceStorage(supabase, workspace.id);
 
         const { error } = await supabase
             .from('workspaces')

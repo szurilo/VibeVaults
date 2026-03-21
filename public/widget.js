@@ -359,6 +359,20 @@
     .msg-attachment { display: block; width: 80px; height: 60px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1); }
     .msg-attachment img { width: 100%; height: 100%; object-fit: cover; }
     .msg-attachment-file { display: flex; align-items: center; gap: 4px; font-size: 11px; color: inherit; opacity: 0.8; text-decoration: underline; margin-top: 4px; }
+
+    /* Mobile responsive */
+    @media (max-width: 480px) {
+      :host { bottom: 12px; right: 12px; }
+      .trigger-btn { width: 64px; height: 64px; border-radius: 14px; }
+      .trigger-btn .top-text { font-size: 6px; margin-bottom: 2px; }
+      .trigger-btn .bottom-text { font-size: 9px; }
+      .popup {
+        position: fixed; bottom: 0; right: 0; left: 0; top: 0;
+        width: 100%; max-width: 100%; height: 100%; max-height: 100%;
+        border-radius: 0;
+      }
+      .popup.compact, .popup.tall { height: 100%; }
+    }
   `;
   shadow.appendChild(style);
 
@@ -1039,15 +1053,29 @@
   // --- Event bindings ---
   const triggerBtn = wrapper.querySelector('.trigger-btn');
 
+  let savedBodyOverflow = '';
+  const isMobile = () => window.innerWidth <= 480;
+  const lockScroll = () => {
+    if (isMobile()) {
+      savedBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+    }
+  };
+  const unlockScroll = () => {
+    document.body.style.overflow = savedBodyOverflow;
+  };
+
   triggerBtn.onclick = () => {
     isOpen = !isOpen;
     wrapper.querySelector('.popup').classList.toggle('open', isOpen);
     if (isOpen) {
+      lockScroll();
       wrapper.querySelector('.badge').style.display = 'none';
       if (needsEmailVerification) {
         switchView('email-prompt');
       }
     } else {
+      unlockScroll();
       stopAll();
     }
   };

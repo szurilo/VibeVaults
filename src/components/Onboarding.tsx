@@ -217,64 +217,52 @@ export default function Onboarding({
                         <div className="space-y-3">
                             {steps.map((item) => {
                                 const checked = isStepCompleted(item.id);
-                                const goButtonContent = (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="cursor-pointer shrink-0 text-primary hover:text-primary hover:bg-primary/10"
-                                        onClick={item.action ? (e) => { e.preventDefault(); handleStepGoClick(item); } : undefined}
+
+                                const labelContent = (
+                                    <span className={`text-sm font-medium select-none inline-flex items-center gap-1.5 ${checked
+                                        ? 'text-muted-foreground line-through'
+                                        : 'text-foreground hover:text-primary'
+                                        }`}
                                     >
-                                        <ExternalLink className="w-4 h-4 mr-1" />
-                                        <span className="hidden sm:inline">Go</span>
-                                    </Button>
+                                        {item.label}
+                                        {!checked && <ExternalLink className="w-3 h-3 opacity-50 shrink-0" />}
+                                    </span>
                                 );
 
                                 return (
                                     <div
                                         key={item.id}
-                                        className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${checked
+                                        className={`flex items-center justify-between gap-3 p-3 rounded-lg border transition-colors ${checked
                                             ? 'bg-white/60 border-primary/20'
                                             : 'bg-white border-gray-200 hover:border-primary/30'
                                             }`}
                                     >
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-3 min-w-0">
                                             <Checkbox
                                                 id={item.id}
                                                 checked={checked}
                                                 onCheckedChange={() => handleToggleStep(item.id)}
-                                                className="cursor-pointer"
+                                                className="cursor-pointer shrink-0"
                                             />
-                                            <label
-                                                htmlFor={item.id}
-                                                className={`text-sm font-medium select-none ${checked
-                                                    ? 'text-muted-foreground line-through cursor-pointer'
-                                                    : 'text-foreground cursor-pointer'
-                                                    }`}
-                                            >
-                                                {item.label}
-                                            </label>
-                                            {item.recommended && !checked && (
-                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                                    <Star className="w-2.5 h-2.5" />
-                                                    Recommended
-                                                </span>
+                                            {item.action ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleStepGoClick(item)}
+                                                    className="cursor-pointer text-left"
+                                                >
+                                                    {labelContent}
+                                                </button>
+                                            ) : (
+                                                <Link href={item.href} className="cursor-pointer">
+                                                    {labelContent}
+                                                </Link>
                                             )}
                                         </div>
-                                        {/* Go button: use Link for navigation, button for actions */}
-                                        {item.action ? (
-                                            goButtonContent
-                                        ) : (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                asChild
-                                                className="text-primary hover:text-primary hover:bg-primary/10 cursor-pointer shrink-0"
-                                            >
-                                                <Link href={item.href}>
-                                                    <ExternalLink className="w-4 h-4 mr-1" />
-                                                    <span className="hidden sm:inline">Go</span>
-                                                </Link>
-                                            </Button>
+                                        {item.recommended && !checked && (
+                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                                <Star className="w-2.5 h-2.5" />
+                                                Recommended
+                                            </span>
                                         )}
                                     </div>
                                 );

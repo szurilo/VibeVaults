@@ -46,6 +46,7 @@ export default function WorkspaceSwitcher({
     }, [selectedWorkspaceId, router]);
 
     const handleWorkspaceChange = (workspaceId: string) => {
+        if (workspaceId === selectedWorkspaceId) return;
         document.cookie = `selectedWorkspaceId=${workspaceId}; path=/; max-age=31536000`;
         document.cookie = `selectedProjectId=; path=/; max-age=0`;
         router.refresh();

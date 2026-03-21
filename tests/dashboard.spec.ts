@@ -25,11 +25,8 @@ test.describe('Onboarding flow', () => {
         // Onboarding card must appear
         await expect(page.locator('text=Getting Started 🚀')).toBeVisible();
 
-        // Open "Create a project" dialog via the Go button on that step row
-        const createProjectRow = page.locator('div').filter({
-            has: page.locator('label', { hasText: 'Create a project' }),
-        }).first();
-        await createProjectRow.getByRole('button', { name: /go/i }).click();
+        // Open "Create a project" dialog via the clickable step label
+        await page.getByRole('button', { name: /Create a project/i }).click();
 
         // Fill and submit the dialog
         await expect(page.getByRole('dialog')).toBeVisible();
