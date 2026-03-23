@@ -11,7 +11,7 @@ export async function OPTIONS() {
 
 export async function GET(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+    if (isRateLimited(ip, "widget:config")) return corsError("Too many requests. Please try again later.", 429);
 
     const { searchParams } = new URL(request.url);
     const apiKey = searchParams.get("key");
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+    if (isRateLimited(ip, "widget:submit")) return corsError("Too many requests. Please try again later.", 429);
 
     const { apiKey, content, type, sender, metadata, notifyReplies } = await request.json();
 

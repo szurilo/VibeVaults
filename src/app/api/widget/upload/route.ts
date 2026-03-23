@@ -25,7 +25,7 @@ export async function OPTIONS() {
 
 export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+    if (isRateLimited(ip, "widget:upload")) return corsError("Too many requests. Please try again later.", 429);
 
     const formData = await request.formData();
     const apiKey = formData.get("apiKey") as string;

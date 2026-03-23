@@ -22,7 +22,7 @@ export function corsSuccess(data: object) {
 
 // --- In-memory rate limiter (per warm serverless instance) ---
 const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 30;  // max requests per IP per window
+const RATE_LIMIT_MAX_REQUESTS = 60;  // max requests per IP per endpoint per window
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
@@ -35,15 +35,18 @@ setInterval(() => {
 }, 5 * 60_000);
 
 /**
- * Checks if an IP has exceeded the rate limit.
+ * Checks if an IP has exceeded the rate limit for a specific endpoint.
+ * Rate limits are tracked per IP + endpoint combination, so normal widget
+ * usage across multiple endpoints won't exhaust the budget.
  * Returns `true` if the request should be blocked.
  */
-export function isRateLimited(ip: string): boolean {
+export function isRateLimited(ip: string, endpoint?: string): boolean {
+    const key = endpoint ? `${ip}:${endpoint}` : ip;
     const now = Date.now();
-    const entry = rateLimitMap.get(ip);
+    const entry = rateLimitMap.get(key);
 
     if (!entry || now > entry.resetAt) {
-        rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+        rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
         return false;
     }
 

@@ -35,7 +35,7 @@ async function verifyApiKeyForFeedback(apiKey: string, feedbackId: string) {
 
 export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+    if (isRateLimited(ip, "widget:reply")) return corsError("Too many requests. Please try again later.", 429);
 
     const { feedbackId, content, apiKey, senderEmail, hasAttachments } = await request.json();
 
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+    if (isRateLimited(ip, "widget:replies")) return corsError("Too many requests. Please try again later.", 429);
 
     const { searchParams } = new URL(request.url);
     const feedbackId = searchParams.get('feedbackId');
