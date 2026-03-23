@@ -159,7 +159,7 @@ export async function POST(request: Request) {
 
                 for (const p of profiles) {
                     const email = p.email;
-                    if (!email) continue;
+                    if (!email || email === sender) continue;
 
                     const prefs = await getNotificationPrefs(email, 'new_feedback');
                     if (!prefs.shouldNotify) continue;
