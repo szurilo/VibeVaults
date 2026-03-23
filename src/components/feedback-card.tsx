@@ -578,7 +578,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                 >
                                                     <div className="flex items-center gap-2 px-1">
                                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">
-                                                            {reply.author_role === 'agency' ? (reply.author_name || 'Support') : feedback.sender}
+                                                            {reply.author_name || 'Unknown'}
                                                         </span>
                                                         <span className="text-[10px] text-gray-300">•</span>
                                                         <span className="text-[10px] text-gray-400" suppressHydrationWarning>

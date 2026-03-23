@@ -229,6 +229,7 @@
       position: absolute; bottom: 100px; right: 0; width: 380px; max-width: calc(100vw - 40px); height: 520px; max-height: calc(100vh - 140px);
       background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
       border: 1px solid #e5e7eb; overflow: hidden; animation: slideUp 0.3s ease-out; transition: height 0.15s ease;
+      overscroll-behavior: contain;
     }
     .popup.compact { height: auto; }
     .popup.tall { height: 620px; }
@@ -247,14 +248,14 @@
     .nav-item.active { color: #0f172a; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
     .view-form { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-    .view-form-body { flex: 1; overflow-y: auto; padding: 4px 20px; display: flex; flex-direction: column; gap: 6px; }
+    .view-form-body { flex: 1; overflow-y: auto; padding: 4px 20px; display: flex; flex-direction: column; gap: 6px; overscroll-behavior: contain; }
     .view-form-footer { flex-shrink: 0; padding: 0 20px 8px; }
     textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; background: white; color: #1f2937; }
     .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
 
     /* Feedbacks list */
     .view-feedbacks { display: none; flex-direction: column; height: 100%; }
-    .feedbacks-list { flex: 1; overflow-y: auto; }
+    .feedbacks-list { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
     .feedback-item {
       padding: 14px 20px; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: background 0.15s;
     }
@@ -293,7 +294,7 @@
     .detail-sender { font-size: 12px; color: #6b7280; font-weight: 500; }
     .detail-content { font-size: 13px; color: #1f2937; line-height: 1.5; margin: 0; white-space: pre-wrap; max-height: 97.5px; overflow-y: auto; padding: 0 20px; }
 
-    .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px 20px; }
+    .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px 20px; overscroll-behavior: contain; }
     .msg-wrapper { display: flex; flex-direction: column; max-width: 90%; gap: 6px; }
     .msg-wrapper.agency { align-self: flex-start; align-items: flex-start; }
     .msg-wrapper.client { align-self: flex-end; align-items: flex-end; }
@@ -363,15 +364,9 @@
     /* Mobile responsive */
     @media (max-width: 480px) {
       :host { bottom: 12px; right: 12px; }
-      .trigger-btn { width: 64px; height: 64px; border-radius: 14px; }
-      .trigger-btn .top-text { font-size: 6px; margin-bottom: 2px; }
-      .trigger-btn .bottom-text { font-size: 9px; }
-      .popup {
-        position: fixed; bottom: 0; right: 0; left: 0; top: 0;
-        width: 100%; max-width: 100%; height: 100%; max-height: 100%;
-        border-radius: 0;
-      }
-      .popup.compact, .popup.tall { height: 100%; }
+      .trigger-btn { width: 64px; height: 64px; border-radius: 14px; padding: 6px; overflow: hidden; }
+      .trigger-btn .top-text { font-size: 5.5px; margin-bottom: 2px; letter-spacing: 0.2px; }
+      .trigger-btn .bottom-text { font-size: 8px; letter-spacing: 0.2px; }
     }
   `;
   shadow.appendChild(style);
@@ -673,7 +668,7 @@
   const renderReplyBubble = (r) => `
     <div class="msg-wrapper ${r.author_role}" data-reply-id="${r.id || ''}">
       <div class="msg-meta ${r.author_role}">
-        <span style="font-weight:700; text-transform:uppercase; letter-spacing:-0.5px;">${r.author_role === 'agency' ? escapeHtml(r.author_name || 'Support') : escapeHtml(r.author_name || 'Client')}</span>
+        <span style="font-weight:700; text-transform:uppercase; letter-spacing:-0.5px;">${escapeHtml(r.author_name || 'Unknown')}</span>
         <span style="color:#d1d5db;">•</span>
         <span>${new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
@@ -791,7 +786,6 @@
       return;
     }
 
-    btn.disabled = true;
     btn.disabled = true;
     try {
       const metadata = getMetadata();
@@ -1053,29 +1047,29 @@
   // --- Event bindings ---
   const triggerBtn = wrapper.querySelector('.trigger-btn');
 
-  let savedBodyOverflow = '';
-  const isMobile = () => window.innerWidth <= 480;
-  const lockScroll = () => {
-    if (isMobile()) {
-      savedBodyOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
+  // Prevent background scroll-through on mobile: block touchmove on non-scrollable areas of the popup
+  const popup = wrapper.querySelector('.popup');
+  popup.addEventListener('touchmove', (e) => {
+    let el = e.target;
+    while (el && el !== popup) {
+      if (el.scrollHeight > el.clientHeight) {
+        const style = getComputedStyle(el);
+        if (style.overflowY === 'auto' || style.overflowY === 'scroll') return;
+      }
+      el = el.parentElement;
     }
-  };
-  const unlockScroll = () => {
-    document.body.style.overflow = savedBodyOverflow;
-  };
+    e.preventDefault();
+  }, { passive: false });
 
   triggerBtn.onclick = () => {
     isOpen = !isOpen;
-    wrapper.querySelector('.popup').classList.toggle('open', isOpen);
+    popup.classList.toggle('open', isOpen);
     if (isOpen) {
-      lockScroll();
       wrapper.querySelector('.badge').style.display = 'none';
       if (needsEmailVerification) {
         switchView('email-prompt');
       }
     } else {
-      unlockScroll();
       stopAll();
     }
   };
@@ -1142,6 +1136,8 @@
         localStorage.setItem(emailKey, clientEmail);
         needsEmailVerification = false;
         switchView('form');
+      } else if (data.error) {
+        emailError.textContent = data.error;
       } else {
         emailError.textContent = 'This email does not have access. Please contact the site owner.';
       }
