@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsHeaders, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
+import { corsHeaders, validateApiKey, verifyWidgetEmail } from "@/lib/widget-helpers";
 
 // SSE streams must not be cached or statically rendered
 export const dynamic = "force-dynamic";
@@ -24,18 +24,18 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const feedbackId = searchParams.get("feedbackId");
     const apiKey = searchParams.get("key");
-
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip)) {
-        return new Response(
-            JSON.stringify({ error: "Too many requests. Please try again later." }),
-            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-    }
+    const email = searchParams.get("email");
 
     if (!feedbackId || !apiKey) {
         return new Response(
             JSON.stringify({ error: "Missing feedbackId or key" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+    }
+
+    if (!email) {
+        return new Response(
+            JSON.stringify({ error: "Missing email" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
@@ -47,6 +47,15 @@ export async function GET(request: Request) {
         return new Response(
             JSON.stringify({ error: "Invalid API Key" }),
             { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+    }
+
+    // Verify the requesting user still has access to this workspace
+    const isAuthorized = await verifyWidgetEmail(email, project.workspace_id);
+    if (!isAuthorized) {
+        return new Response(
+            JSON.stringify({ error: "Access revoked. You no longer have access to this workspace." }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
 

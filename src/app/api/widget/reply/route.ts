@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
+import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
 import { sendAgencyReplyNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { shouldSendReplyImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
@@ -35,7 +35,7 @@ async function verifyApiKeyForFeedback(apiKey: string, feedbackId: string) {
 
 export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+    if (isRateLimited(ip, "widget:reply")) return corsError("Too many requests. Please try again later.", 429);
 
     const { feedbackId, content, apiKey, senderEmail, hasAttachments } = await request.json();
 
@@ -61,43 +61,13 @@ export async function POST(request: Request) {
         return corsError(apiKeyResult.error, 401);
     }
 
-    const adminSupabase = createAdminClient();
-
-    // Check if sender is a workspace member (owner/member) by matching email → profile → membership
-    const { data: memberProfile } = await adminSupabase
-        .from('profiles')
-        .select('id')
-        .eq('email', senderEmail)
-        .single();
-
-    let isAuthorized = false;
-
-    if (memberProfile) {
-        const { data: membership } = await adminSupabase
-            .from('workspace_members')
-            .select('user_id')
-            .eq('workspace_id', apiKeyResult.workspaceId)
-            .eq('user_id', memberProfile.id)
-            .single();
-
-        if (membership) {
-            isAuthorized = true;
-        }
-    }
-
-    // Fall back to checking workspace_invites (for clients)
+    // Verify the sender still has access to this workspace
+    const isAuthorized = await verifyWidgetEmail(senderEmail, apiKeyResult.workspaceId!);
     if (!isAuthorized) {
-        const { data: invite, error: inviteError } = await adminSupabase
-            .from('workspace_invites')
-            .select('id')
-            .eq('workspace_id', apiKeyResult.workspaceId)
-            .eq('email', senderEmail)
-            .single();
-
-        if (inviteError || !invite) {
-            return corsError("Unauthorized email address. Access may have been revoked.", 403);
-        }
+        return corsError("Unauthorized email address. Access may have been revoked.", 403);
     }
+
+    const adminSupabase = createAdminClient();
 
     // 1. Get Feedback & Project ID
     const { data: feedback, error: feedbackError } = await adminSupabase
@@ -150,7 +120,7 @@ export async function POST(request: Request) {
                     .in('id', memberIds);
 
                 if (profiles) {
-                    const replyPayload = { replyContent, senderName: senderEmail, projectName: projectData.name };
+                    const replyPayload = { replyContent, sender: senderEmail, projectName: projectData.name };
 
                     for (const p of profiles) {
                         const email = p.email;
@@ -166,7 +136,7 @@ export async function POST(request: Request) {
                                 to: email,
                                 projectName: projectData.name,
                                 replyContent: replyContent,
-                                senderName: senderEmail,
+                                sender: senderEmail,
                                 unsubscribeToken: prefs.unsubscribeToken
                             });
                             await recordEmailSent({
@@ -200,19 +170,30 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+    if (isRateLimited(ip, "widget:replies")) return corsError("Too many requests. Please try again later.", 429);
 
     const { searchParams } = new URL(request.url);
     const feedbackId = searchParams.get('feedbackId');
     const apiKey = searchParams.get('key');
+    const email = searchParams.get('email');
 
     if (!feedbackId || !apiKey) {
         return corsError("Missing feedbackId or key", 400);
     }
 
+    if (!email) {
+        return corsError("Missing email", 400);
+    }
+
     const apiKeyResult = await verifyApiKeyForFeedback(apiKey, feedbackId);
     if (apiKeyResult.error) {
         return corsError(apiKeyResult.error, 401);
+    }
+
+    // Verify the requesting user still has access to this workspace
+    const isEmailAuthorized = await verifyWidgetEmail(email, apiKeyResult.workspaceId!);
+    if (!isEmailAuthorized) {
+        return corsError("Access revoked. You no longer have access to this workspace.", 403);
     }
 
     const adminSupabase = createAdminClient();

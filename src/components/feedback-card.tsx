@@ -77,6 +77,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const [attachments, setAttachments] = useState<any[]>([])
     const [replyFiles, setReplyFiles] = useState<File[]>([])
     const [isUploadingReplyFiles, setIsUploadingReplyFiles] = useState(false)
+    const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
     const repliesContainerRef = useRef<HTMLDivElement>(null)
 
     const status = feedback.status || 'open'
@@ -137,6 +138,12 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const isImageFile = (mimeType: string) => mimeType?.startsWith('image/')
 
     useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            setCurrentUserEmail(data.user?.email ?? null)
+        })
+    }, [supabase])
+
+    useEffect(() => {
         fetchReplies()
         fetchAttachments()
 
@@ -184,6 +191,11 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
         try {
             const replyResult = await sendAgencyReplyAction(feedback.id, newReply.trim())
 
+            if (replyResult?.error) {
+                toast("Error", { description: replyResult.error, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
+                return
+            }
+
             // Upload reply files if any
             if (replyFiles.length > 0) {
                 setIsUploadingReplyFiles(true)
@@ -204,8 +216,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
             fetchReplies()
             fetchAttachments()
         } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to send reply"
-            toast("Error", { description: message, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
+            toast("Error", { description: "Failed to send reply.", icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
             setIsUploadingReplyFiles(false)
         } finally {
             setIsSendingReply(false)
@@ -215,11 +226,14 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const handleDelete = async () => {
         setIsDeleting(true)
         try {
-            await deleteFeedback(feedback.id)
-            router.refresh()
+            const result = await deleteFeedback(feedback.id)
+            if (result?.error) {
+                toast("Error", { description: result.error, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
+            } else {
+                router.refresh()
+            }
         } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to delete feedback"
-            toast("Error", { description: message, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
+            toast("Error", { description: "Failed to delete feedback.", icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
             setIsDeleting(false)
         }
     }
@@ -573,7 +587,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                     key={reply.id}
                                                     className={cn(
                                                         "flex flex-col gap-1.5 max-w-[90%]",
-                                                        reply.author_role === 'agency' ? "ml-auto items-end" : "mr-auto items-start"
+                                                        reply.author_name === currentUserEmail ? "ml-auto items-end" : "mr-auto items-start"
                                                     )}
                                                 >
                                                     <div className="flex items-center gap-2 px-1">
@@ -589,7 +603,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                     <div
                                                         className={cn(
                                                             "px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-xs",
-                                                            reply.author_role === 'agency'
+                                                            reply.author_name === currentUserEmail
                                                                 ? "bg-[#209CEE] text-white rounded-tr-none"
                                                                 : "bg-gray-100 text-gray-700 rounded-tl-none border border-gray-200/50"
                                                         )}

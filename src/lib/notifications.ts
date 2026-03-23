@@ -180,7 +180,7 @@ interface SendReplyEmailParams {
     projectName: string;
     replyContent: string;
     originalFeedback: string;
-    senderName: string;
+    sender: string;
     unsubscribeToken?: string;
 }
 
@@ -189,7 +189,7 @@ export async function sendReplyNotification({
     projectName,
     replyContent,
     originalFeedback,
-    senderName,
+    sender,
     unsubscribeToken
 }: SendReplyEmailParams) {
     try {
@@ -204,7 +204,7 @@ export async function sendReplyNotification({
                         <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">New reply received!</h2>
 
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            <strong>${esc(senderName)}</strong> has responded to your feedback on <strong>${esc(projectName)}</strong>.
+                            <strong>${esc(sender)}</strong> has responded to your feedback on <strong>${esc(projectName)}</strong>.
                         </p>
 
                         <div style="background-color: #f0f9ff; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #e0f2fe;">
@@ -244,14 +244,14 @@ export async function sendAgencyReplyNotification({
     to,
     projectName,
     replyContent,
-    senderName,
+    sender,
     unsubscribeToken
-}: { to: string, projectName: string, replyContent: string, senderName: string, unsubscribeToken?: string }) {
+}: { to: string, projectName: string, replyContent: string, sender: string, unsubscribeToken?: string }) {
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
             to,
-            subject: `New reply from ${esc(senderName)} (${esc(projectName)})`,
+            subject: `New reply from ${esc(sender)} (${esc(projectName)})`,
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
@@ -259,11 +259,11 @@ export async function sendAgencyReplyNotification({
                         <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">New client reply!</h2>
                         
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            <strong>${esc(senderName)}</strong> replied to your feedback thread in <strong>${esc(projectName)}</strong>.
+                            <strong>${esc(sender)}</strong> replied to your feedback thread in <strong>${esc(projectName)}</strong>.
                         </p>
 
                         <div style="background-color: #f0f9ff; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #e0f2fe;">
-                            <p style="margin: 0; font-weight: 600; color: #0369a1; font-size: 14px; margin-bottom: 8px;">${esc(senderName)} Says:</p>
+                            <p style="margin: 0; font-weight: 600; color: #0369a1; font-size: 14px; margin-bottom: 8px;">${esc(sender)} Says:</p>
                             <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${esc(replyContent)}"</p>
                         </div>
 
@@ -663,7 +663,7 @@ export async function sendFeedbackDigestEmail({
 
 interface DigestReplyItem {
     replyContent: string;
-    senderName: string;
+    sender: string;
     projectName: string;
     feedbackContentPreview?: string;
 }
@@ -677,7 +677,7 @@ export async function sendReplyDigestEmail({
 
     const itemsHtml = items.slice(0, 10).map(item => `
         <div style="padding: 12px 16px; border-left: 3px solid #0369a1; margin-bottom: 12px; background: #f0f9ff; border-radius: 0 8px 8px 0;">
-            <p style="margin: 0 0 4px; font-size: 13px; color: #718096;">${esc(item.projectName)} &mdash; ${esc(item.senderName)}</p>
+            <p style="margin: 0 0 4px; font-size: 13px; color: #718096;">${esc(item.projectName)} &mdash; ${esc(item.sender)}</p>
             <p style="margin: 0; font-size: 15px; color: #0369a1; line-height: 1.5;">"${esc(item.replyContent.slice(0, 200))}${item.replyContent.length > 200 ? '…' : ''}"</p>
             ${item.feedbackContentPreview ? `<p style="margin: 6px 0 0; font-size: 13px; color: #718096; font-style: italic;">Re: "${esc(item.feedbackContentPreview.slice(0, 100))}${item.feedbackContentPreview.length > 100 ? '…' : ''}"</p>` : ''}
         </div>

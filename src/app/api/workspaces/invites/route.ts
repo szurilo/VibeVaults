@@ -178,6 +178,29 @@ export async function POST(req: Request) {
             });
         }
 
+        // Send in-app notification if the invited user already has an account
+        if (role === 'member') {
+            const adminSupabaseForNotif = createAdminClient();
+            const { data: invitedProfile } = await adminSupabaseForNotif
+                .from('profiles')
+                .select('id')
+                .eq('email', email)
+                .single();
+
+            if (invitedProfile) {
+                adminSupabaseForNotif
+                    .from('notifications')
+                    .insert({
+                        user_id: invitedProfile.id,
+                        type: 'workspace_invite',
+                        title: 'Workspace Invitation',
+                        message: `${user.user_metadata?.full_name || user.email || 'Someone'} invited you to join ${workspace?.name || 'a workspace'}`,
+                        project_id: null
+                    })
+                    .then(() => {});
+            }
+        }
+
         return NextResponse.json(invite);
     } catch (error: any) {
         console.error("Invite error:", error);

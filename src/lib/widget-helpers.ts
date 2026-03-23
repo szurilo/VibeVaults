@@ -22,7 +22,7 @@ export function corsSuccess(data: object) {
 
 // --- In-memory rate limiter (per warm serverless instance) ---
 const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 30;  // max requests per IP per window
+const RATE_LIMIT_MAX_REQUESTS = 60;  // max requests per IP per endpoint per window
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
@@ -35,15 +35,18 @@ setInterval(() => {
 }, 5 * 60_000);
 
 /**
- * Checks if an IP has exceeded the rate limit.
+ * Checks if an IP has exceeded the rate limit for a specific endpoint.
+ * Rate limits are tracked per IP + endpoint combination, so normal widget
+ * usage across multiple endpoints won't exhaust the budget.
  * Returns `true` if the request should be blocked.
  */
-export function isRateLimited(ip: string): boolean {
+export function isRateLimited(ip: string, endpoint?: string): boolean {
+    const key = endpoint ? `${ip}:${endpoint}` : ip;
     const now = Date.now();
-    const entry = rateLimitMap.get(ip);
+    const entry = rateLimitMap.get(key);
 
     if (!entry || now > entry.resetAt) {
-        rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+        rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
         return false;
     }
 
@@ -92,4 +95,42 @@ export async function validateApiKey(apiKey: string) {
     }
 
     return { project, error: null, status: 200 };
+}
+
+/**
+ * Checks if an email is authorized for a workspace — either as a workspace member
+ * (owner/member/client) or via a workspace invite. Used by widget endpoints to
+ * gate access after email verification.
+ * Returns `true` if the email is authorized.
+ */
+export async function verifyWidgetEmail(email: string, workspaceId: string): Promise<boolean> {
+    const adminSupabase = createAdminClient();
+
+    // Check if email belongs to a workspace member
+    const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+    if (profile) {
+        const { data: membership } = await adminSupabase
+            .from('workspace_members')
+            .select('user_id')
+            .eq('workspace_id', workspaceId)
+            .eq('user_id', profile.id)
+            .single();
+
+        if (membership) return true;
+    }
+
+    // Fall back to checking workspace_invites (for clients)
+    const { data: invite } = await adminSupabase
+        .from('workspace_invites')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('email', email)
+        .single();
+
+    return !!invite;
 }

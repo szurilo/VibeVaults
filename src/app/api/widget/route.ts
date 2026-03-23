@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
 import { sendFeedbackNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { shouldSendFeedbackImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
@@ -11,7 +11,7 @@ export async function OPTIONS() {
 
 export async function GET(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+    if (isRateLimited(ip, "widget:config")) return corsError("Too many requests. Please try again later.", 429);
 
     const { searchParams } = new URL(request.url);
     const apiKey = searchParams.get("key");
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip)) return corsError("Too many requests. Please try again later.", 429);
+    if (isRateLimited(ip, "widget:submit")) return corsError("Too many requests. Please try again later.", 429);
 
     const { apiKey, content, type, sender, metadata, notifyReplies } = await request.json();
 
@@ -66,50 +66,17 @@ export async function POST(request: Request) {
     }
 
     // Email validation for client email provided by the widget
-    if (sender) {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender)) {
-            return corsError("Invalid email format.", 400);
-        }
-
-        const adminSupabase = createAdminClient();
-
-        // Check if sender is a workspace member (owner/member) by matching email → profile → membership
-        const { data: memberProfile } = await adminSupabase
-            .from('profiles')
-            .select('id')
-            .eq('email', sender)
-            .single();
-
-        let isAuthorized = false;
-
-        if (memberProfile) {
-            const { data: membership } = await adminSupabase
-                .from('workspace_members')
-                .select('user_id')
-                .eq('workspace_id', project.workspace_id)
-                .eq('user_id', memberProfile.id)
-                .single();
-
-            if (membership) {
-                isAuthorized = true;
-            }
-        }
-
-        // Fall back to checking workspace_invites (for clients)
-        if (!isAuthorized) {
-            const { data: invite, error: inviteError } = await adminSupabase
-                .from('workspace_invites')
-                .select('id')
-                .eq('workspace_id', project.workspace_id)
-                .eq('email', sender)
-                .single();
-
-            if (inviteError || !invite) {
-                return corsError("Unauthorized email address. Access may have been revoked.", 403);
-            }
-        }
-    } else {
+    if (!sender) {
         return corsError("Missing sender email.", 400);
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender)) {
+        return corsError("Invalid email format.", 400);
+    }
+
+    const isAuthorized = await verifyWidgetEmail(sender, project.workspace_id);
+    if (!isAuthorized) {
+        return corsError("Unauthorized email address. Access may have been revoked.", 403);
     }
 
     // Generate the ID upfront so we don't need .select() after insert.
@@ -159,7 +126,7 @@ export async function POST(request: Request) {
 
                 for (const p of profiles) {
                     const email = p.email;
-                    if (!email) continue;
+                    if (!email || email === sender) continue;
 
                     const prefs = await getNotificationPrefs(email, 'new_feedback');
                     if (!prefs.shouldNotify) continue;

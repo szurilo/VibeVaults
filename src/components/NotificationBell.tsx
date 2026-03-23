@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { Bell, Check, CheckCircle2, Circle, MessageSquare, PlusCircle, Trash2, XIcon, UserMinus, LogOut } from "lucide-react"
+import { Bell, Check, CheckCircle2, Circle, MessageSquare, PlusCircle, Trash2, XIcon, UserMinus, UserPlus, LogOut } from "lucide-react"
 import {
     Sheet,
     SheetClose,
@@ -202,6 +202,7 @@ export function NotificationBell({ userId }: { userId: string }) {
                                         "mt-1 w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm transition-colors",
                                         notification.type === 'new_feedback' ? "bg-emerald-100 text-emerald-600 group-hover:bg-emerald-200"
                                             : (notification.type === 'member_removed' || notification.type === 'member_left') ? "bg-amber-100 text-amber-600 group-hover:bg-amber-200"
+                                            : notification.type === 'workspace_invite' ? "bg-violet-100 text-violet-600 group-hover:bg-violet-200"
                                             : "bg-blue-100 text-blue-600 group-hover:bg-blue-200"
                                     )}>
                                         {notification.type === 'new_feedback' ? (
@@ -210,6 +211,8 @@ export function NotificationBell({ userId }: { userId: string }) {
                                             <UserMinus className="w-4 h-4" />
                                         ) : notification.type === 'member_left' ? (
                                             <LogOut className="w-4 h-4" />
+                                        ) : notification.type === 'workspace_invite' ? (
+                                            <UserPlus className="w-4 h-4" />
                                         ) : (
                                             <MessageSquare className="w-4 h-4" />
                                         )}

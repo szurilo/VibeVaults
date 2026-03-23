@@ -43,8 +43,6 @@ export function FeedbackList({ feedbacks }: FeedbackListProps) {
         return activeStatuses.includes(status);
     });
 
-    const isFiltered = activeStatuses.length < ALL_STATUSES.length;
-
     return (
         <>
             <div className="flex justify-end mb-4">
@@ -53,11 +51,9 @@ export function FeedbackList({ feedbacks }: FeedbackListProps) {
                         <Button variant="outline" size="sm" className="gap-2">
                             <SlidersHorizontal className="h-4 w-4" />
                             Status
-                            {isFiltered && (
-                                <span className="ml-1 rounded-full bg-primary text-primary-foreground text-xs px-1.5 py-0.5 leading-none">
-                                    {activeStatuses.length}
-                                </span>
-                            )}
+                            <span className="ml-1 rounded-full bg-primary text-primary-foreground text-xs px-1.5 py-0.5 leading-none">
+                                {activeStatuses.length} / {ALL_STATUSES.length}
+                            </span>
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">

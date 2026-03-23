@@ -38,6 +38,11 @@ export function AddFeedbackDialog({ projectId }: { projectId: string }) {
         try {
             const result = await addManualFeedbackAction(projectId, trimmed || '');
 
+            if (result?.error) {
+                toast("Error", { description: result.error, icon: <AlertCircle className="h-4 w-4 text-red-500" /> });
+                return;
+            }
+
             // Upload files if any
             if (files.length > 0 && result?.feedback_id) {
                 const formData = new FormData();
@@ -54,8 +59,7 @@ export function AddFeedbackDialog({ projectId }: { projectId: string }) {
             setContent('');
             setFiles([]);
         } catch (error: any) {
-            console.error('Failed to add feedback:', error);
-            toast("Error", { description: error?.message || "Failed to add feedback", icon: <AlertCircle className="h-4 w-4 text-red-500" /> });
+            toast("Error", { description: "Failed to add feedback.", icon: <AlertCircle className="h-4 w-4 text-red-500" /> });
         } finally {
             setIsSubmitting(false);
         }

@@ -26,38 +26,9 @@ import {
 import { CreateProjectDialog } from '@/components/CreateProjectDialog';
 import { XIcon, ExternalLink, ChevronDown, Star } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { completeOnboardingAction, toggleOnboardingStepAction } from '@/actions/onboarding';
+import { toggleOnboardingStepAction } from '@/actions/onboarding';
+import { OWNER_STEPS, MEMBER_STEPS, type OnboardingStep } from '@/lib/onboarding-steps';
 import Link from 'next/link';
-
-interface OnboardingStep {
-    id: string;
-    label: string;
-    href: string;
-    recommended?: boolean;
-    /** 'dialog' opens the create-project dialog */
-    action?: 'dialog';
-}
-
-function getOwnerSteps(): OnboardingStep[] {
-    return [
-        { id: 'create_project', label: 'Create a project', href: '/dashboard', recommended: true, action: 'dialog' },
-        { id: 'embed_widget', label: 'Embed project widget on your site', href: '/dashboard/project-settings#embed-widget', recommended: true },
-        { id: 'invite_members', label: 'Invite Team members to the workspace', href: '/dashboard/settings/users#invite-users' },
-        { id: 'invite_clients', label: 'Invite Clients to the workspace', href: '/dashboard/settings/users#invite-users', recommended: true },
-        { id: 'create_feedback_member', label: 'Create Feedback as a Team member', href: '/dashboard/feedback#add-feedback' },
-        { id: 'customize_workspace', label: 'Customize the workspace', href: '/dashboard/settings#workspace-settings' },
-        { id: 'customize_project', label: 'Customize the project', href: '/dashboard/project-settings#edit-project' },
-        { id: 'share_board', label: 'Share read-only Project Board', href: '/dashboard/project-settings#share-board' }
-    ];
-}
-
-const MEMBER_STEPS: OnboardingStep[] = [
-    { id: 'create_project', label: 'Create a project', href: '/dashboard', recommended: true, action: 'dialog' },
-    { id: 'embed_widget', label: 'Embed project widget on your site', href: '/dashboard/project-settings#embed-widget', recommended: true },
-    { id: 'create_feedback_member', label: 'Create Feedback as a Team member', href: '/dashboard/feedback#add-feedback' },
-    { id: 'customize_project', label: 'Customize the project', href: '/dashboard/project-settings#edit-project' },
-    { id: 'share_board', label: 'Share read-only Project Board', href: '/dashboard/project-settings#share-board' }
-];
 
 interface OnboardingProps {
     workspaceId?: string;
@@ -75,7 +46,7 @@ export default function Onboarding({
     const [collapsed, setCollapsed] = useState(false);
     const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(false);
 
-    const steps = isOwner ? getOwnerSteps() : MEMBER_STEPS;
+    const steps = isOwner ? OWNER_STEPS : MEMBER_STEPS;
 
     // Restore collapsed state from localStorage
     useEffect(() => {
@@ -100,6 +71,7 @@ export default function Onboarding({
     };
 
     const handleToggleStep = async (stepId: string) => {
+        if (!workspaceId) return;
         const wasCompleted = localCompleted.includes(stepId);
         const newCompleted = wasCompleted
             ? localCompleted.filter(s => s !== stepId)
@@ -108,13 +80,12 @@ export default function Onboarding({
         setLocalCompleted(newCompleted);
 
         try {
-            await toggleOnboardingStepAction(stepId);
+            await toggleOnboardingStepAction(stepId, workspaceId);
 
             const nowAllDone = steps.every(s => newCompleted.includes(s.id));
 
             if (nowAllDone) {
                 localStorage.removeItem('onboarding_collapsed');
-                await completeOnboardingAction();
                 router.refresh();
             }
         } catch {

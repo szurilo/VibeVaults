@@ -27,17 +27,18 @@ export async function updateFeedbackStatus(id: string, status: string) {
         .select('id');
 
     if (error) {
-        throw new Error('Failed to update feedback status');
+        return { error: 'Failed to update feedback status.' };
     }
 
     if (!data || data.length === 0) {
-        throw new Error('Feedback not found — it may have been deleted');
+        return { error: 'You no longer have access to this feedback. Your access may have been revoked.' };
     }
 
     // Mark associated notifications as read
     await supabase.from('notifications').update({ is_read: true }).eq('feedback_id', id);
 
     revalidatePath('/dashboard/feedback');
+    return { error: null };
 }
 
 export async function deleteFeedback(id: string) {
@@ -50,21 +51,22 @@ export async function deleteFeedback(id: string) {
         .select('id');
 
     if (error) {
-        throw new Error('Failed to delete feedback');
+        return { error: 'Failed to delete feedback.' };
     }
 
     if (!data || data.length === 0) {
-        throw new Error('Feedback not found — it may have been already deleted');
+        return { error: 'You no longer have access to this feedback. Your access may have been revoked.' };
     }
 
     revalidatePath('/dashboard/feedback');
+    return { error: null };
 }
 
 export async function sendAgencyReplyAction(feedbackId: string, content: string) {
     const supabase = await createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
+    if (!user) return { error: "You must be logged in to reply.", replyId: null };
 
     // Verify ownership via RLS
     const { data: feedback, error: checkError } = await supabase
@@ -73,7 +75,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
         .eq('id', feedbackId)
         .single();
 
-    if (checkError || !feedback) throw new Error("Feedback not found");
+    if (checkError || !feedback) return { error: "You no longer have access to this feedback. Your access may have been revoked.", replyId: null };
     const project = feedback.projects as unknown as { id: string; name: string };
 
     const { data: replyData, error: replyError } = await supabase
@@ -88,7 +90,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
         .select('id')
         .single();
 
-    if (replyError || !replyData) throw replyError || new Error("Failed to create reply");
+    if (replyError || !replyData) return { error: "Failed to send reply. Your access may have been revoked.", replyId: null };
 
     // Mark associated notifications as read
     await supabase.from('notifications').update({ is_read: true }).eq('feedback_id', feedbackId);
@@ -98,8 +100,8 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
         const prefs = await getNotificationPrefs(feedback.sender, 'replies');
 
         if (prefs.shouldNotify) {
-            const senderName = user.email || 'Someone';
-            const replyPayload = { replyContent: content, senderName, projectName: project.name, originalFeedback: feedback.content };
+            const sender = user.email || 'Someone';
+            const replyPayload = { replyContent: content, sender, projectName: project.name, originalFeedback: feedback.content };
             const sendNow = await shouldSendReplyImmediately(feedback.sender, feedbackId);
 
             if (sendNow) {
@@ -108,7 +110,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
                     projectName: project.name,
                     replyContent: content,
                     originalFeedback: feedback.content,
-                    senderName,
+                    sender,
                     unsubscribeToken: prefs.unsubscribeToken
                 });
                 await recordEmailSent({
@@ -131,7 +133,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
     }
 
     revalidatePath('/dashboard/feedback');
-    return { replyId: replyData.id };
+    return { error: null, replyId: replyData.id };
 }
 
 
@@ -139,7 +141,7 @@ export async function addManualFeedbackAction(projectId: string, content: string
     const supabase = await createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
+    if (!user) return { error: "You must be logged in to add feedback.", success: false, feedback_id: null };
 
     // Verify ownership via RLS
     const { data: project, error: checkError } = await supabase
@@ -148,7 +150,7 @@ export async function addManualFeedbackAction(projectId: string, content: string
         .eq('id', projectId)
         .single();
 
-    if (checkError || !project) throw new Error("Project not found");
+    if (checkError || !project) return { error: "You no longer have access to this project. Your access may have been revoked.", success: false, feedback_id: null };
 
     const feedbackId = crypto.randomUUID();
 
@@ -164,7 +166,7 @@ export async function addManualFeedbackAction(projectId: string, content: string
         }
     });
 
-    if (insertError) throw new Error(insertError.message);
+    if (insertError) return { error: "Failed to add feedback. Your access may have been revoked.", success: false, feedback_id: null };
 
     // Notify all workspace members via email (digest-aware)
     try {
@@ -237,5 +239,5 @@ export async function addManualFeedbackAction(projectId: string, content: string
     }
 
     revalidatePath('/dashboard/feedback');
-    return { success: true, feedback_id: feedbackId };
+    return { error: null, success: true, feedback_id: feedbackId };
 }
