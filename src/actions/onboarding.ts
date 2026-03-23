@@ -3,32 +3,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function completeOnboardingAction() {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-        throw new Error("Unauthorized");
-    }
-
-    const { error } = await supabase
-        .from("profiles")
-        .update({ has_onboarded: true })
-        .eq("id", user.id);
-
-    if (error) {
-        console.error("Failed to complete onboarding:", error);
-        throw error;
-    }
-
-    revalidatePath("/dashboard");
-}
-
-export async function toggleOnboardingStepAction(stepId: string) {
+export async function toggleOnboardingStepAction(stepId: string, workspaceId: string) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error("Unauthorized");
+
+    const key = `${workspaceId}:${stepId}`;
 
     const { data: profile } = await supabase
         .from("profiles")
@@ -37,9 +18,9 @@ export async function toggleOnboardingStepAction(stepId: string) {
         .single();
 
     const current: string[] = profile?.completed_onboarding_steps ?? [];
-    const updated = current.includes(stepId)
-        ? current.filter(s => s !== stepId)
-        : [...current, stepId];
+    const updated = current.includes(key)
+        ? current.filter(s => s !== key)
+        : [...current, key];
 
     const { error } = await supabase
         .from("profiles")

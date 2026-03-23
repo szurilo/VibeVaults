@@ -10,6 +10,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import Onboarding from "@/components/Onboarding";
+import { OWNER_STEPS, MEMBER_STEPS } from "@/lib/onboarding-steps";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
@@ -51,12 +52,22 @@ export default async function DashboardPage() {
     // Use selected project or default to the first one
     const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
 
-    const hasOnboarded = profile?.has_onboarded ?? false;
-    const completedSteps: string[] = profile?.completed_onboarding_steps ?? [];
+    const allCompletedSteps: string[] = profile?.completed_onboarding_steps ?? [];
 
     // Determine the active workspace
     const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
     const isOwner = activeWorkspace?.owner_id === user?.id;
+
+    // Filter completed steps to only those belonging to the current workspace
+    const wsPrefix = selectedWorkspaceId ? `${selectedWorkspaceId}:` : '';
+    const completedSteps = allCompletedSteps
+        .filter(s => s.startsWith(wsPrefix))
+        .map(s => s.slice(wsPrefix.length));
+
+    // Per-workspace onboarding completion: check if all role-specific steps are done
+    const requiredStepIds = (isOwner ? OWNER_STEPS : MEMBER_STEPS).map(s => s.id);
+    const hasOnboarded = (profile?.has_onboarded ?? false)
+        || requiredStepIds.every(id => completedSteps.includes(id));
 
     // RLS policies ensure we only count feedback for the user's projects
     // But we filter by project_id if one is selected
@@ -85,6 +96,7 @@ export default async function DashboardPage() {
 
             {!hasOnboarded && selectedWorkspaceId && (
                 <Onboarding
+                    key={selectedWorkspaceId}
                     workspaceId={selectedWorkspaceId}
                     isOwner={isOwner}
                     completedSteps={completedSteps}

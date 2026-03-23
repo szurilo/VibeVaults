@@ -26,9 +26,12 @@ export async function createWorkspaceAction(name: string) {
         .eq('role', 'owner');
 
     if (count === 1) {
+        // No need to reset completed_onboarding_steps — steps are now
+        // workspace-scoped (prefixed with workspaceId), so a new workspace
+        // naturally starts with no completed steps.
         await supabase
             .from('profiles')
-            .update({ has_onboarded: false, completed_onboarding_steps: [] })
+            .update({ has_onboarded: false })
             .eq('id', user!.id);
 
         // Send welcome email on first workspace creation (owner only)
