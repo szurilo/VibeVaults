@@ -296,11 +296,11 @@
 
     .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px 20px; overscroll-behavior: contain; }
     .msg-wrapper { display: flex; flex-direction: column; max-width: 90%; gap: 6px; }
-    .msg-wrapper.agency { align-self: flex-start; align-items: flex-start; }
-    .msg-wrapper.client { align-self: flex-end; align-items: flex-end; }
+    .msg-wrapper.other { align-self: flex-start; align-items: flex-start; }
+    .msg-wrapper.self { align-self: flex-end; align-items: flex-end; }
     .message { padding: 10px 16px; border-radius: 16px; font-size: 13px; line-height: 1.625; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-    .message.agency { background: #f3f4f6; color: #374151; border-top-left-radius: 0; border: 1px solid rgba(229, 231, 235, 0.5); }
-    .message.client { background: #209CEE; color: white; border-top-right-radius: 0; }
+    .message.other { background: #f3f4f6; color: #374151; border-top-left-radius: 0; border: 1px solid rgba(229, 231, 235, 0.5); }
+    .message.self { background: #209CEE; color: white; border-top-right-radius: 0; }
     .msg-meta { font-size: 10px; color: #9ca3af; padding: 0 4px; display: flex; gap: 8px; align-items: center; }
     .chat-input { display: flex; gap: 8px; border-top: 1px solid #f3f4f6; padding: 12px 20px; }
     .chat-input input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
@@ -665,17 +665,20 @@
     return `<div class="msg-attachments">${items}</div>`;
   };
 
-  const renderReplyBubble = (r) => `
-    <div class="msg-wrapper ${r.author_role}" data-reply-id="${r.id || ''}">
-      <div class="msg-meta ${r.author_role}">
+  const renderReplyBubble = (r) => {
+    const side = r.author_name === clientEmail ? 'self' : 'other';
+    return `
+    <div class="msg-wrapper ${side}" data-reply-id="${r.id || ''}">
+      <div class="msg-meta ${side}">
         <span style="font-weight:700; text-transform:uppercase; letter-spacing:-0.5px;">${escapeHtml(r.author_name || 'Unknown')}</span>
         <span style="color:#d1d5db;">•</span>
         <span>${new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
-      ${r.content ? `<div class="message ${r.author_role}">${escapeHtml(r.content)}</div>` : ''}
+      ${r.content ? `<div class="message ${side}">${escapeHtml(r.content)}</div>` : ''}
       ${renderReplyAttachments(r.attachments)}
     </div>
   `;
+  };
 
 
   const fetchReplies = async () => {

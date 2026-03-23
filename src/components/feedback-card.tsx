@@ -77,6 +77,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const [attachments, setAttachments] = useState<any[]>([])
     const [replyFiles, setReplyFiles] = useState<File[]>([])
     const [isUploadingReplyFiles, setIsUploadingReplyFiles] = useState(false)
+    const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
     const repliesContainerRef = useRef<HTMLDivElement>(null)
 
     const status = feedback.status || 'open'
@@ -135,6 +136,12 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     }, [feedback.id, supabase])
 
     const isImageFile = (mimeType: string) => mimeType?.startsWith('image/')
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            setCurrentUserEmail(data.user?.email ?? null)
+        })
+    }, [supabase])
 
     useEffect(() => {
         fetchReplies()
@@ -573,7 +580,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                     key={reply.id}
                                                     className={cn(
                                                         "flex flex-col gap-1.5 max-w-[90%]",
-                                                        reply.author_role === 'agency' ? "ml-auto items-end" : "mr-auto items-start"
+                                                        reply.author_name === currentUserEmail ? "ml-auto items-end" : "mr-auto items-start"
                                                     )}
                                                 >
                                                     <div className="flex items-center gap-2 px-1">
@@ -589,7 +596,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                     <div
                                                         className={cn(
                                                             "px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-xs",
-                                                            reply.author_role === 'agency'
+                                                            reply.author_name === currentUserEmail
                                                                 ? "bg-[#209CEE] text-white rounded-tr-none"
                                                                 : "bg-gray-100 text-gray-700 rounded-tl-none border border-gray-200/50"
                                                         )}
