@@ -170,13 +170,26 @@
     });
   };
 
+  const showWidgetToast = (msg) => {
+    let toast = wrapper.querySelector('.vv-toast');
+    if (toast) toast.remove();
+    toast = document.createElement('div');
+    toast.className = 'vv-toast';
+    toast.textContent = msg;
+    wrapper.querySelector('.popup').appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+    setTimeout(() => { toast.remove(); }, 3000);
+  };
+
   const validateFiles = (fileList) => {
     const valid = [];
+    const errors = [];
     for (const file of fileList) {
-      if (file.size > MAX_FILE_SIZE) { alert(`"${file.name}" exceeds the 10MB limit.`); continue; }
-      if (!ALLOWED_TYPES.includes(file.type)) { alert(`"${file.name}" has an unsupported file type.`); continue; }
+      if (file.size > MAX_FILE_SIZE) { errors.push(`"${file.name}" exceeds the 10MB limit.`); continue; }
+      if (!ALLOWED_TYPES.includes(file.type)) { errors.push(`"${file.name}" has an unsupported file type.`); continue; }
       valid.push(file);
     }
+    if (errors.length > 0) showWidgetToast(errors.join(' '));
     return valid;
   };
 
@@ -314,7 +327,6 @@
     .view-email-prompt p { font-size: 14px; color: #6b7280; margin: 0 0 20px; line-height: 1.5; }
     .view-email-prompt .email-prompt-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; box-sizing: border-box; background: #fff; color: #1f2937; }
     .view-email-prompt .email-prompt-input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.1); }
-    .view-email-prompt .email-prompt-error { color: #b91c1c; font-size: 12px; margin-top: 8px; min-height: 18px; }
     .view-email-prompt .btn { margin-top: 12px; width: 100%; }
     .branding { padding: 10px; text-align: center; font-size: 11px; color: #9ca3af; background: #f9fafb; border-top: 1px solid #f3f4f6; }
     .branding a { color: #209CEE; text-decoration: none; }
@@ -360,6 +372,13 @@
     .msg-attachment { display: block; width: 80px; height: 60px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1); }
     .msg-attachment img { width: 100%; height: 100%; object-fit: cover; }
     .msg-attachment-file { display: flex; align-items: center; gap: 4px; font-size: 11px; color: inherit; opacity: 0.8; text-decoration: underline; margin-top: 4px; }
+
+    /* Toast notification */
+    .vv-toast {
+      position: absolute; bottom: 48px; left: 16px; right: 16px; background: #1f2937; color: white;
+      font-size: 12px; line-height: 1.4; padding: 10px 14px; border-radius: 8px; z-index: 10;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: opacity 0.3s; opacity: 1;
+    }
 
     /* Mobile responsive */
     @media (max-width: 480px) {
@@ -410,7 +429,6 @@
             </div>
           </div>
           <div class="view-form-footer">
-            <div id="vv-submit-error" style="display:none; color: #b91c1c; font-size: 13px; margin-bottom: 8px; padding: 10px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px;"></div>
             <button class="btn" id="vv-submit" style="width: 100%;">Send Feedback</button>
           </div>
         </div>
@@ -431,7 +449,6 @@
         <div class="view-email-prompt" id="vv-email-prompt">
           <p>Enter your email to get started</p>
           <input type="email" class="email-prompt-input" id="vv-email-input" placeholder="you@example.com" />
-          <div class="email-prompt-error" id="vv-email-error"></div>
           <button class="btn" id="vv-email-verify">Continue</button>
         </div>
         <div class="success-view" id="vv-success">
@@ -503,9 +520,18 @@
       listEl.innerHTML = '<div class="feedbacks-loading">Loading feedbacks...</div>';
     }
     try {
-      const res = await fetch(`${API_FEEDBACKS}?key=${apiKey}`);
+      const res = await fetch(`${API_FEEDBACKS}?key=${apiKey}&email=${encodeURIComponent(clientEmail)}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        // If access was revoked, clear stored email and show email prompt
+        if (res.status === 403) {
+          clientEmail = '';
+          localStorage.removeItem(emailKey);
+          needsEmailVerification = true;
+          stopAll();
+          switchView('email-prompt');
+          return;
+        }
         listEl.innerHTML = `<div class="feedbacks-loading">${err.error || 'Failed to load feedbacks.'}</div>`;
         return;
       }
@@ -607,12 +633,10 @@
           <input type="text" id="vv-reply-text" placeholder="Type a reply...">
           <button class="btn btn-sm" id="vv-send-reply">Send</button>
         </div>
-        <div id="vv-reply-error" style="display:none; color: #b91c1c; font-size: 12px; margin-top: 8px;"></div>
       <style>#vv-reply-section { border-top: 1px solid #f3f4f6; padding: 8px 20px; }</style>
       `;
       section.querySelector('#vv-send-reply').onclick = sendReply;
       section.querySelector('#vv-reply-text').onkeydown = (e) => {
-        section.querySelector('#vv-reply-error').style.display = 'none';
         if (e.key === 'Enter') sendReply();
       };
       // Reply screenshot capture
@@ -624,7 +648,7 @@
         const newFiles = validateFiles(Array.from(replyFileInput.files));
         const totalAllowed = MAX_FILES - replyAttachments.length;
         if (newFiles.length > totalAllowed) {
-          alert('Maximum ' + MAX_FILES + ' files allowed.');
+          showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
           replyAttachments.push(...newFiles.slice(0, totalAllowed));
         } else {
           replyAttachments.push(...newFiles);
@@ -684,8 +708,16 @@
   const fetchReplies = async () => {
     if (!selectedFeedbackId) return;
     try {
-      const res = await fetch(`${API_REPLY}?feedbackId=${selectedFeedbackId}&key=${apiKey}`);
+      const res = await fetch(`${API_REPLY}?feedbackId=${selectedFeedbackId}&key=${apiKey}&email=${encodeURIComponent(clientEmail)}`);
       if (!res.ok) {
+        if (res.status === 403) {
+          clientEmail = '';
+          localStorage.removeItem(emailKey);
+          needsEmailVerification = true;
+          stopAll();
+          switchView('email-prompt');
+          return;
+        }
         const err = await res.json().catch(() => ({}));
         const chatEl = wrapper.querySelector('#vv-chat');
         if (chatEl) chatEl.innerHTML = `<div class="chat-no-replies">${err.error || 'Could not load replies.'}</div>`;
@@ -712,7 +744,7 @@
     if (!selectedFeedbackId) return;
 
     if (sseSupported) {
-      const url = `${API_STREAM}?feedbackId=${selectedFeedbackId}&key=${apiKey}`;
+      const url = `${API_STREAM}?feedbackId=${selectedFeedbackId}&key=${apiKey}&email=${encodeURIComponent(clientEmail)}`;
       eventSource = new EventSource(url);
 
       eventSource.addEventListener('new_reply', () => {
@@ -776,16 +808,14 @@
   const sendFeedback = async () => {
     const text = wrapper.querySelector('#vv-textarea').value.trim();
     const btn = wrapper.querySelector('#vv-submit');
-    const submitErrorMsg = wrapper.querySelector('#vv-submit-error');
     if (!text) {
-      submitErrorMsg.textContent = 'Please describe your issue.';
-      submitErrorMsg.style.display = 'block';
+      showWidgetToast('Please describe your issue.');
       return;
     }
-    submitErrorMsg.style.display = 'none';
 
     if (!clientEmail) {
-      alert("Missing identity: Please use the VibeVaults invite link provided by your agency to leave feedback.");
+      needsEmailVerification = true;
+      switchView('email-prompt');
       return;
     }
 
@@ -810,6 +840,14 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey, content: text, sender: clientEmail, metadata, notifyReplies })
       });
+      if (res.status === 403) {
+        clientEmail = '';
+        localStorage.removeItem(emailKey);
+        needsEmailVerification = true;
+        stopAll();
+        switchView('email-prompt');
+        return;
+      }
       const data = await res.json();
       if (data.success && data.feedback_id) {
         // Upload attachments linked to the new feedback
@@ -832,15 +870,11 @@
 
         switchView('success');
       } else {
-        submitErrorMsg.innerText = data.error || 'Error sending feedback.';
-        submitErrorMsg.style.display = 'block';
-        updatePopupHeight();
+        showWidgetToast(data.error || 'Error sending feedback.');
         if (progressEl) progressEl.style.display = 'none';
       }
     } catch (e) {
-      submitErrorMsg.innerText = 'Network error. Please try again.';
-      submitErrorMsg.style.display = 'block';
-      updatePopupHeight();
+      showWidgetToast('Network error. Please try again.');
       const progressEl = wrapper.querySelector('#vv-upload-progress');
       if (progressEl) progressEl.style.display = 'none';
     } finally { btn.disabled = false; }
@@ -941,7 +975,7 @@
         if (target === 'reply') {
           replyAttachments = replyAttachments.filter(f => f.name !== 'screenshot.jpg');
           if (replyAttachments.length >= MAX_FILES) {
-            alert('Maximum ' + MAX_FILES + ' files allowed.');
+            showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
             cleanup();
             if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
             return;
@@ -951,7 +985,7 @@
         } else {
           pendingAttachments = pendingAttachments.filter(f => f.name !== 'screenshot.jpg');
           if (pendingAttachments.length >= MAX_FILES) {
-            alert('Maximum ' + MAX_FILES + ' files allowed.');
+            showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
             cleanup();
             if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
             return;
@@ -994,13 +1028,11 @@
   // --- Send reply ---
   const sendReply = async () => {
     const textEl = wrapper.querySelector('#vv-reply-text');
-    const errEl = wrapper.querySelector('#vv-reply-error');
     if (!textEl) return;
     const text = textEl.value.trim();
     if ((!text && replyAttachments.length === 0) || !selectedFeedbackId || !clientEmail) return;
     const btn = wrapper.querySelector('#vv-send-reply');
     btn.disabled = true;
-    if (errEl) errEl.style.display = 'none';
 
     try {
       const res = await fetch(API_REPLY, {
@@ -1024,17 +1056,19 @@
         if (replyPreviewsEl) replyPreviewsEl.innerHTML = '';
         fetchReplies();
       } else {
-        const err = await res.json();
-        if (errEl) {
-          errEl.innerText = err.error || 'Failed to send reply.';
-          errEl.style.display = 'block';
+        if (res.status === 403) {
+          clientEmail = '';
+          localStorage.removeItem(emailKey);
+          needsEmailVerification = true;
+          stopAll();
+          switchView('email-prompt');
+          return;
         }
+        const err = await res.json();
+        showWidgetToast(err.error || 'Failed to send reply.');
       }
     } catch (e) {
-      if (errEl) {
-        errEl.innerText = 'Network error. Please try again.';
-        errEl.style.display = 'block';
-      }
+      showWidgetToast('Network error. Please try again.');
     } finally {
       btn.disabled = false;
     }
@@ -1087,7 +1121,7 @@
     const newFiles = validateFiles(Array.from(fileInput.files));
     const totalAllowed = MAX_FILES - pendingAttachments.length;
     if (newFiles.length > totalAllowed) {
-      alert('Maximum ' + MAX_FILES + ' files allowed. You can add ' + totalAllowed + ' more.');
+      showWidgetToast('Maximum ' + MAX_FILES + ' files allowed. You can add ' + totalAllowed + ' more.');
       pendingAttachments.push(...newFiles.slice(0, totalAllowed));
     } else {
       pendingAttachments.push(...newFiles);
@@ -1116,14 +1150,12 @@
   // --- Email verification prompt ---
   const verifyEmailBtn = wrapper.querySelector('#vv-email-verify');
   const emailInput = wrapper.querySelector('#vv-email-input');
-  const emailError = wrapper.querySelector('#vv-email-error');
 
   const handleEmailVerify = async () => {
     const email = emailInput.value.trim().toLowerCase();
-    emailError.textContent = '';
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      emailError.textContent = 'Please enter a valid email address.';
+      showWidgetToast('Please enter a valid email address.');
       return;
     }
 
@@ -1140,12 +1172,12 @@
         needsEmailVerification = false;
         switchView('form');
       } else if (data.error) {
-        emailError.textContent = data.error;
+        showWidgetToast(data.error);
       } else {
-        emailError.textContent = 'This email does not have access. Please contact the site owner.';
+        showWidgetToast('This email does not have access. Please contact the site owner.');
       }
     } catch (e) {
-      emailError.textContent = 'Network error. Please try again.';
+      showWidgetToast('Network error. Please try again.');
     } finally {
       verifyEmailBtn.disabled = false;
       verifyEmailBtn.textContent = 'Continue';
@@ -1154,7 +1186,6 @@
 
   verifyEmailBtn.onclick = handleEmailVerify;
   emailInput.onkeydown = (e) => {
-    emailError.textContent = '';
     if (e.key === 'Enter') handleEmailVerify();
   };
 })();

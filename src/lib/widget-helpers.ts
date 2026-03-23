@@ -96,3 +96,41 @@ export async function validateApiKey(apiKey: string) {
 
     return { project, error: null, status: 200 };
 }
+
+/**
+ * Checks if an email is authorized for a workspace — either as a workspace member
+ * (owner/member/client) or via a workspace invite. Used by widget endpoints to
+ * gate access after email verification.
+ * Returns `true` if the email is authorized.
+ */
+export async function verifyWidgetEmail(email: string, workspaceId: string): Promise<boolean> {
+    const adminSupabase = createAdminClient();
+
+    // Check if email belongs to a workspace member
+    const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+    if (profile) {
+        const { data: membership } = await adminSupabase
+            .from('workspace_members')
+            .select('user_id')
+            .eq('workspace_id', workspaceId)
+            .eq('user_id', profile.id)
+            .single();
+
+        if (membership) return true;
+    }
+
+    // Fall back to checking workspace_invites (for clients)
+    const { data: invite } = await adminSupabase
+        .from('workspace_invites')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('email', email)
+        .single();
+
+    return !!invite;
+}

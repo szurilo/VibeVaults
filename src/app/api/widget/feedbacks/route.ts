@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
+import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
 
 export async function OPTIONS() {
     return optionsResponse();
@@ -11,14 +11,25 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const apiKey = searchParams.get("key");
+    const email = searchParams.get("email");
 
     if (!apiKey) {
         return corsError("Missing API Key", 400);
     }
 
+    if (!email) {
+        return corsError("Missing email", 400);
+    }
+
     const { project, error, status } = await validateApiKey(apiKey);
     if (error) {
         return corsError(error, status);
+    }
+
+    // Verify the requesting user still has access to this workspace
+    const isAuthorized = await verifyWidgetEmail(email, project.workspace_id);
+    if (!isAuthorized) {
+        return corsError("Access revoked. You no longer have access to this workspace.", 403);
     }
 
     const adminSupabase = createAdminClient();
