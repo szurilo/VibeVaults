@@ -150,7 +150,7 @@ export async function POST(request: Request) {
                     .in('id', memberIds);
 
                 if (profiles) {
-                    const replyPayload = { replyContent, senderName: senderEmail, projectName: projectData.name };
+                    const replyPayload = { replyContent, sender: senderEmail, projectName: projectData.name };
 
                     for (const p of profiles) {
                         const email = p.email;
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
                                 to: email,
                                 projectName: projectData.name,
                                 replyContent: replyContent,
-                                senderName: senderEmail,
+                                sender: senderEmail,
                                 unsubscribeToken: prefs.unsubscribeToken
                             });
                             await recordEmailSent({

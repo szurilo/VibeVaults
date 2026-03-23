@@ -98,8 +98,8 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
         const prefs = await getNotificationPrefs(feedback.sender, 'replies');
 
         if (prefs.shouldNotify) {
-            const senderName = user.email || 'Someone';
-            const replyPayload = { replyContent: content, senderName, projectName: project.name, originalFeedback: feedback.content };
+            const sender = user.email || 'Someone';
+            const replyPayload = { replyContent: content, sender, projectName: project.name, originalFeedback: feedback.content };
             const sendNow = await shouldSendReplyImmediately(feedback.sender, feedbackId);
 
             if (sendNow) {
@@ -108,7 +108,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
                     projectName: project.name,
                     replyContent: content,
                     originalFeedback: feedback.content,
-                    senderName,
+                    sender,
                     unsubscribeToken: prefs.unsubscribeToken
                 });
                 await recordEmailSent({

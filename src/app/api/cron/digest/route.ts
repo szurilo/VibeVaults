@@ -64,7 +64,7 @@ export async function GET() {
                         to: recipientEmail,
                         items: replyItems.map(item => ({
                             replyContent: item.payload.replyContent || '',
-                            senderName: item.payload.senderName || '',
+                            sender: item.payload.sender || '',
                             projectName: item.payload.projectName || '',
                             feedbackContentPreview: item.payload.originalFeedback,
                         })),
