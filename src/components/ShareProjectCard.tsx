@@ -11,7 +11,8 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card'
-import { Check, Copy, ExternalLink, Link as LinkIcon, Lock } from 'lucide-react'
+import { AlertCircle, Check, Copy, ExternalLink, Link as LinkIcon, Lock } from 'lucide-react'
+import { toast } from 'sonner'
 import Link from 'next/link'
 import { toggleProjectSharing } from '@/actions/project-sharing'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -42,9 +43,13 @@ export function ShareProjectCard({ project }: { project: any }) {
         setIsEnabled(checked)
 
         try {
-            await toggleProjectSharing(project.id, checked)
+            const result = await toggleProjectSharing(project.id, checked)
+            if (result?.error) {
+                toast("Error", { description: result.error, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
+                setIsEnabled(previousState)
+            }
         } catch (error) {
-            console.error(error)
+            toast("Error", { description: "Failed to toggle sharing.", icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
             setIsEnabled(previousState)
         } finally {
             setLoading(false)

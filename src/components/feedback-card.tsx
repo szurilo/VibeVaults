@@ -191,6 +191,11 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
         try {
             const replyResult = await sendAgencyReplyAction(feedback.id, newReply.trim())
 
+            if (replyResult?.error) {
+                toast("Error", { description: replyResult.error, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
+                return
+            }
+
             // Upload reply files if any
             if (replyFiles.length > 0) {
                 setIsUploadingReplyFiles(true)
@@ -211,8 +216,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
             fetchReplies()
             fetchAttachments()
         } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to send reply"
-            toast("Error", { description: message, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
+            toast("Error", { description: "Failed to send reply.", icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
             setIsUploadingReplyFiles(false)
         } finally {
             setIsSendingReply(false)
@@ -222,11 +226,14 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const handleDelete = async () => {
         setIsDeleting(true)
         try {
-            await deleteFeedback(feedback.id)
-            router.refresh()
+            const result = await deleteFeedback(feedback.id)
+            if (result?.error) {
+                toast("Error", { description: result.error, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
+            } else {
+                router.refresh()
+            }
         } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to delete feedback"
-            toast("Error", { description: message, icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
+            toast("Error", { description: "Failed to delete feedback.", icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
             setIsDeleting(false)
         }
     }

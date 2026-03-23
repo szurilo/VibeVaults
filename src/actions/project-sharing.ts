@@ -16,7 +16,7 @@ export async function toggleProjectSharing(projectId: string, enable: boolean) {
 
         if (fetchError) {
             console.error("Error fetching project:", fetchError);
-            throw new Error("Failed to fetch project details");
+            return { error: "You no longer have access to this project. Your access may have been revoked." };
         }
 
         if (!project?.share_token) {
@@ -28,7 +28,7 @@ export async function toggleProjectSharing(projectId: string, enable: boolean) {
 
             if (updateError) {
                 console.error("Failed to generate share token and enable:", updateError);
-                throw new Error("Failed to enable sharing");
+                return { error: "Failed to enable sharing." };
             }
         } else {
             const { error: updateError } = await supabase
@@ -38,7 +38,7 @@ export async function toggleProjectSharing(projectId: string, enable: boolean) {
 
             if (updateError) {
                 console.error("Failed to enable sharing:", updateError);
-                throw new Error("Failed to enable sharing");
+                return { error: "Failed to enable sharing." };
             }
         }
     } else {
@@ -49,9 +49,10 @@ export async function toggleProjectSharing(projectId: string, enable: boolean) {
 
         if (updateError) {
             console.error("Failed to disable sharing:", updateError);
-            throw new Error("Failed to disable sharing");
+            return { error: "Failed to disable sharing." };
         }
     }
 
     revalidatePath('/dashboard/settings');
+    return { error: null };
 }

@@ -23,10 +23,13 @@ export function FeedbackStatusSelect({ id, initialStatus }: FeedbackStatusSelect
     const handleStatusChange = async (newStatus: string) => {
         setStatus(newStatus); // Optimistic update
         try {
-            await updateFeedbackStatus(id, newStatus);
+            const result = await updateFeedbackStatus(id, newStatus);
+            if (result?.error) {
+                toast("Error", { description: result.error, icon: <AlertCircle className="h-4 w-4 text-red-500" /> });
+                setStatus(initialStatus); // Revert on error
+            }
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to update status';
-            toast("Error", { description: message, icon: <AlertCircle className="h-4 w-4 text-red-500" /> });
+            toast("Error", { description: 'Failed to update status.', icon: <AlertCircle className="h-4 w-4 text-red-500" /> });
             setStatus(initialStatus); // Revert on error
         }
     };
