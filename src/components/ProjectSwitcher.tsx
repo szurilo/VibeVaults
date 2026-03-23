@@ -41,9 +41,9 @@ export default function ProjectSwitcher({
 
     const handleProjectChange = (projectId: string) => {
         document.cookie = `selectedProjectId=${projectId}; path=/; max-age=31536000`;
-        // Clear any feedback anchor from notification navigation
+        // Force proper navigation to clear any feedback anchor and re-render with new project
         if (window.location.hash) {
-            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            router.push(window.location.pathname + window.location.search);
         }
         router.refresh();
     };

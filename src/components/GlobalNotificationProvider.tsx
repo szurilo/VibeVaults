@@ -50,11 +50,21 @@ export function GlobalNotificationProvider({ children, userId }: { children: Rea
                                     document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
                                     const hash = notification.feedback_id ? `#${notification.feedback_id}` : '';
                                     router.push(`/dashboard/feedback${hash}`);
+                                    router.refresh();
+
+                                    // If already on /dashboard/feedback, router.push won't fire hashchange,
+                                    // so set the hash directly to trigger Highlight's listener.
+                                    if (notification.feedback_id && window.location.pathname === '/dashboard/feedback') {
+                                        requestAnimationFrame(() => {
+                                            window.location.hash = '';
+                                            window.location.hash = notification.feedback_id;
+                                        });
+                                    }
                                 } else {
                                     // Workspace-level notification (member removed/left)
                                     router.push('/dashboard');
+                                    router.refresh();
                                 }
-                                router.refresh();
                             }
                         },
                         duration: 8000,

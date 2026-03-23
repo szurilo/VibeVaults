@@ -24,17 +24,22 @@ export function Highlight({
     const [active, setActive] = useState(false);
 
     useEffect(() => {
-        if (window.location.hash !== `#${id}` || !ref.current) return;
+        const check = () => {
+            if (window.location.hash !== `#${id}` || !ref.current) return;
 
-        const target = ref.current;
+            const target = ref.current;
 
-        // Scroll into view first, then activate after scroll settles
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const activateTimer = setTimeout(() => {
-            setActive(true);
-        }, 500);
+            // Scroll into view first, then activate after scroll settles
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => setActive(true), 500);
+        };
 
-        return () => clearTimeout(activateTimer);
+        // Check on mount
+        check();
+
+        // Re-check when hash changes (e.g. notification click while already on /feedback)
+        window.addEventListener('hashchange', check);
+        return () => window.removeEventListener('hashchange', check);
     }, [id]);
 
     // Create overlay + floating clone of the target element above it

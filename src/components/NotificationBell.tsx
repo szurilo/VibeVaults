@@ -112,9 +112,11 @@ export function NotificationBell({ userId }: { userId: string }) {
         router.refresh();
 
         // If already on /dashboard/feedback, router.push won't fire a native hashchange,
-        // so set the hash directly to trigger Highlight's listener.
+        // so set the hash directly to trigger Highlight's hashchange listener.
         if (notification.project_id && notification.feedback_id && window.location.pathname === '/dashboard/feedback') {
             requestAnimationFrame(() => {
+                // Clear hash first so re-setting the same feedback ID still fires hashchange
+                window.location.hash = '';
                 window.location.hash = notification.feedback_id;
             });
         }
