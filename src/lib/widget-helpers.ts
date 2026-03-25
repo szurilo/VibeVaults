@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
+import { getTierLimits, type TierSlug } from "@/lib/tier-config";
 
 export const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -80,7 +81,7 @@ export async function validateApiKey(apiKey: string) {
     if (workspace?.owner_id) {
         const { data: profile } = await adminSupabase
             .from('profiles')
-            .select('subscription_status, trial_ends_at')
+            .select('subscription_status, trial_ends_at, subscription_tier')
             .eq('id', workspace.owner_id)
             .single();
 
@@ -90,11 +91,14 @@ export async function validateApiKey(apiKey: string) {
             : false;
 
         if (!isSubscribed && !isTrialActive) {
-            return { project: null, error: "This widget is currently inactive. Please contact the site owner.", status: 403 };
+            return { project: null, ownerTier: null, error: "This widget is currently inactive. Please contact the site owner.", status: 403 };
         }
+
+        const ownerTier = (profile?.subscription_tier as TierSlug | null) ?? null;
+        return { project, ownerTier, error: null, status: 200 };
     }
 
-    return { project, error: null, status: 200 };
+    return { project, ownerTier: null, error: null, status: 200 };
 }
 
 /**

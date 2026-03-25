@@ -6,6 +6,7 @@
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
+import { checkStorageLimit } from "@/lib/tier-helpers";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_FILES_PER_REQUEST = 10;
@@ -87,6 +88,21 @@ export async function POST(request: Request) {
 
     if (files.length === 0) return corsError("No files provided.", 400);
     if (files.length > MAX_FILES_PER_REQUEST) return corsError(`Maximum ${MAX_FILES_PER_REQUEST} files per upload.`, 400);
+
+    // Check storage limit for workspace owner
+    const { data: workspace } = await adminSupabase
+        .from('workspaces')
+        .select('owner_id')
+        .eq('id', project.workspace_id)
+        .single();
+
+    if (workspace?.owner_id) {
+        const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+        const storageCheck = await checkStorageLimit(workspace.owner_id, totalSize);
+        if (!storageCheck.allowed) {
+            return corsError(storageCheck.message ?? 'Storage limit exceeded', 403);
+        }
+    }
 
     // Validate each file
     for (const file of files) {

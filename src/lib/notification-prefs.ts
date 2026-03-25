@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getUserTier } from "@/lib/tier-helpers";
 
 type NotificationType = 'new_feedback' | 'replies' | 'project_created';
 type EmailFrequency = 'digest' | 'realtime';
@@ -18,11 +19,13 @@ const isLocalhost = process.env.NEXT_PUBLIC_APP_URL?.includes('localhost') ?? fa
  *
  * @param email - The email address to check preferences for
  * @param type - Which notification type to check: 'new_feedback', 'replies', or 'project_created'
+ * @param workspaceOwnerId - Optional: if provided, tier-based email frequency enforcement is applied
  * @returns `{ shouldNotify, emailFrequency, unsubscribeToken }`
  */
 export async function getNotificationPrefs(
     email: string,
-    type: NotificationType
+    type: NotificationType,
+    workspaceOwnerId?: string
 ): Promise<NotificationPrefs> {
     const adminSupabase = createAdminClient();
 
@@ -65,6 +68,14 @@ export async function getNotificationPrefs(
     } else {
         shouldNotify = (prefData as any)[column];
         emailFrequency = prefData.email_frequency || 'digest';
+    }
+
+    // Tier-based enforcement: Starter users are forced to digest regardless of preference
+    if (workspaceOwnerId && emailFrequency === 'realtime') {
+        const { effectiveLimits } = await getUserTier(workspaceOwnerId);
+        if (!effectiveLimits.emailFrequencies.includes('realtime')) {
+            emailFrequency = 'digest';
+        }
     }
 
     return { shouldNotify, emailFrequency, unsubscribeToken };

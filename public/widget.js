@@ -479,6 +479,11 @@
         const checkbox = wrapper.querySelector('#vv-notify-replies');
         if (checkbox) checkbox.checked = notifyRepliesSetting;
       }
+      // Hide branding if the owner's plan doesn't require it
+      if (data.showBranding === false) {
+        const brandingEl = wrapper.querySelector('.branding');
+        if (brandingEl) brandingEl.style.display = 'none';
+      }
     })
     .catch(() => { });
 

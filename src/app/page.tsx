@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { UserFlowAnimation } from "@/components/landing/UserFlowAnimation";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { PricingCards } from "@/components/landing/PricingCards";
 
 export default function Home() {
   return (
@@ -22,7 +23,7 @@ export default function Home() {
             <Link href="#how-it-works" className="text-sm font-semibold text-gray-600 hover:text-primary transition-all duration-200">
               How it works
             </Link>
-            <Link href="#pricing" className="text-sm font-semibold text-gray-600 hover:text-primary transition-all duration-200">
+            <Link href="/pricing" className="text-sm font-semibold text-gray-600 hover:text-primary transition-all duration-200">
               Pricing
             </Link>
           </nav>
@@ -49,9 +50,11 @@ export default function Home() {
               "applicationCategory": "BusinessApplication",
               "description": "The feedback tool for modern agencies. Collect visual feedback, share progress with clients, and ship faster with VibeVaults.",
               "offers": {
-                "@type": "Offer",
-                "price": "49.00",
-                "priceCurrency": "USD"
+                "@type": "AggregateOffer",
+                "lowPrice": "29.00",
+                "highPrice": "149.00",
+                "priceCurrency": "USD",
+                "offerCount": 3
               }
             })
           }}
@@ -146,25 +149,15 @@ export default function Home() {
 
         <section id="pricing" className="py-32 w-full flex flex-col items-center">
           <div className="max-w-7xl mx-auto px-8 text-center">
-            <h2 className="text-5xl font-extrabold mb-6">Flat-Fee Agency Pricing</h2>
+            <h2 className="text-5xl font-extrabold mb-6">Simple, Transparent Pricing</h2>
             <p className="text-xl text-gray-500 max-w-2xl mx-auto mb-16">
-              Grow your agency without hitting paywalls. One predictable price for all your workflow needs.
+              Choose the plan that fits your team. Scale up as you grow.
             </p>
-            <div className="max-w-md mx-auto">
-              <div className="p-10 bg-white rounded-3xl border-2 border-primary shadow-xl relative transform hover:scale-105 transition-transform duration-300">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-white px-6 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase shadow-lg">Agency Plan</div>
-                <div className="text-4xl font-extrabold mb-8">$49<span className="text-lg text-gray-400 font-normal">/mo</span></div>
-                <ul className="text-left space-y-4 mb-10 text-gray-600">
-                  <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> <strong>Unlimited</strong> Projects & Websites</li>
-                  <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> <strong>Unlimited</strong> Feedback & Clients</li>
-                  <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Team Collaboration & Role-Based Access</li>
-                  <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Public Dashboard for Stakeholders</li>
-                  <li className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg> Direct Partner Support from Founders</li>
-                </ul>
-                <Link href="/auth/register" className="block w-full py-4 px-6 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0">Get started now</Link>
-                <p className="text-[10px] text-gray-400 mt-4 uppercase tracking-tighter font-semibold">14-day free trial • No credit card required</p>
-              </div>
-            </div>
+            <PricingCards
+              ctaLabel="Get started now"
+              staticCtaHref="/auth/register"
+              showTrialNote={true}
+            />
           </div>
         </section>
       </main>

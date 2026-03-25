@@ -7,6 +7,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
+import { checkStorageLimit } from "@/lib/tier-helpers";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_FILES_PER_REQUEST = 10;
@@ -61,6 +62,30 @@ export async function POST(request: Request) {
 
     if (files.length > MAX_FILES_PER_REQUEST) {
         return NextResponse.json({ error: `Maximum ${MAX_FILES_PER_REQUEST} files per upload` }, { status: 400 });
+    }
+
+    // Check storage limit for workspace owner
+    const adminSupabaseForLimit = createAdminClient();
+    const { data: project } = await adminSupabaseForLimit
+        .from('projects')
+        .select('workspace_id')
+        .eq('id', feedback.project_id)
+        .single();
+
+    if (project) {
+        const { data: workspace } = await adminSupabaseForLimit
+            .from('workspaces')
+            .select('owner_id')
+            .eq('id', project.workspace_id)
+            .single();
+
+        if (workspace?.owner_id) {
+            const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+            const storageCheck = await checkStorageLimit(workspace.owner_id, totalSize);
+            if (!storageCheck.allowed) {
+                return NextResponse.json({ error: storageCheck.message ?? 'Storage limit exceeded' }, { status: 403 });
+            }
+        }
     }
 
     // Validate files

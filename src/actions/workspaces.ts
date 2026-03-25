@@ -4,9 +4,21 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { sendWelcomeNotification, sendMemberRemovedNotification, sendMemberLeftNotification } from '@/lib/notifications';
+import { checkWorkspaceLimit } from '@/lib/tier-helpers';
 
 export async function createWorkspaceAction(name: string) {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        return { error: 'Not authenticated' };
+    }
+
+    // Check tier workspace limit before creating
+    const limitCheck = await checkWorkspaceLimit(user.id);
+    if (!limitCheck.allowed) {
+        return { error: limitCheck.message };
+    }
 
     // Call the RPC function we just created
     const { data: newWorkspaceId, error } = await supabase
@@ -18,7 +30,6 @@ export async function createWorkspaceAction(name: string) {
 
     // If this is the user's first owned workspace (e.g. a member creating their own),
     // reset onboarding so they see the owner-specific checklist.
-    const { data: { user } } = await supabase.auth.getUser();
     const { count } = await supabase
         .from('workspace_members')
         .select('*', { count: 'exact', head: true })

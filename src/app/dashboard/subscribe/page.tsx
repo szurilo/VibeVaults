@@ -1,52 +1,83 @@
-'use client';
+/**
+ * Main Responsibility: Subscribe/upgrade page shown in three contexts:
+ * 1. Trial expired → urgency messaging to pick a plan
+ * 2. Trial active → "Choose your plan" with remaining trial days
+ * 3. Active subscriber (Starter) → "Upgrade your plan" with current plan badge
+ *
+ * Sensitive Dependencies:
+ * - tier-helpers.ts for user tier resolution
+ * - supabase/server.ts for auth + profile data
+ */
 
-import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { LogOut, CreditCard } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import { PricingCards } from '@/components/landing/PricingCards';
+import { getUserTier } from '@/lib/tier-helpers';
+import { STRIPE_PRICES } from '@/lib/tier-config';
 
-export default function SubscribePage() {
-    const router = useRouter();
-    const supabase = createClient();
+export default async function SubscribePage() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    const handleSignOut = async () => {
-        await supabase.auth.signOut();
-        router.push('/auth/login');
-    };
+    if (!user) {
+        redirect('/auth/login');
+    }
+
+    const tierInfo = await getUserTier(user.id);
+
+    // Fetch trial_ends_at for remaining days calculation
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('trial_ends_at')
+        .eq('id', user.id)
+        .single();
+
+    // Determine page context
+    const isTrialExpired = !tierInfo.isTrialing && !tierInfo.tier;
+    const isTrialActive = tierInfo.isTrialing;
+    const isSubscribed = !!tierInfo.tier;
+
+    // Calculate remaining trial days
+    let trialDaysLeft = 0;
+    if (isTrialActive && profile?.trial_ends_at) {
+        trialDaysLeft = Math.max(0, Math.ceil(
+            (new Date(profile.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        ));
+    }
+
+    // Pick heading and description based on context
+    let heading: string;
+    let description: string;
+
+    if (isTrialExpired) {
+        heading = 'Your trial has expired';
+        description = 'Your 14-day free trial has ended. Choose a plan to continue using VibeVaults and keep collaborating on your projects.';
+    } else if (isTrialActive) {
+        heading = 'Choose your plan';
+        description = `You have ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left in your free trial. Pick a plan to continue seamlessly when your trial ends.`;
+    } else {
+        heading = 'Upgrade your plan';
+        description = 'Unlock more workspaces, projects, team members, and storage by upgrading to a higher tier.';
+    }
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] px-4">
-            <Card className="w-full max-w-md text-center">
-                <CardHeader>
-                    <div className="flex justify-center mb-4">
-                        <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-primary shadow-xl border border-gray-100">
-                            <CreditCard className="h-8 w-8" />
-                        </div>
-                    </div>
-                    <CardTitle className="text-2xl">Your trial has expired</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <p className="text-muted-foreground">
-                        Your 14-day free trial has ended. Subscribe now to continue using VibeVaults and keep collaborating on your projects.
-                    </p>
-                    <div className="flex flex-col gap-3 pt-2">
-                        <Button asChild size="lg" className="w-full">
-                            <a href="/api/stripe/checkout">
-                                <CreditCard className="mr-2 h-4 w-4" />
-                                Subscribe Now
-                            </a>
-                        </Button>
-                        <button
-                            onClick={handleSignOut}
-                            className="cursor-pointer text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 text-sm py-2 px-3 rounded-md transition-colors mx-auto"
-                        >
-                            <LogOut className="w-4 h-4" />
-                            <span>Sign Out</span>
-                        </button>
-                    </div>
-                </CardContent>
-            </Card>
+        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] px-4 py-12">
+            {/* Header */}
+            <div className="text-center mb-10">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">{heading}</h1>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                    {description}
+                </p>
+            </div>
+
+            {/* Pricing cards — Pro pre-selected via highlighted flag in tier-config */}
+            <div className="w-full max-w-5xl">
+                <PricingCards
+                    ctaLabel={isSubscribed ? 'Upgrade' : 'Subscribe'}
+                    currentTier={tierInfo.tier}
+                    priceIds={STRIPE_PRICES}
+                />
+            </div>
         </div>
     );
 }

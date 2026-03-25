@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
+import { getTierLimits } from "@/lib/tier-config";
 import { sendFeedbackNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { shouldSendFeedbackImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
         return corsError("Missing API Key", 400);
     }
 
-    const { project, error, status } = await validateApiKey(apiKey);
+    const { project, ownerTier, error, status } = await validateApiKey(apiKey);
     if (error) {
         return corsError(error, status);
     }
@@ -39,7 +40,12 @@ export async function GET(request: Request) {
         }
     }
 
-    return corsSuccess({ project: { name: project.name }, notifyReplies });
+    const limits = getTierLimits(ownerTier ?? null);
+    return corsSuccess({
+        project: { name: project.name },
+        notifyReplies,
+        showBranding: limits.showBranding,
+    });
 }
 
 export async function POST(request: Request) {

@@ -15,6 +15,7 @@ import { cookies } from "next/headers";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { GlobalNotificationProvider } from "@/components/GlobalNotificationProvider";
+import { getUserTier } from "@/lib/tier-helpers";
 
 export default async function DashboardLayout({
     children,
@@ -121,6 +122,9 @@ export default async function DashboardLayout({
     const cookie = cookieStore.get("sidebar_state");
     const defaultOpen = cookie ? cookie.value === "true" : true;
 
+    // Fetch tier info for sidebar display
+    const tierInfo = await getUserTier(user.id);
+
     return (
         <GlobalNotificationProvider userId={user.id}>
             <SidebarProvider defaultOpen={defaultOpen}>
@@ -130,6 +134,7 @@ export default async function DashboardLayout({
                     projects={projects || []}
                     selectedProjectId={selectedProjectId}
                     user={user}
+                    tierInfo={{ tier: tierInfo.tier, isTrialing: tierInfo.isTrialing }}
                 />
                 <main className="flex-1 overflow-y-auto bg-gray-50 flex flex-col">
                     <div className="p-4 bg-white border-b border-gray-200 md:hidden flex items-center gap-2">

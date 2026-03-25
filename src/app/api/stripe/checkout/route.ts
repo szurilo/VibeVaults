@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { stripe } from '@/lib/stripe';
+import { getAllPriceIds, getTierFromPriceId } from '@/lib/tier-config';
 
 export async function GET(request: Request) {
     try {
@@ -9,6 +10,14 @@ export async function GET(request: Request) {
 
         if (!user) {
             return NextResponse.redirect(new URL('/auth/login', request.url));
+        }
+
+        // Resolve the price ID from the query param (required)
+        const { searchParams } = new URL(request.url);
+        const priceId = searchParams.get('priceId');
+
+        if (!priceId || !getAllPriceIds().includes(priceId)) {
+            return NextResponse.json({ error: 'Invalid or missing priceId' }, { status: 400 });
         }
 
         // Check if user already has a Stripe Customer ID
@@ -65,12 +74,32 @@ export async function GET(request: Request) {
                 .eq('id', user.id);
         }
 
-        // Create Checkout Session
+        // If the customer already has an active subscription, send them to the
+        // Stripe Customer Portal so they can upgrade/downgrade instead of stacking
+        // a second subscription.
+        const existingSubs = await stripe.subscriptions.list({
+            customer: customerId,
+            status: 'active',
+            limit: 1,
+        });
+
+        if (existingSubs.data.length > 0) {
+            const portalSession = await stripe.billingPortal.sessions.create({
+                customer: customerId,
+                return_url: `${new URL(request.url).origin}/dashboard`,
+            });
+            return NextResponse.redirect(portalSession.url, 303);
+        }
+
+        // Resolve tier from price ID for metadata
+        const tier = getTierFromPriceId(priceId);
+
+        // Create Checkout Session (new subscription only)
         const session = await stripe.checkout.sessions.create({
             customer: customerId,
             line_items: [
                 {
-                    price: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
+                    price: priceId,
                     quantity: 1,
                 },
             ],
@@ -80,6 +109,7 @@ export async function GET(request: Request) {
             cancel_url: `${new URL(request.url).origin}/dashboard`,
             metadata: {
                 userId: user.id,
+                tier: tier ?? '',
             },
         });
 

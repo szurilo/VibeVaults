@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -18,12 +18,19 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: CreateP
     const [projectName, setProjectName] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    // Clear error whenever the dialog opens
+    useEffect(() => {
+        if (open) setError('');
+    }, [open]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!projectName.trim() || !websiteUrl.trim()) return;
 
         setLoading(true);
+        setError('');
         try {
             const match = document.cookie.match(new RegExp('(^| )selectedWorkspaceId=([^;]+)'));
             const currentWorkspaceId = match ? match[2] : workspaceId;
@@ -45,20 +52,31 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: CreateP
                 setWebsiteUrl('');
                 onOpenChange(false);
                 router.refresh();
+            } else {
+                const text = await res.text();
+                let message = 'Failed to create project. Please try again.';
+                try { message = JSON.parse(text)?.error || text || message; } catch { message = text || message; }
+                setError(message);
             }
         } catch (error) {
             console.error('Failed to create project:', error);
+            setError('Something went wrong. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); setError(''); }}>
             <DialogContent showCloseButton={false}>
                 <DialogHeader>
                     <DialogTitle>Create Project</DialogTitle>
                 </DialogHeader>
+                {error && (
+                    <div className="bg-red-50 border border-red-100/50 text-red-800 p-4 rounded-md text-sm font-medium">
+                        {error}
+                    </div>
+                )}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2 max-w-sm mt-2">
                         <Label htmlFor="createProjectName">Project Name</Label>

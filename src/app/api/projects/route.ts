@@ -13,6 +13,7 @@ import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { sendProjectCreatedNotification } from "@/lib/notifications";
+import { checkProjectLimit } from "@/lib/tier-helpers";
 
 export async function GET() {
     const supabase = await createClient();
@@ -57,6 +58,12 @@ export async function POST(req: Request) {
 
     if (!user || userError) {
         return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    // Check tier project limit for this workspace
+    const limitCheck = await checkProjectLimit(workspace_id, user.id);
+    if (!limitCheck.allowed) {
+        return new NextResponse(limitCheck.message ?? 'Project limit reached', { status: 403 });
     }
 
     const { data: project, error } = await supabase
