@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { FeedbackCard } from '@/components/feedback-card'
 import Link from 'next/link'
-import { Clock } from 'lucide-react'
+import { Clock, ExternalLink } from 'lucide-react'
 import { getWorkspaceOwnerTier } from '@/lib/tier-helpers'
 
 // Define Feedback type for clarity
@@ -20,7 +20,7 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
     // 1. Fetch Project
     const { data: project } = await supabase
         .from('projects')
-        .select('id, name, is_sharing_enabled, share_token, workspace_id')
+        .select('id, name, is_sharing_enabled, share_token, workspace_id, website_url')
         .eq('share_token', token)
         .single()
 
@@ -72,24 +72,25 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
             <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link href="/" className="cursor-pointer block">
-                            <span className="font-bold text-xl text-primary">VibeVaults</span>
-                        </Link>
-                        <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
-                        <h1 className="font-semibold text-gray-900 truncate max-w-[200px] sm:max-w-md flex items-center gap-2">
+                        <h1 className="font-bold text-xl text-gray-900 truncate max-w-[200px] sm:max-w-md">
                             {project.name}
-                            <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-wider">
-                                Public View
-                            </span>
                         </h1>
+                        {project.website_url && (
+                            <a
+                                href={project.website_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors truncate max-w-[200px]"
+                                title={project.website_url}
+                            >
+                                <ExternalLink className="w-3 h-3 shrink-0" />
+                                <span className="truncate hidden sm:inline">{project.website_url.replace(/^https?:\/\//, '')}</span>
+                            </a>
+                        )}
                     </div>
-                    <Link
-                        href="https://vibe-vaults.com"
-                        target="_blank"
-                        className="text-xs font-medium text-gray-400 hover:text-primary transition-colors hidden sm:block"
-                    >
-                        Powered by VibeVaults
-                    </Link>
+                    <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+                        Public Board
+                    </span>
                 </div>
             </header>
 
@@ -97,7 +98,7 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
             <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-3">
-                        Feedback Board
+                        Feedbacks
                         <span className="text-sm font-normal text-gray-500 bg-white border border-gray-200 px-2.5 py-0.5 rounded-full shadow-sm">
                             {feedbacks.length}
                         </span>
