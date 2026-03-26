@@ -69,7 +69,7 @@ export default function WorkspaceSwitcher({
             const result = await createWorkspaceAction(name.trim());
 
             if (result && typeof result === 'object' && 'error' in result) {
-                setError(result.error);
+                setError(result.error ?? 'Unknown error');
                 return;
             }
 
