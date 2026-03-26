@@ -1,12 +1,28 @@
 'use server';
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { getWorkspaceOwnerTier } from "@/lib/tier-helpers";
 
 export async function toggleProjectSharing(projectId: string, enable: boolean) {
     const supabase = await createClient();
 
     if (enable) {
+        // Check if the workspace owner's tier allows public dashboard sharing
+        const adminSupabase = createAdminClient();
+        const { data: proj } = await adminSupabase
+            .from('projects')
+            .select('workspace_id')
+            .eq('id', projectId)
+            .single();
+
+        if (proj) {
+            const { effectiveLimits } = await getWorkspaceOwnerTier(proj.workspace_id);
+            if (!effectiveLimits.publicDashboard) {
+                return { error: 'Public dashboard sharing is available on Pro and Business plans. Upgrade to unlock.' };
+            }
+        }
         // Check if project has a share token
         const { data: project, error: fetchError } = await supabase
             .from('projects')

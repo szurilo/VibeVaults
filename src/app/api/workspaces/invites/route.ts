@@ -12,6 +12,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { sendWorkspaceInviteNotification, sendClientInviteNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
+import { checkMemberLimit } from "@/lib/tier-helpers";
 
 export async function POST(req: Request) {
     try {
@@ -42,6 +43,14 @@ export async function POST(req: Request) {
 
         if (!membership || membership.role !== 'owner') {
             return new NextResponse("Forbidden: Only owners can invite members", { status: 403 });
+        }
+
+        // Check tier member limit (only for 'member' role — client invites are unlimited)
+        if (role === 'member') {
+            const limitCheck = await checkMemberLimit(workspaceId);
+            if (!limitCheck.allowed) {
+                return new NextResponse(limitCheck.message ?? 'Member limit reached', { status: 403 });
+            }
         }
 
         // Prevent self-invites (owner inviting themselves as member or client)

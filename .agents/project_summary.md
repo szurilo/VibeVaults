@@ -119,8 +119,32 @@
 - Constraints: 10MB max per file, 10 files per request, MIME type allowlist (images, PDFs, Office docs, text/csv).
 - Reply attachments supported end-to-end (widget screenshot, file upload → API → storage → display).
 
+### Multi-Tier Pricing
+- Three tiers: Starter ($29/mo), Pro ($49/mo), Business ($149/mo) with yearly billing (20% off).
+- Tier config single source of truth: `src/lib/tier-config.ts` (limits, prices, Stripe price/product IDs from env vars).
+- Tier enforcement helpers: `src/lib/tier-helpers.ts` — `getUserTier()`, `getWorkspaceOwnerTier()`, `checkWorkspaceLimit()`, `checkProjectLimit()`, `checkMemberLimit()`, `checkStorageLimit()`.
+- **Limits are account-wide** (not per-workspace): project count sums across all owned workspaces.
+- Error messages are context-aware: owners see "Upgrade to add more", members see "Ask the owner to upgrade".
+- Stripe Customer Portal for plan management (upgrade/downgrade/cancel) via `/api/stripe/portal`.
+- Stripe subscription schedules supported for end-of-period downgrades.
+- Checkout prevents duplicate subscriptions — redirects to Customer Portal if user already has active subscription.
+- Webhook auto-enforces tier limits on downgrade: disables public sharing, reverts email frequency to digest.
+- Widget branding gated by tier (`showBranding` flag from `validateApiKey()`).
+- Share board gated by tier in both `toggleProjectSharing()` action and `/share/[token]` page.
+- `BillingCard` on account page with "Manage Billing" button (Stripe Customer Portal).
+- `profiles.subscription_tier` column: `'starter' | 'pro' | 'business'` (null = trial/no subscription).
+
 ### Subscribe Page
-- `/dashboard/subscribe` page shown when trial expires. Displays "Your trial has expired" with options to subscribe (Stripe checkout) or log out.
+- `/dashboard/subscribe` is a server component with context-aware messaging:
+  - Trial expired: "Your trial has expired".
+  - Trial active: "Choose your plan" with days remaining.
+  - Subscribed: "Upgrade your plan" (for changing tiers).
+- Uses shared `PricingCards` component with monthly/yearly toggle.
+- Pro tier pre-selected. Price IDs passed from server side (not client env vars).
+
+### Pricing Page
+- Public `/pricing` page with `PricingCards` component and feature comparison table.
+- Added to proxy exclusion list for unauthenticated access.
 
 ### Email Templates
 - Consistent styling across all transactional emails.
@@ -153,6 +177,10 @@
 | `WorkspaceSettingsCard` | `src/components/WorkspaceSettingsCard.tsx` | Workspace branding & settings |
 | `EditProjectCard` | `src/components/EditProjectCard.tsx` | Project name/URL editing |
 | `AddFeedbackDialog` | `src/components/AddFeedbackDialog.tsx` | Manual feedback creation dialog |
+| `PricingCards` | `src/components/landing/PricingCards.tsx` | Shared pricing cards with monthly/yearly toggle (landing, /pricing, subscribe) |
+| `BillingCard` | `src/components/BillingCard.tsx` | Account page billing card with Stripe Customer Portal link |
+| `DeleteAccountCard` | `src/components/DeleteAccountCard.tsx` | Account page danger zone for account deletion |
+| `NotificationsCard` | `src/components/NotificationsCard.tsx` | Account page email notification preferences |
 
 ## 6. API Routes
 | Route | Method | Purpose |
@@ -169,8 +197,9 @@
 | `/api/auth/callback` | GET | Supabase auth callback handler |
 | `/api/auth/turnstile` | POST | Turnstile token verification |
 | `/api/auth/delete-account` | POST | Delete user account (cleans up email prefs, Stripe customer) |
-| `/api/stripe/checkout` | POST | Stripe checkout session |
-| `/api/stripe/webhook` | POST | Stripe webhook handler |
+| `/api/stripe/checkout` | POST | Stripe checkout session (redirects to portal if already subscribed) |
+| `/api/stripe/portal` | POST | Stripe Customer Portal session for plan management |
+| `/api/stripe/webhook` | POST | Stripe webhook handler (tier sync + downgrade enforcement) |
 | `/api/cron/digest` | GET | Processes queued digest emails (Supabase pg_cron, every 15 min) |
 
 ## 7. Server Actions
@@ -183,11 +212,12 @@
 | `updateFeedbackStatusAction` | `src/actions/feedback.ts` | Update feedback status |
 | `toggleShareAction` | `src/actions/project-sharing.ts` | Enable/disable public board sharing |
 | `updateEmailPreferencesAction` | `src/actions/preferences.ts` | Update per-project email preferences |
+| `getTierUsageAction` | `src/actions/tier.ts` | Returns tier, limits, and account-wide usage counts |
 
 ## 8. Database Schema (Key Tables)
 | Table | Purpose |
 |---|---|
-| `profiles` | User profiles, onboarding state (`has_onboarded`, `completed_onboarding_steps`), Stripe fields, `trial_ends_at` |
+| `profiles` | User profiles, onboarding state (`has_onboarded`, `completed_onboarding_steps`), Stripe fields (`stripe_customer_id`, `stripe_subscription_id`, `subscription_status`, `subscription_tier`), `trial_ends_at` |
 | `workspaces` | Multi-tenant workspaces with branding (name, logo) |
 | `workspace_members` | User ↔ workspace association with role (`owner`, `member`, `client`). Composite key `(workspace_id, user_id)` — no `id` column |
 | `workspace_invites` | Pending invitations with email, role, workspace reference |
@@ -207,3 +237,4 @@
 | `20260318000000_nullable_notification_project_id.sql` | Made `notifications.project_id` nullable for workspace-level notifications |
 | `20260319000000_add_email_digest.sql` | Added `email_digest_queue` table + `email_frequency` column on `email_preferences` |
 | `20260320000000_pg_cron_email_digest.sql` | pg_cron + pg_net setup, `app_config` table, scheduled digest processing every 15 min |
+| `20260325000000_add_subscription_tier.sql` | Added `subscription_tier` column to `profiles` (starter/pro/business) |

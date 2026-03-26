@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/sidebar"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { LayoutDashboard, MessageSquare, Settings, LogOut, Users, ExternalLink } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Settings, LogOut, Users, ExternalLink, Crown } from "lucide-react"
+import type { TierSlug } from "@/lib/tier-config"
 import { NotificationBell } from "@/components/NotificationBell"
 import { User } from "@supabase/supabase-js"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -33,12 +34,14 @@ export function AppSidebar({
     projects,
     selectedProjectId,
     user,
+    tierInfo,
 }: {
     workspaces: any[]
     selectedWorkspaceId?: string
     projects: any[]
     selectedProjectId?: string
     user: User
+    tierInfo?: { tier: TierSlug | null; isTrialing: boolean }
 }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -53,13 +56,22 @@ export function AppSidebar({
     const activeProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
     const isOwner = activeWorkspace?.owner_id === user.id;
     const isSubscribePage = pathname === "/dashboard/subscribe";
+    const isTrialExpired = isSubscribePage && !!tierInfo && !tierInfo.isTrialing && !tierInfo.tier;
+    const lockSidebar = isTrialExpired;
+
+    // Derive tier display label
+    const tierLabel = tierInfo?.isTrialing
+        ? 'Trial'
+        : tierInfo?.tier
+            ? tierInfo.tier.charAt(0).toUpperCase() + tierInfo.tier.slice(1)
+            : null;
 
     return (
         <Sidebar>
             <SidebarHeader className="bg-white border-b border-gray-100 p-4">
                 <div className="flex items-center justify-between px-2">
-                    <span className={`font-bold text-xl text-primary ${isSubscribePage ? "opacity-50" : ""}`}>
-                        {isSubscribePage ? (
+                    <span className={`font-bold text-xl text-primary ${lockSidebar ? "opacity-50" : ""}`}>
+                        {lockSidebar ? (
                             "VibeVaults"
                         ) : (
                             <Link href="/dashboard" className="cursor-pointer block">
@@ -67,11 +79,11 @@ export function AppSidebar({
                             </Link>
                         )}
                     </span>
-                    {!isSubscribePage && <NotificationBell userId={user.id} />}
+                    {!lockSidebar && <NotificationBell userId={user.id} />}
                 </div>
             </SidebarHeader>
 
-            <SidebarContent className={`bg-white px-2 py-4 gap-6 ${isSubscribePage ? "pointer-events-none opacity-50" : ""}`}>
+            <SidebarContent className={`bg-white px-2 py-4 gap-6 ${lockSidebar ? "pointer-events-none opacity-50" : ""}`}>
                 {/* Workspace Group */}
                 <div className="flex flex-col gap-2">
                     <div className="px-2">
@@ -158,6 +170,21 @@ export function AppSidebar({
             </SidebarContent>
 
             <SidebarFooter className="bg-white border-t border-gray-100 p-4">
+                {tierLabel && !lockSidebar && (
+                    <div className="flex items-center justify-between px-2 pb-3">
+                        <div className="flex items-center gap-1.5">
+                            <Crown className="w-3.5 h-3.5 text-amber-500" />
+                            <span className="text-xs font-semibold text-gray-600">
+                                {tierLabel}{tierInfo?.isTrialing ? ' (Pro)' : ''}
+                            </span>
+                        </div>
+                        {(tierInfo?.tier !== 'business') && (
+                            <Link href="/dashboard/subscribe" className="text-xs font-semibold text-primary hover:underline">
+                                {tierInfo?.isTrialing ? 'Subscribe' : 'Upgrade'}
+                            </Link>
+                        )}
+                    </div>
+                )}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <SidebarMenuButton size="lg" className="w-full justify-start gap-2 h-auto py-2 cursor-pointer">

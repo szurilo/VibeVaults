@@ -68,7 +68,15 @@ jobs:
         SUPABASE_SECRET_KEY: ${{ steps.supabase_keys.outputs.service_role_key }}
         STRIPE_SECRET_KEY: "sk_test_dummy"
         STRIPE_WEBHOOK_SECRET: "whsec_dummy"
-        NEXT_PUBLIC_STRIPE_PRICE_ID: "price_dummy"
+        STRIPE_PRODUCT_STARTER: "prod_dummy_starter"
+        STRIPE_PRICE_STARTER_MONTHLY: "price_dummy_starter_monthly"
+        STRIPE_PRICE_STARTER_YEARLY: "price_dummy_starter_yearly"
+        STRIPE_PRODUCT_PRO: "prod_dummy_pro"
+        STRIPE_PRICE_PRO_MONTHLY: "price_dummy_pro_monthly"
+        STRIPE_PRICE_PRO_YEARLY: "price_dummy_pro_yearly"
+        STRIPE_PRODUCT_BUSINESS: "prod_dummy_business"
+        STRIPE_PRICE_BUSINESS_MONTHLY: "price_dummy_business_monthly"
+        STRIPE_PRICE_BUSINESS_YEARLY: "price_dummy_business_yearly"
         RESEND_API_KEY: "re_dummy"
         NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3000"
     - uses: actions/upload-artifact@v4

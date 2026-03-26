@@ -51,3 +51,26 @@ export async function updateAgencyPreferencesAction(notifyNewFeedback: boolean, 
 
     revalidatePath('/dashboard/settings');
 }
+
+export async function updateEmailFrequencyAction(frequency: 'digest' | 'realtime') {
+    const supabaseServer = await createClient();
+    const { data: { user } } = await supabaseServer.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const email = user.email;
+    if (!email) throw new Error("No user email found.");
+
+    const supabaseAdmin = createAdminClient();
+    const { error } = await supabaseAdmin
+        .from("email_preferences")
+        .upsert({
+            email,
+            email_frequency: frequency
+        }, { onConflict: 'email' });
+
+    if (error) {
+        throw new Error("Failed to update email frequency.");
+    }
+
+    revalidatePath('/dashboard/settings');
+}

@@ -49,6 +49,7 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.includes('manifest') &&
         !request.nextUrl.pathname.startsWith('/privacy-policy') &&
         !request.nextUrl.pathname.startsWith('/terms-of-service') &&
+        !request.nextUrl.pathname.startsWith('/pricing') &&
         !request.nextUrl.pathname.startsWith('/share') &&
         !request.nextUrl.pathname.includes('sitemap.xml') &&
         !request.nextUrl.pathname.includes('robots.txt')
@@ -73,7 +74,7 @@ export async function updateSession(request: NextRequest) {
     if (request.nextUrl.pathname.startsWith('/dashboard') && !request.nextUrl.pathname.startsWith('/dashboard/payment-success') && !request.nextUrl.pathname.startsWith('/dashboard/subscribe') && !request.nextUrl.pathname.startsWith('/dashboard/account') && user) {
         const { data: profile, error } = await supabase
             .from('profiles')
-            .select('subscription_status, trial_ends_at')
+            .select('subscription_status, subscription_tier, trial_ends_at')
             .eq('id', user.sub)
             .single();
 
@@ -84,7 +85,7 @@ export async function updateSession(request: NextRequest) {
             return supabaseResponse;
         }
 
-        const isSubscribed = profile?.subscription_status === 'active';
+        const isSubscribed = profile?.subscription_status === 'active' || !!profile?.subscription_tier;
         const isTrialActive = profile?.trial_ends_at ? new Date(profile.trial_ends_at) > new Date() : false;
 
         if (!isSubscribed && !isTrialActive) {

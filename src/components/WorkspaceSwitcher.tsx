@@ -32,6 +32,12 @@ export default function WorkspaceSwitcher({
     const [showNewWorkspaceDialog, setShowNewWorkspaceDialog] = useState(false);
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    // Clear error whenever the dialog opens
+    useEffect(() => {
+        if (showNewWorkspaceDialog) setError('');
+    }, [showNewWorkspaceDialog]);
 
     useEffect(() => {
         const cookieValue = typeof document !== 'undefined' ? document.cookie
@@ -57,16 +63,24 @@ export default function WorkspaceSwitcher({
         if (!name.trim()) return;
 
         setLoading(true);
+        setError('');
         try {
             const { createWorkspaceAction } = await import('@/actions/workspaces');
-            const newWorkspaceId = await createWorkspaceAction(name.trim());
-            document.cookie = `selectedWorkspaceId=${newWorkspaceId}; path=/; max-age=31536000`;
+            const result = await createWorkspaceAction(name.trim());
+
+            if (result && typeof result === 'object' && 'error' in result) {
+                setError(result.error ?? 'Unknown error');
+                return;
+            }
+
+            document.cookie = `selectedWorkspaceId=${result}; path=/; max-age=31536000`;
             document.cookie = `selectedProjectId=; path=/; max-age=0`;
             setShowNewWorkspaceDialog(false);
             setName('');
             router.push('/dashboard');
         } catch (error) {
             console.error(error);
+            setError('Something went wrong. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -80,7 +94,7 @@ export default function WorkspaceSwitcher({
     const invitedWorkspaces = hasWorkspaces ? workspaces.filter(w => w.owner_id !== user.id) : [];
 
     return (
-        <Dialog open={showNewWorkspaceDialog} onOpenChange={setShowNewWorkspaceDialog}>
+        <Dialog open={showNewWorkspaceDialog} onOpenChange={(open) => { setShowNewWorkspaceDialog(open); if (!open) setError(''); }}>
             <SidebarMenu>
                 <SidebarMenuItem>
                     <DropdownMenu>
@@ -190,6 +204,11 @@ export default function WorkspaceSwitcher({
                 {!hasOwnWorkspace && (
                     <div className="bg-blue-50 border border-blue-100/50 text-blue-800 p-4 rounded-md text-sm font-medium">
                         By creating your own workspace you are subscribing to VibeVaults and will start your 14 days trial.
+                    </div>
+                )}
+                {error && (
+                    <div className="bg-red-50 border border-red-100/50 text-red-800 p-4 rounded-md text-sm font-medium">
+                        {error}
                     </div>
                 )}
                 <form onSubmit={handleCreateSubmit} className="space-y-4">
