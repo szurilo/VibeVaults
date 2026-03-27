@@ -1,6 +1,8 @@
 (function () {
+  // Capture script reference synchronously (only available during inline execution)
   const scriptTag = document.currentScript;
 
+  function init() {
   // Dynamically determine API base from script source (works for local & prod)
   const scriptUrl = new URL(scriptTag.src);
   let origin = scriptUrl.origin;
@@ -1193,4 +1195,12 @@
   emailInput.onkeydown = (e) => {
     if (e.key === 'Enter') handleEmailVerify();
   };
+  } // end init()
+
+  // Ensure document.body exists before mounting the widget DOM
+  if (document.body) {
+    init();
+  } else {
+    document.addEventListener('DOMContentLoaded', init);
+  }
 })();
