@@ -2,8 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { UserPlus, Code2, Rocket, Mail, ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { UserPlus, Code2, ArrowRight } from "lucide-react";
 
 const steps = [
     {
@@ -139,33 +138,6 @@ export const HowItWorks = () => {
                     ))}
                 </div>
 
-                {/* Developer help CTA */}
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.6 }}
-                    className="mt-20 max-w-4xl mx-auto p-8 rounded-3xl bg-gray-50 border border-gray-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative overflow-hidden"
-                >
-                    <div className="flex flex-col md:flex-row items-start md:items-center gap-6 text-left relative z-10">
-                        <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-primary shadow-xl border border-gray-100 shrink-0">
-                            <UserPlus size={32} />
-                        </div>
-                        <div>
-                            <h4 className="text-xl font-bold text-gray-900 mb-1">Your SaaS Partner, Not Just a Vendor</h4>
-                            <p className="text-gray-600 max-w-md">
-                                Skip the tier-1 chatbots. With decades of agency experience, we work directly with you to implement features you actually need and keep your pipeline moving.
-                            </p>
-                        </div>
-                    </div>
-                    <Link
-                        href="/auth/register"
-                        className="group flex items-center gap-3 px-8 py-4 bg-primary text-white hover:bg-primary/90 rounded-2xl font-bold transition-all duration-300 whitespace-nowrap shadow-lg shadow-primary/20 hover:shadow-xl hover:-translate-y-1 relative z-10 w-full md:w-auto justify-center"
-                    >
-                        Try VibeVaults Free
-                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                </motion.div>
             </div>
         </section>
     );

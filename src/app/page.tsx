@@ -1,14 +1,25 @@
 import Link from "next/link";
-import { UserFlowAnimation } from "@/components/landing/UserFlowAnimation";
+import { ProductDemo } from "@/components/landing/ProductDemo";
+import { ROICalculator } from "@/components/landing/ROICalculator";
+import { BentoFeatures } from "@/components/landing/BentoFeatures";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { FounderNote } from "@/components/landing/FounderNote";
 import { PricingCards } from "@/components/landing/PricingCards";
 
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="w-full bg-yellow-50 border-b border-yellow-100 text-yellow-800 px-4 py-2 text-center text-sm font-medium">
-        🚧 This product is under active development
+      {/* Beta exclusivity banner */}
+      <div className="w-full bg-gradient-to-r from-primary to-secondary text-white px-4 py-2.5 text-center text-sm font-semibold tracking-wide">
+        Early Access — Limited founding member spots.{" "}
+        <Link
+          href="/auth/register"
+          className="underline underline-offset-2 hover:no-underline font-bold"
+        >
+          Claim 50% off now
+        </Link>
       </div>
+
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="px-4 md:px-8 py-4 flex justify-between items-center max-w-7xl mx-auto w-full">
           <div className="flex-1">
@@ -59,6 +70,8 @@ export default function Home() {
             })
           }}
         />
+
+        {/* Hero */}
         <section className="flex flex-col items-center justify-center py-20 px-4 text-center max-w-7xl mx-auto">
           <div className="max-w-4xl">
             <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-none mb-8 text-gray-900">
@@ -69,92 +82,43 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20">
               <Link href="/auth/register" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 bg-secondary text-white hover:bg-secondary/90 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
-                Start your 14-day free trial
+                Claim your founding member spot
+              </Link>
+              <Link href="#demo" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 border-2 border-gray-200 text-gray-700 hover:border-primary hover:text-primary hover:shadow-lg hover:-translate-y-1 active:translate-y-0">
+                See it in action
               </Link>
             </div>
           </div>
-
-          <div className="w-full mt-8">
-            <UserFlowAnimation />
-          </div>
         </section>
 
-        <section id="features" className="py-32 bg-gray-50 w-full flex flex-col items-center">
-          <div className="max-w-7xl mx-auto px-8 text-center">
-            <h2 className="text-5xl font-extrabold mb-6">Built for agency velocity</h2>
-            <p className="text-xl text-gray-500 max-w-2xl mx-auto mb-16">
-              Stop deciphering "make the logo bigger" from cropped PDFs. Give your clients a visual, friction-free way to point, click, and leave feedback exactly where it belongs.
-            </p>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto text-left">
-              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 text-primary">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                </div>
-                <h3 className="text-xl font-bold mb-4">One-Click Install</h3>
-                <p className="text-gray-500 flex-1">Drop a single script tag into WordPress, Webflow, Shopify, React or any site. Zero complex setup, and your clients don't even need to create an account.</p>
-              </div>
+        {/* Product Demo (video + screenshots) */}
+        <div id="demo">
+          <ProductDemo
+            // videoUrl="https://www.youtube.com/embed/YOUR_VIDEO_ID"
+          />
+        </div>
 
-              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center mb-6 text-orange-600">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                </div>
-                <h3 className="text-xl font-bold mb-4">Point, Pin & Screenshot</h3>
-                <p className="text-gray-500 flex-1">Clients can pin their feedback directly on any screen element. We automatically snap a screenshot and collect essential metadata (browser, OS, screen size), giving you pixel-perfect technical context instantly.</p>
-              </div>
+        {/* Bento Feature Grid */}
+        <BentoFeatures />
 
-              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                <div className="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center mb-6 text-green-600">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" /></svg>
-                </div>
-                <h3 className="text-xl font-bold mb-4">Real-Time Discussions</h3>
-                <p className="text-gray-500 flex-1">Turn feedback into conversation. Chat with clients contextually right on the page, with messages and status updates syncing instantly.</p>
-              </div>
-
-              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center mb-6 text-purple-600">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-                </div>
-                <h3 className="text-xl font-bold mb-4">Interactive Feedbacks Tab</h3>
-                <p className="text-gray-500 flex-1">Keep everyone aligned. All client stakeholders can see ongoing discussions and participate directly from the widget, preventing duplicate requests.</p>
-              </div>
-
-              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                <div className="w-12 h-12 bg-secondary/10 rounded-2xl flex items-center justify-center mb-6 text-secondary">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                </div>
-                <h3 className="text-xl font-bold mb-4">Public Dashboard for Stakeholders</h3>
-                <p className="text-gray-500 flex-1">Need to update a wider team? Share a dedicated, project-wide dashboard where stakeholders can track the status of all feedback and revisions at a glance.</p>
-              </div>
-
-              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                <div className="w-12 h-12 bg-rose-500/10 rounded-2xl flex items-center justify-center mb-6 text-rose-600">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                </div>
-                <h3 className="text-xl font-bold mb-4">Team Collaboration</h3>
-                <p className="text-gray-500 flex-1">Invite your team members with role-based access. Owners, members, and clients each see exactly what they need — with real-time notifications keeping everyone in the loop.</p>
-              </div>
-
-              <div className="p-8 bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 text-blue-600">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                </div>
-                <h3 className="text-xl font-bold mb-4">Unlimited Projects</h3>
-                <p className="text-gray-500 flex-1">Manage 5 or 50 client sites under one transparent flat fee. We scale with your workflow without punishing you with per-project pricing walls.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
+        {/* How It Works */}
         <HowItWorks />
 
-        <section id="pricing" className="py-32 w-full flex flex-col items-center">
+        {/* Founder Note & Social Proof */}
+        <FounderNote />
+
+        {/* ROI Calculator — right before pricing for final justification */}
+        <ROICalculator />
+
+        {/* Pricing */}
+        <section id="pricing" className="py-32 w-full flex flex-col items-center bg-gray-50">
           <div className="max-w-7xl mx-auto px-8 text-center">
             <h2 className="text-5xl font-extrabold mb-6">Simple, Transparent Pricing</h2>
             <p className="text-xl text-gray-500 max-w-2xl mx-auto mb-16">
               Choose the plan that fits your team. Scale up as you grow.
             </p>
             <PricingCards
-              ctaLabel="Get started now"
+              ctaLabel="Claim your founding member spot"
               staticCtaHref="/auth/register"
               showTrialNote={true}
             />
@@ -165,7 +129,7 @@ export default function Home() {
       <footer className="py-8 w-full border-t border-gray-100 bg-white">
         <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-sm text-gray-500">
-            © {new Date().getFullYear()} VibeVaults. All rights reserved.
+            &copy; {new Date().getFullYear()} VibeVaults. All rights reserved.
           </div>
           <div className="flex gap-6 text-sm font-medium text-gray-600">
             <Link href="/terms-of-service" className="hover:text-primary transition-colors">
