@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function updatePreferencesAction(token: string, notifyReplies: boolean, notifyNewFeedback?: boolean, notifyProjectCreated?: boolean) {
+export async function updatePreferencesAction(token: string, notifyReplies: boolean, notifyNewFeedback?: boolean, notifyProjectCreated?: boolean, notifyProjectDeleted?: boolean) {
     const supabase = createAdminClient();
 
     const updateData: any = { notify_replies: notifyReplies };
@@ -13,6 +13,9 @@ export async function updatePreferencesAction(token: string, notifyReplies: bool
     }
     if (notifyProjectCreated !== undefined) {
         updateData.notify_project_created = notifyProjectCreated;
+    }
+    if (notifyProjectDeleted !== undefined) {
+        updateData.notify_project_deleted = notifyProjectDeleted;
     }
 
     const { error } = await supabase
@@ -27,7 +30,7 @@ export async function updatePreferencesAction(token: string, notifyReplies: bool
     revalidatePath('/unsubscribe');
 }
 
-export async function updateAgencyPreferencesAction(notifyNewFeedback: boolean, notifyReplies: boolean, notifyProjectCreated: boolean) {
+export async function updateAgencyPreferencesAction(notifyNewFeedback: boolean, notifyReplies: boolean, notifyProjectCreated: boolean, notifyProjectDeleted: boolean) {
     const supabaseServer = await createClient();
     const { data: { user } } = await supabaseServer.auth.getUser();
     if (!user) throw new Error("Unauthorized");
@@ -42,7 +45,8 @@ export async function updateAgencyPreferencesAction(notifyNewFeedback: boolean, 
             email,
             notify_new_feedback: notifyNewFeedback,
             notify_replies: notifyReplies,
-            notify_project_created: notifyProjectCreated
+            notify_project_created: notifyProjectCreated,
+            notify_project_deleted: notifyProjectDeleted
         }, { onConflict: 'email' });
 
     if (error) {

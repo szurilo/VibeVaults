@@ -175,6 +175,77 @@ export async function sendProjectCreatedNotification({
     }
 }
 
+interface SendProjectDeletedEmailParams {
+    to: string;
+    projectName: string;
+    deleterName: string;
+    workspaceName: string;
+    unsubscribeToken?: string;
+}
+
+export async function sendProjectDeletedNotification({
+    to,
+    projectName,
+    deleterName,
+    workspaceName,
+    unsubscribeToken
+}: SendProjectDeletedEmailParams) {
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            to,
+            subject: `Project Deleted: ${esc(projectName)} from ${esc(workspaceName)}`,
+            html: `
+                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">Project Deleted</h2>
+
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
+                            <strong>${esc(deleterName)}</strong> has deleted the project <strong>${esc(projectName)}</strong> from your workspace <strong>${esc(workspaceName)}</strong>.
+                        </p>
+
+                        <div style="background-color: #fef2f2; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #fee2e2;">
+                            <p style="margin: 0; color: #991b1b; line-height: 1.6; font-size: 16px;">
+                                All feedbacks and attachments associated with this project have been permanently removed.
+                            </p>
+                        </div>
+
+                        <a href="${BASE_URL}/dashboard"
+                           style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
+                           Go to Dashboard
+                        </a>
+
+                        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
+                                You received this because you have notifications enabled.
+                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                            </p>
+
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
+                                This is an automatically generated email, please do not reply.<br>
+                                If you have questions, reach out to
+                                <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
+                            </p>
+                        </div>
+
+                    </div>
+                </div>
+            `
+        });
+
+        if (error) {
+            console.error('Failed to send Resend email:', error);
+        }
+
+        return { data, error };
+    } catch (e) {
+        console.error('Error in sendProjectDeletedNotification:', e);
+        return { data: null, error: e };
+    }
+}
+
 interface SendReplyEmailParams {
     to: string;
     projectName: string;

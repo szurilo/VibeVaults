@@ -31,7 +31,7 @@ export async function updateFeedbackStatus(id: string, status: string) {
     }
 
     if (!data || data.length === 0) {
-        return { error: 'You no longer have access to this feedback. Your access may have been revoked.' };
+        return { error: 'Feedback not found or you no longer have access.' };
     }
 
     // Mark associated notifications as read
@@ -55,7 +55,7 @@ export async function deleteFeedback(id: string) {
     }
 
     if (!data || data.length === 0) {
-        return { error: 'You no longer have access to this feedback. Your access may have been revoked.' };
+        return { error: 'Feedback not found or you no longer have access.' };
     }
 
     revalidatePath('/dashboard/feedback');
@@ -75,7 +75,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
         .eq('id', feedbackId)
         .single();
 
-    if (checkError || !feedback) return { error: "You no longer have access to this feedback. Your access may have been revoked.", replyId: null };
+    if (checkError || !feedback) return { error: "Feedback not found or you no longer have access.", replyId: null };
     const project = feedback.projects as unknown as { id: string; name: string };
 
     const { data: replyData, error: replyError } = await supabase

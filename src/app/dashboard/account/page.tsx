@@ -50,6 +50,7 @@ export default async function AccountPage() {
         notify_new_feedback: preferences?.notify_new_feedback ?? true,
         notify_replies: preferences?.notify_replies ?? true,
         notify_project_created: preferences?.notify_project_created ?? true,
+        notify_project_deleted: preferences?.notify_project_deleted ?? true,
         email_frequency: (preferences?.email_frequency as 'digest' | 'realtime') || 'digest',
     };
 

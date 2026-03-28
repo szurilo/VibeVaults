@@ -19,6 +19,7 @@ interface NotificationsCardProps {
         notify_new_feedback?: boolean;
         notify_replies?: boolean;
         notify_project_created?: boolean;
+        notify_project_deleted?: boolean;
         email_frequency?: 'digest' | 'realtime';
     };
     canUseRealtime?: boolean;
@@ -28,6 +29,7 @@ export function NotificationsCard({ initialPreferences, canUseRealtime = false }
     const [notifyNewFeedback, setNotifyNewFeedback] = useState(initialPreferences.notify_new_feedback !== false);
     const [notifyReplies, setNotifyReplies] = useState(initialPreferences.notify_replies !== false);
     const [notifyProjectCreated, setNotifyProjectCreated] = useState(initialPreferences.notify_project_created !== false);
+    const [notifyProjectDeleted, setNotifyProjectDeleted] = useState(initialPreferences.notify_project_deleted !== false);
     const [emailFrequency, setEmailFrequency] = useState<'digest' | 'realtime'>(initialPreferences.email_frequency || 'digest');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
@@ -36,6 +38,7 @@ export function NotificationsCard({ initialPreferences, canUseRealtime = false }
         (initialPreferences.notify_new_feedback !== false) !== notifyNewFeedback ||
         (initialPreferences.notify_replies !== false) !== notifyReplies ||
         (initialPreferences.notify_project_created !== false) !== notifyProjectCreated ||
+        (initialPreferences.notify_project_deleted !== false) !== notifyProjectDeleted ||
         (canUseRealtime && (initialPreferences.email_frequency || 'digest') !== emailFrequency);
 
     const handleSave = async (e: React.FormEvent) => {
@@ -46,7 +49,7 @@ export function NotificationsCard({ initialPreferences, canUseRealtime = false }
         setSuccess(false);
 
         try {
-            await updateAgencyPreferencesAction(notifyNewFeedback, notifyReplies, notifyProjectCreated);
+            await updateAgencyPreferencesAction(notifyNewFeedback, notifyReplies, notifyProjectCreated, notifyProjectDeleted);
             if (canUseRealtime && (initialPreferences.email_frequency || 'digest') !== emailFrequency) {
                 await updateEmailFrequencyAction(emailFrequency);
             }
@@ -113,6 +116,20 @@ export function NotificationsCard({ initialPreferences, canUseRealtime = false }
                                 id="notify-project-created"
                                 checked={notifyProjectCreated}
                                 onCheckedChange={(c) => { setNotifyProjectCreated(c); setSuccess(false); }}
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="notify-project-deleted" className="text-base">Deleted Projects</Label>
+                                <p className="text-sm text-gray-500">
+                                    Receive an email when someone deletes a project in your workspace.
+                                </p>
+                            </div>
+                            <Switch
+                                id="notify-project-deleted"
+                                checked={notifyProjectDeleted}
+                                onCheckedChange={(c) => { setNotifyProjectDeleted(c); setSuccess(false); }}
                             />
                         </div>
 

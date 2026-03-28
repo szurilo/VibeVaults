@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserTier } from "@/lib/tier-helpers";
 
-type NotificationType = 'new_feedback' | 'replies' | 'project_created';
+type NotificationType = 'new_feedback' | 'replies' | 'project_created' | 'project_deleted';
 type EmailFrequency = 'digest' | 'realtime';
 
 interface NotificationPrefs {
@@ -18,7 +18,7 @@ const isLocalhost = process.env.NEXT_PUBLIC_APP_URL?.includes('localhost') ?? fa
  * On localhost, all notification booleans default to false to avoid dev email noise.
  *
  * @param email - The email address to check preferences for
- * @param type - Which notification type to check: 'new_feedback', 'replies', or 'project_created'
+ * @param type - Which notification type to check: 'new_feedback', 'replies', 'project_created', or 'project_deleted'
  * @param workspaceOwnerId - Optional: if provided, tier-based email frequency enforcement is applied
  * @returns `{ shouldNotify, emailFrequency, unsubscribeToken }`
  */
@@ -32,7 +32,8 @@ export async function getNotificationPrefs(
     const columnMap: Record<NotificationType, string> = {
         'new_feedback': 'notify_new_feedback',
         'replies': 'notify_replies',
-        'project_created': 'notify_project_created'
+        'project_created': 'notify_project_created',
+        'project_deleted': 'notify_project_deleted'
     };
 
     const column = columnMap[type];
@@ -54,6 +55,7 @@ export async function getNotificationPrefs(
             defaults.notify_new_feedback = false;
             defaults.notify_replies = false;
             defaults.notify_project_created = false;
+            defaults.notify_project_deleted = false;
         }
 
         const { data: newPref } = await adminSupabase

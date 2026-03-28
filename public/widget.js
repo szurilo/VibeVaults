@@ -363,6 +363,13 @@
     .attach-preview .file-icon { font-size: 10px; color: #6b7280; text-align: center; padding: 4px; word-break: break-all; line-height: 1.2; }
     .attach-preview .remove-attach { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; }
     .attach-preview .remove-attach:hover { background: rgba(0,0,0,0.7); }
+    .attach-preview.shimmer, .reply-attach-preview.shimmer {
+      background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+    }
+    .shimmer-label { font-size: 9px; color: #9ca3af; font-weight: 600; text-align: center; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     .upload-progress { font-size: 11px; color: #6b7280; margin-bottom: 8px; }
     .reply-attach-previews { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px; }
     .reply-attach-previews:not(:empty) { padding-bottom: 8px; }
@@ -887,6 +894,24 @@
     } finally { btn.disabled = false; }
   };
 
+  // --- Screenshot shimmer placeholder ---
+  const showCaptureShimmer = (target) => {
+    const containerId = target === 'reply' ? '#vv-reply-attach-previews' : '#vv-attach-previews';
+    const container = wrapper.querySelector(containerId);
+    if (!container) return;
+    const cls = target === 'reply' ? 'reply-attach-preview' : 'attach-preview';
+    const el = document.createElement('div');
+    el.className = cls + ' shimmer';
+    el.id = 'vv-capture-shimmer';
+    el.innerHTML = '<span class="shimmer-label">Processing...</span>';
+    container.prepend(el);
+  };
+
+  const removeCaptureShimmer = () => {
+    const el = wrapper.querySelector('#vv-capture-shimmer');
+    if (el) el.remove();
+  };
+
   // --- Inspector Mode ---
   const captureScreenshotAndElement = (target = 'form') => {
     wrapper.querySelector('.popup').classList.remove('open');
@@ -974,7 +999,14 @@
       const originalText = capBtn ? capBtn.innerHTML : '';
       if (capBtn) { capBtn.innerHTML = 'Capturing...'; capBtn.disabled = true; }
 
+      // Reopen popup and show shimmer placeholder so user sees progress while capturing
+      wrapper.querySelector('.popup').classList.add('open');
+      wrapper.querySelector('.badge').style.display = 'none';
+      showCaptureShimmer(target);
+
       const finishCapture = async (dataUrl) => {
+        removeCaptureShimmer();
+        cleanup();
         const res = await fetch(dataUrl);
         const blob = await res.blob();
         const screenshotFile = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' });
@@ -983,7 +1015,6 @@
           replyAttachments = replyAttachments.filter(f => f.name !== 'screenshot.jpg');
           if (replyAttachments.length >= MAX_FILES) {
             showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
-            cleanup();
             if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
             return;
           }
@@ -993,14 +1024,12 @@
           pendingAttachments = pendingAttachments.filter(f => f.name !== 'screenshot.jpg');
           if (pendingAttachments.length >= MAX_FILES) {
             showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
-            cleanup();
             if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
             return;
           }
           pendingAttachments.unshift(screenshotFile);
           refreshFeedbackPreviews();
         }
-        cleanup();
         if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
       };
 
@@ -1019,13 +1048,21 @@
         }
       };
 
+      const onCaptureError = () => {
+        removeCaptureShimmer();
+        cleanup();
+        if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
+        showWidgetToast('Screenshot capture failed. Please try again.');
+      };
+
       if (!window.htmlToImage) {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';
-        script.onload = () => window.htmlToImage.toJpeg(document.body, captureOptions).then(finishCapture);
+        script.onload = () => window.htmlToImage.toJpeg(document.body, captureOptions).then(finishCapture).catch(onCaptureError);
+        script.onerror = onCaptureError;
         document.head.appendChild(script);
       } else {
-        window.htmlToImage.toJpeg(document.body, captureOptions).then(finishCapture);
+        window.htmlToImage.toJpeg(document.body, captureOptions).then(finishCapture).catch(onCaptureError);
       }
     });
 

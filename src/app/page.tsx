@@ -122,6 +122,13 @@ export default function Home() {
               staticCtaHref="/auth/register"
               showTrialNote={true}
             />
+            <Link
+              href="/pricing#comparison"
+              className="inline-flex items-center gap-1.5 mt-8 text-sm font-semibold text-gray-500 hover:text-primary transition-colors"
+            >
+              Compare all features
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
           </div>
         </section>
       </main>

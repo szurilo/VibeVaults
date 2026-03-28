@@ -202,6 +202,7 @@ export function NotificationBell({ userId }: { userId: string }) {
                                         "mt-1 w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm transition-colors",
                                         notification.type === 'new_feedback' ? "bg-emerald-100 text-emerald-600 group-hover:bg-emerald-200"
                                             : (notification.type === 'member_removed' || notification.type === 'member_left') ? "bg-amber-100 text-amber-600 group-hover:bg-amber-200"
+                                            : notification.type === 'project_deleted' ? "bg-red-100 text-red-600 group-hover:bg-red-200"
                                             : notification.type === 'workspace_invite' ? "bg-violet-100 text-violet-600 group-hover:bg-violet-200"
                                             : "bg-blue-100 text-blue-600 group-hover:bg-blue-200"
                                     )}>
@@ -211,6 +212,8 @@ export function NotificationBell({ userId }: { userId: string }) {
                                             <UserMinus className="w-4 h-4" />
                                         ) : notification.type === 'member_left' ? (
                                             <LogOut className="w-4 h-4" />
+                                        ) : notification.type === 'project_deleted' ? (
+                                            <Trash2 className="w-4 h-4" />
                                         ) : notification.type === 'workspace_invite' ? (
                                             <UserPlus className="w-4 h-4" />
                                         ) : (
