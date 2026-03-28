@@ -11,6 +11,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { PricingCards } from '@/components/landing/PricingCards';
 import { getUserTier } from '@/lib/tier-helpers';
 import { STRIPE_PRICES } from '@/lib/tier-config';
@@ -77,6 +78,16 @@ export default async function SubscribePage() {
                     currentTier={tierInfo.tier}
                     priceIds={STRIPE_PRICES}
                 />
+                <div className="text-center mt-8">
+                    <Link
+                        href="/pricing#comparison"
+                        target="_blank"
+                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-primary transition-colors"
+                    >
+                        Compare all features
+                        <span aria-hidden="true">&rarr;</span>
+                    </Link>
+                </div>
             </div>
         </div>
     );

@@ -23,6 +23,7 @@ export function AddFeedbackDialog({ projectId }: { projectId: string }) {
     const [errorMsg, setErrorMsg] = useState('');
     const [files, setFiles] = useState<File[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const MAX_CONTENT_LENGTH = 5000;
 
     const handleSubmit = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -30,6 +31,11 @@ export function AddFeedbackDialog({ projectId }: { projectId: string }) {
         const trimmed = content.trim();
         if (!trimmed && files.length === 0) {
             setErrorMsg('Feedback content or attachment is required');
+            return;
+        }
+
+        if (trimmed.length > MAX_CONTENT_LENGTH) {
+            setErrorMsg(`Feedback must be under ${MAX_CONTENT_LENGTH} characters`);
             return;
         }
 
@@ -96,6 +102,7 @@ export function AddFeedbackDialog({ projectId }: { projectId: string }) {
                                 setContent(e.target.value);
                                 if (errorMsg) setErrorMsg('');
                             }}
+                            maxLength={MAX_CONTENT_LENGTH}
                             className="min-h-[120px] pr-12 resize-none overflow-x-hidden field-sizing-fixed"
                         />
                         <label className="absolute bottom-2.5 right-2.5 h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
@@ -139,6 +146,11 @@ export function AddFeedbackDialog({ projectId }: { projectId: string }) {
                                 </div>
                             ))}
                         </div>
+                    )}
+                    {content.length > 0 && (
+                        <p className={`text-xs mt-1.5 text-right ${content.length > MAX_CONTENT_LENGTH * 0.9 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                            {content.length}/{MAX_CONTENT_LENGTH}
+                        </p>
                     )}
                     {errorMsg && (
                         <p className="text-red-500 text-sm mt-2 font-medium">{errorMsg}</p>

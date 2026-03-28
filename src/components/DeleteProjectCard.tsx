@@ -1,9 +1,8 @@
 'use client';
 
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { DangerZoneCard } from "@/components/DangerZoneCard";
-import { cleanupProjectStorage } from "@/lib/storage-cleanup";
+import { deleteProjectAction } from "@/actions/projects";
 
 interface DeleteProjectCardProps {
     project: {
@@ -14,19 +13,12 @@ interface DeleteProjectCardProps {
 
 export function DeleteProjectCard({ project }: DeleteProjectCardProps) {
     const router = useRouter();
-    const supabase = createClient();
 
     const handleDeleteProject = async () => {
         if (!project) return;
 
-        await cleanupProjectStorage(supabase, project.id);
-
-        const { error } = await supabase
-            .from('projects')
-            .delete()
-            .eq('id', project.id);
-
-        if (error) throw error;
+        const result = await deleteProjectAction(project.id);
+        if (result?.error) throw new Error(result.error);
 
         document.cookie = 'selectedProjectId=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         router.push("/dashboard");

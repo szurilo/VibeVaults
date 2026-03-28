@@ -47,7 +47,7 @@ export default function PricingPage() {
                 </section>
 
                 {/* Feature comparison table */}
-                <section className="py-20 bg-gray-50">
+                <section id="comparison" className="py-20 bg-gray-50">
                     <div className="max-w-4xl mx-auto px-4 md:px-8">
                         <h2 className="text-3xl font-extrabold text-center mb-12 text-gray-900">
                             Full Feature Comparison
@@ -111,8 +111,12 @@ export default function PricingPage() {
                                     a: 'You get full access to Pro features for 14 days — no credit card required. At the end of your trial, choose the plan that fits your team.',
                                 },
                                 {
-                                    q: 'Can I change plans later?',
-                                    a: 'Yes! You can upgrade or downgrade at any time. When you downgrade, your existing data is preserved — you just won\'t be able to create new resources beyond your plan\'s limits.',
+                                    q: 'What happens when I upgrade during an already paid subscription?',
+                                    a: 'We charge the new price only for the remaining time in your current billing period. You get immediate access to the higher tier — no double-charging.',
+                                },
+                                {
+                                    q: 'What happens when I downgrade? Will I lose access to my current tier?',
+                                    a: 'No — you keep full access to your current tier until the end of your billing cycle. The downgrade takes effect on your next renewal, and your existing data is always preserved.',
                                 },
                                 {
                                     q: 'What payment methods do you accept?',

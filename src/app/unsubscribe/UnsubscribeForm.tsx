@@ -11,6 +11,7 @@ export default function UnsubscribeForm({ initialPreferences, token, isAgency }:
     const [notifyNewFeedback, setNotifyNewFeedback] = useState(initialPreferences.notify_new_feedback !== false);
     const [notifyReplies, setNotifyReplies] = useState(initialPreferences.notify_replies);
     const [notifyProjectCreated, setNotifyProjectCreated] = useState(initialPreferences.notify_project_created !== false);
+    const [notifyProjectDeleted, setNotifyProjectDeleted] = useState(initialPreferences.notify_project_deleted !== false);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
@@ -18,7 +19,7 @@ export default function UnsubscribeForm({ initialPreferences, token, isAgency }:
         setLoading(true);
         setSuccess(false);
         try {
-            await updatePreferencesAction(token, notifyReplies, isAgency ? notifyNewFeedback : undefined, isAgency ? notifyProjectCreated : undefined);
+            await updatePreferencesAction(token, notifyReplies, isAgency ? notifyNewFeedback : undefined, isAgency ? notifyProjectCreated : undefined, isAgency ? notifyProjectDeleted : undefined);
             setSuccess(true);
         } catch (error) {
             console.error("Failed to update preferences", error);
@@ -31,7 +32,8 @@ export default function UnsubscribeForm({ initialPreferences, token, isAgency }:
     const hasChanged =
         notifyReplies !== initialPreferences.notify_replies ||
         (isAgency && notifyNewFeedback !== (initialPreferences.notify_new_feedback !== false)) ||
-        (isAgency && notifyProjectCreated !== (initialPreferences.notify_project_created !== false));
+        (isAgency && notifyProjectCreated !== (initialPreferences.notify_project_created !== false)) ||
+        (isAgency && notifyProjectDeleted !== (initialPreferences.notify_project_deleted !== false));
 
     return (
         <div className="space-y-6">
@@ -77,6 +79,22 @@ export default function UnsubscribeForm({ initialPreferences, token, isAgency }:
                         id="notify-project-created"
                         checked={notifyProjectCreated}
                         onCheckedChange={(checked) => { setNotifyProjectCreated(checked); setSuccess(false); }}
+                    />
+                </div>
+            )}
+
+            {isAgency && (
+                <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                        <Label htmlFor="notify-project-deleted" className="text-base">Deleted Projects</Label>
+                        <p className="text-sm text-gray-500">
+                            Receive an email when a project is deleted from your workspace.
+                        </p>
+                    </div>
+                    <Switch
+                        id="notify-project-deleted"
+                        checked={notifyProjectDeleted}
+                        onCheckedChange={(checked) => { setNotifyProjectDeleted(checked); setSuccess(false); }}
                     />
                 </div>
             )}
