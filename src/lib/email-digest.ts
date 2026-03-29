@@ -12,8 +12,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 const FEEDBACK_DIGEST_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const REPLY_COOLDOWN_MS = 10 * 60 * 1000;         // 10 minutes
+const PROJECT_EVENT_WINDOW_MS = 15 * 60 * 1000;   // 15 minutes
 
-type DigestNotificationType = 'new_feedback' | 'reply' | 'agency_reply' | 'project_created';
+type DigestNotificationType = 'new_feedback' | 'reply' | 'agency_reply' | 'project_created' | 'project_deleted';
 
 interface QueueEmailParams {
     recipientEmail: string;
@@ -63,6 +64,29 @@ export async function shouldSendReplyImmediately(
         .select('id')
         .eq('recipient_email', recipientEmail)
         .eq('feedback_id', feedbackId)
+        .not('sent_at', 'is', null)
+        .gte('sent_at', cutoff)
+        .limit(1);
+
+    return !data || data.length === 0;
+}
+
+/**
+ * Check if a project event notification was recently sent to this recipient.
+ * Uses a 15-min window — first event is immediate, subsequent ones are queued.
+ */
+export async function shouldSendProjectEventImmediately(
+    recipientEmail: string,
+    notificationType: 'project_created' | 'project_deleted'
+): Promise<boolean> {
+    const adminSupabase = createAdminClient();
+    const cutoff = new Date(Date.now() - PROJECT_EVENT_WINDOW_MS).toISOString();
+
+    const { data } = await adminSupabase
+        .from('email_digest_queue')
+        .select('id')
+        .eq('recipient_email', recipientEmail)
+        .eq('notification_type', notificationType)
         .not('sent_at', 'is', null)
         .gte('sent_at', cutoff)
         .limit(1);

@@ -11,8 +11,9 @@
 'use server';
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-import { sendReplyNotification } from "@/lib/notifications";
+import { sendReplyNotification, sendAgencyReplyNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { shouldSendReplyImmediately, shouldSendFeedbackImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
 
@@ -96,12 +97,15 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
     await supabase.from('notifications').update({ is_read: true }).eq('feedback_id', feedbackId);
 
     // Send notification to feedback sender (skip if replier IS the sender)
+    const senderEmail = user.email || 'Someone';
+    const alreadyNotified = new Set<string>([user.email || '']);
+
     if (feedback.sender && feedback.sender.includes('@') && feedback.sender !== user.email) {
+        alreadyNotified.add(feedback.sender);
         const prefs = await getNotificationPrefs(feedback.sender, 'replies');
 
         if (prefs.shouldNotify) {
-            const sender = user.email || 'Someone';
-            const replyPayload = { replyContent: content, sender, projectName: project.name, originalFeedback: feedback.content };
+            const replyPayload = { replyContent: content, sender: senderEmail, projectName: project.name, originalFeedback: feedback.content };
             const sendNow = await shouldSendReplyImmediately(feedback.sender, feedbackId);
 
             if (sendNow) {
@@ -110,7 +114,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
                     projectName: project.name,
                     replyContent: content,
                     originalFeedback: feedback.content,
-                    sender,
+                    sender: senderEmail,
                     unsubscribeToken: prefs.unsubscribeToken
                 });
                 await recordEmailSent({
@@ -130,6 +134,59 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
                 });
             }
         }
+    }
+
+    // Notify other thread participants (workspace members who previously replied)
+    try {
+        const adminSupabase = createAdminClient();
+        const { data: threadReplies } = await adminSupabase
+            .from('feedback_replies')
+            .select('author_name')
+            .eq('feedback_id', feedbackId)
+            .neq('id', replyData.id);
+
+        if (threadReplies) {
+            const participantEmails = [...new Set(
+                threadReplies
+                    .map(r => r.author_name)
+                    .filter((email): email is string => !!email && email.includes('@') && !alreadyNotified.has(email))
+            )];
+
+            for (const email of participantEmails) {
+                const prefs = await getNotificationPrefs(email, 'replies');
+                if (!prefs.shouldNotify) continue;
+
+                const replyPayload = { replyContent: content, sender: senderEmail, projectName: project.name };
+                const sendNow = await shouldSendReplyImmediately(email, feedbackId);
+
+                if (sendNow) {
+                    await sendAgencyReplyNotification({
+                        to: email,
+                        projectName: project.name,
+                        replyContent: content,
+                        sender: senderEmail,
+                        unsubscribeToken: prefs.unsubscribeToken
+                    });
+                    await recordEmailSent({
+                        recipientEmail: email,
+                        notificationType: 'reply',
+                        projectId: project.id,
+                        feedbackId,
+                        payload: replyPayload
+                    });
+                } else {
+                    await queueDigestEmail({
+                        recipientEmail: email,
+                        notificationType: 'reply',
+                        projectId: project.id,
+                        feedbackId,
+                        payload: replyPayload
+                    });
+                }
+            }
+        }
+    } catch (e) {
+        console.error("VibeVaults: Thread participant notification error", e);
     }
 
     revalidatePath('/dashboard/feedback');

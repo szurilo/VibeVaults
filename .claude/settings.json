@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:cdn.jsdelivr.net)",
+      "Bash(curl -s https://api.github.com/repos/zumerlab/snapdom/git/trees/main?recursive=1)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Read(//tmp/snapdom/**)",
+      "Bash(find /c/Joco/VibeVaults -type f \\\\\\(-name *.sql -o -name *migration* \\\\\\))",
+      "Bash(curl -s http://localhost:3000/api/cron/digest)"
+    ]
+  }
+}

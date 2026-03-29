@@ -718,6 +718,8 @@ export async function sendFeedbackDigestEmail({
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
+                                If you have questions, reach out to
+                                <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
                         </div>
@@ -786,6 +788,8 @@ export async function sendReplyDigestEmail({
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
+                                If you have questions, reach out to
+                                <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
                         </div>
@@ -796,6 +800,77 @@ export async function sendReplyDigestEmail({
         return { data, error };
     } catch (e) {
         console.error('Error in sendReplyDigestEmail:', e);
+        return { data: null, error: e };
+    }
+}
+
+interface DigestProjectEventItem {
+    projectName: string;
+    actorName: string;
+    workspaceName: string;
+    type: 'created' | 'deleted';
+}
+
+export async function sendProjectEventDigestEmail({
+    to,
+    items,
+    unsubscribeToken
+}: { to: string; items: DigestProjectEventItem[]; unsubscribeToken?: string }) {
+    const count = items.length;
+
+    const itemsHtml = items.slice(0, 10).map(item => `
+        <div style="padding: 12px 16px; border-left: 3px solid ${item.type === 'deleted' ? '#ef4444' : '#22c55e'}; margin-bottom: 12px; background: #f9fafb; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0 0 4px; font-size: 13px; color: #718096;">${esc(item.workspaceName)}</p>
+            <p style="margin: 0; font-size: 15px; color: #1a202c; line-height: 1.5;">
+                <strong>${esc(item.actorName)}</strong> ${item.type === 'deleted' ? 'deleted' : 'created'} the project <strong>"${esc(item.projectName)}"</strong>
+            </p>
+        </div>
+    `).join('');
+
+    const moreHtml = count > 10 ? `<p style="font-size: 14px; color: #718096; margin-bottom: 24px;">…and ${count - 10} more</p>` : '';
+
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            to,
+            subject: `${count} project update${count > 1 ? 's' : ''} in your workspace`,
+            html: `
+                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">${count} project update${count > 1 ? 's' : ''}</h2>
+
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
+                            Here's a summary of recent project changes in your workspace.
+                        </p>
+
+                        ${itemsHtml}
+                        ${moreHtml}
+
+                        <a href="${BASE_URL}/dashboard"
+                           style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;">
+                           Go to Dashboard
+                        </a>
+
+                        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
+                                You received this because you have notifications enabled.
+                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                            </p>
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
+                                This is an automatically generated email, please do not reply.<br>
+                                If you have questions, reach out to
+                                <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `
+        });
+        return { data, error };
+    } catch (e) {
+        console.error('Error in sendProjectEventDigestEmail:', e);
         return { data: null, error: e };
     }
 }

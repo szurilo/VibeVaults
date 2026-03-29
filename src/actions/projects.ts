@@ -15,6 +15,7 @@ import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { sendProjectDeletedNotification } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanupProjectStorage } from "@/lib/storage-cleanup";
+import { shouldSendProjectEventImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
 
 export async function deleteProjectAction(projectId: string) {
     const supabase = await createClient();
@@ -71,13 +72,31 @@ export async function deleteProjectAction(projectId: string) {
                     const prefs = await getNotificationPrefs(email, 'project_deleted');
                     if (!prefs.shouldNotify) continue;
 
-                    await sendProjectDeletedNotification({
-                        to: email,
-                        projectName: project.name,
-                        deleterName,
-                        workspaceName: workspace.name,
-                        unsubscribeToken: prefs.unsubscribeToken
-                    });
+                    const payload = { projectName: project.name, actorName: deleterName, workspaceName: workspace.name, type: 'deleted' };
+                    const sendNow = await shouldSendProjectEventImmediately(email, 'project_deleted');
+
+                    if (sendNow) {
+                        await sendProjectDeletedNotification({
+                            to: email,
+                            projectName: project.name,
+                            deleterName,
+                            workspaceName: workspace.name,
+                            unsubscribeToken: prefs.unsubscribeToken
+                        });
+                        await recordEmailSent({
+                            recipientEmail: email,
+                            notificationType: 'project_deleted',
+                            projectId: project.id,
+                            payload
+                        });
+                    } else {
+                        await queueDigestEmail({
+                            recipientEmail: email,
+                            notificationType: 'project_deleted',
+                            projectId: project.id,
+                            payload
+                        });
+                    }
                 }
             }
         }

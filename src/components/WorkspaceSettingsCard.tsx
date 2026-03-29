@@ -122,8 +122,15 @@ export function WorkspaceSettingsCard({ workspace }: WorkspaceSettingsCardProps)
         }
     };
 
-    const isSaveDisabled = loading || isUploading || !name.trim() ||
-        (name === workspace.name && logoUrl === (workspace.brand_logo_url || null));
+    const hasChanged = name !== workspace.name || logoUrl !== (workspace.brand_logo_url || null);
+    const isSaveDisabled = loading || isUploading || !name.trim() || !hasChanged;
+
+    useEffect(() => {
+        if (!hasChanged) return;
+        const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [hasChanged]);
 
     return (
         <Card className="shadow-sm border-gray-200">
@@ -211,7 +218,7 @@ export function WorkspaceSettingsCard({ workspace }: WorkspaceSettingsCardProps)
                         </div>
                     </CardContent>
                 </div>
-                <div className="px-6 mt-4 sm:mt-0 sm:px-0 sm:pr-6 sm:self-center shrink-0">
+                <div className="px-6 mt-4 sm:mt-0 sm:px-0 sm:pr-6 sm:self-center shrink-0 flex flex-col items-start sm:items-end gap-2">
                     <Button
                         type="submit"
                         disabled={isSaveDisabled}

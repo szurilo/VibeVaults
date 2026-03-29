@@ -14,6 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { sendProjectCreatedNotification } from "@/lib/notifications";
 import { checkProjectLimit } from "@/lib/tier-helpers";
+import { shouldSendProjectEventImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
 
 export async function GET() {
     const supabase = await createClient();
@@ -108,13 +109,31 @@ export async function POST(req: Request) {
                     const prefs = await getNotificationPrefs(email, 'project_created');
                     if (!prefs.shouldNotify) continue;
 
-                    await sendProjectCreatedNotification({
-                        to: email,
-                        projectName: name,
-                        creatorName,
-                        workspaceName: workspace.name,
-                        unsubscribeToken: prefs.unsubscribeToken
-                    });
+                    const payload = { projectName: name, actorName: creatorName, workspaceName: workspace.name, type: 'created' };
+                    const sendNow = await shouldSendProjectEventImmediately(email, 'project_created');
+
+                    if (sendNow) {
+                        await sendProjectCreatedNotification({
+                            to: email,
+                            projectName: name,
+                            creatorName,
+                            workspaceName: workspace.name,
+                            unsubscribeToken: prefs.unsubscribeToken
+                        });
+                        await recordEmailSent({
+                            recipientEmail: email,
+                            notificationType: 'project_created',
+                            projectId: project.id,
+                            payload
+                        });
+                    } else {
+                        await queueDigestEmail({
+                            recipientEmail: email,
+                            notificationType: 'project_created',
+                            projectId: project.id,
+                            payload
+                        });
+                    }
                 }
             }
         }
