@@ -17,6 +17,7 @@ import {
 import {
     sendFeedbackDigestEmail,
     sendReplyDigestEmail,
+    sendProjectEventDigestEmail,
 } from '@/lib/notifications';
 import { getNotificationPrefs } from '@/lib/notification-prefs';
 
@@ -75,9 +76,39 @@ export async function GET() {
                 allProcessedIds.push(...replyItems.map(i => i.id));
             }
 
-            // Project created items are always sent immediately, but mark any stale ones
-            const projectItems = byType.get('project_created') || [];
+            // Process project event digests (created + deleted grouped together)
+            const projectItems = [
+                ...(byType.get('project_created') || []),
+                ...(byType.get('project_deleted') || []),
+            ];
             if (projectItems.length > 0) {
+                // Use the first item's type to determine which pref to check
+                const hasDeleted = projectItems.some(i => i.notification_type === 'project_deleted');
+                const hasCreated = projectItems.some(i => i.notification_type === 'project_created');
+                let shouldSend = false;
+
+                if (hasDeleted) {
+                    const prefs = await getNotificationPrefs(recipientEmail, 'project_deleted');
+                    if (prefs.shouldNotify) shouldSend = true;
+                }
+                if (hasCreated) {
+                    const prefs = await getNotificationPrefs(recipientEmail, 'project_created');
+                    if (prefs.shouldNotify) shouldSend = true;
+                }
+
+                if (shouldSend) {
+                    await sendProjectEventDigestEmail({
+                        to: recipientEmail,
+                        items: projectItems.map(item => ({
+                            projectName: item.payload.projectName || '',
+                            actorName: item.payload.actorName || 'A team member',
+                            workspaceName: item.payload.workspaceName || '',
+                            type: item.notification_type === 'project_deleted' ? 'deleted' as const : 'created' as const,
+                        })),
+                        unsubscribeToken: (await getNotificationPrefs(recipientEmail, hasDeleted ? 'project_deleted' : 'project_created')).unsubscribeToken,
+                    });
+                    totalSent++;
+                }
                 allProcessedIds.push(...projectItems.map(i => i.id));
             }
         }
