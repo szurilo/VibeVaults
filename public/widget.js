@@ -3,229 +3,230 @@
   const scriptTag = document.currentScript;
 
   function init() {
-  // Dynamically determine API base from script source (works for local & prod)
-  const scriptUrl = new URL(scriptTag.src);
-  let origin = scriptUrl.origin;
+    // Dynamically determine API base from script source (works for local & prod)
+    const scriptUrl = new URL(scriptTag.src);
+    let origin = scriptUrl.origin;
 
-  // If loaded from apex domain, force canonical www to avoid CORS preflight redirects
-  if (origin === 'https://vibe-vaults.com') {
-    origin = 'https://www.vibe-vaults.com';
-  }
-
-  const API_BASE = `${origin}/api/widget`;
-  const API_REPLY = `${origin}/api/widget/reply`;
-  const API_FEEDBACKS = `${origin}/api/widget/feedbacks`;
-  const API_STREAM = `${origin}/api/widget/stream`;
-  const API_UPLOAD = `${origin}/api/widget/upload`;
-  const API_VERIFY = `${origin}/api/widget/verify-email`;
-
-  const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
-
-  if (!apiKey) {
-    console.warn('VibeVaults: Missing data-key attribute on script tag.');
-    return;
-  }
-
-  const isVibeVaults = apiKey === 'e3917e214418009aea8b7a2712cb0059';
-
-  // --- State Management ---
-  let isOpen = false;
-  const emailKey = `vv_email_${apiKey}`;
-
-
-  let clientEmail = localStorage.getItem(emailKey) || '';
-
-  // Extract identity if passed via invite link URL parameter
-  const urlParams = new URLSearchParams(window.location.search);
-  const invitedEmail = urlParams.get('vv_email');
-  if (invitedEmail) {
-    clientEmail = invitedEmail;
-    localStorage.setItem(emailKey, clientEmail);
-    // Remove it from the URL so it's clean and doesn't get shared accidentally
-    urlParams.delete('vv_email');
-    const newParams = urlParams.toString();
-    const cleanUrl = window.location.pathname + (newParams ? '?' + newParams : '') + window.location.hash;
-    window.history.replaceState({}, '', cleanUrl);
-  }
-
-  const prefsKey = `vv_prefs_${apiKey}`;
-  let notifyRepliesSetting = localStorage.getItem(prefsKey) !== 'false';
-
-
-  // Track whether the user needs to verify their email before using the widget
-  let needsEmailVerification = !clientEmail;
-
-  let selectedFeedbackId = null;
-  let cachedFeedbacks = [];
-  let pollInterval = null;
-  let listPollInterval = null;
-  let eventSource = null;
-  let sseSupported = typeof EventSource !== 'undefined';
-  let domSelector = null;
-  let pendingAttachments = []; // Files queued for upload with feedback
-  let replyAttachments = []; // Files queued for upload with reply
-
-  // --- Metadata & Logs Collection ---
-  const logs = [];
-  const MAX_LOGS = 50;
-  const originalConsole = {
-    log: console.log,
-    warn: console.warn,
-    error: console.error
-  };
-
-  const captureLog = (type, args) => {
-    try {
-      const argsArray = Array.from(args);
-      let content = '';
-      const containsFormatting = argsArray.some(arg => typeof arg === 'string' && arg.includes('%c'));
-      if (containsFormatting) {
-        content = argsArray
-          .filter(arg => {
-            if (typeof arg !== 'string') return true;
-            const isCss = (arg.includes(':') && (arg.includes('color') || arg.includes('font') || arg.includes('bg'))) ||
-              (arg.startsWith('font-') || arg.startsWith('background:'));
-            return !isCss;
-          })
-          .map(arg => {
-            try {
-              let str = typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
-              return str.replace(/%c/g, '');
-            } catch (e) { return '[Object]'; }
-          })
-          .join(' ');
-      } else {
-        content = argsArray.map(arg => {
-          try { return typeof arg === 'object' ? JSON.stringify(arg) : String(arg); }
-          catch (e) { return '[Object]'; }
-        }).join(' ');
-      }
-      logs.push({ type, time: new Date().toLocaleTimeString(), content: content.trim() });
-      if (logs.length > MAX_LOGS) logs.shift();
-    } catch (e) { }
-  };
-
-  console.log = (...args) => { captureLog('log', args); originalConsole.log.apply(console, args); };
-  console.warn = (...args) => { captureLog('warn', args); originalConsole.warn.apply(console, args); };
-  console.error = (...args) => { captureLog('error', args); originalConsole.error.apply(console, args); };
-
-  const getMetadata = () => ({
-    url: window.location.href,
-    userAgent: navigator.userAgent,
-    screen: `${window.innerWidth}x${window.innerHeight}`,
-    viewport: `${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`,
-    language: navigator.language,
-    logs: logs
-  });
-
-  // --- File Upload Helpers ---
-  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain', 'text/csv'];
-  const MAX_FILE_SIZE = 10 * 1024 * 1024;
-  const MAX_FILES = 10;
-
-  const uploadFiles = async (files, feedbackId, replyId) => {
-    if (files.length === 0) return { attachments: [] };
-    const formData = new FormData();
-    formData.append('apiKey', apiKey);
-    formData.append('senderEmail', clientEmail);
-    if (feedbackId) formData.append('feedbackId', feedbackId);
-    if (replyId) formData.append('replyId', replyId);
-    for (const f of files) formData.append('files', f);
-    const res = await fetch(API_UPLOAD, { method: 'POST', body: formData });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Upload failed');
+    // If loaded from apex domain, force canonical www to avoid CORS preflight redirects
+    if (origin === 'https://vibe-vaults.com') {
+      origin = 'https://www.vibe-vaults.com';
     }
-    return await res.json();
-  };
 
-  const isImageType = (mimeType) => mimeType && mimeType.startsWith('image/');
+    const API_BASE = `${origin}/api/widget`;
+    const API_REPLY = `${origin}/api/widget/reply`;
+    const API_FEEDBACKS = `${origin}/api/widget/feedbacks`;
+    const API_STREAM = `${origin}/api/widget/stream`;
+    const API_UPLOAD = `${origin}/api/widget/upload`;
+    const API_VERIFY = `${origin}/api/widget/verify-email`;
 
-  const getFileExtension = (name) => {
-    const parts = name.split('.');
-    return parts.length > 1 ? parts.pop().toUpperCase() : 'FILE';
-  };
+    const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
-  const renderAttachPreviews = (files, containerId, removeCallback) => {
-    const container = wrapper.querySelector(containerId);
-    if (!container) return;
-    container.innerHTML = '';
-    files.forEach((file, idx) => {
-      const el = document.createElement('div');
-      el.className = containerId.includes('reply') ? 'reply-attach-preview' : 'attach-preview';
-      if (isImageType(file.type)) {
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-        el.appendChild(img);
-      } else {
-        const icon = document.createElement('div');
-        icon.className = 'file-icon';
-        icon.textContent = getFileExtension(file.name);
-        el.appendChild(icon);
-      }
-      const btn = document.createElement('button');
-      btn.className = 'remove-attach';
-      btn.textContent = '✕';
-      btn.onclick = (e) => { e.preventDefault(); removeCallback(idx); };
-      el.appendChild(btn);
-      container.appendChild(el);
-    });
-  };
-
-  const showWidgetToast = (msg) => {
-    let toast = wrapper.querySelector('.vv-toast');
-    if (toast) toast.remove();
-    toast = document.createElement('div');
-    toast.className = 'vv-toast';
-    toast.textContent = msg;
-    wrapper.querySelector('.popup').appendChild(toast);
-    setTimeout(() => { toast.style.opacity = '0'; }, 2500);
-    setTimeout(() => { toast.remove(); }, 3000);
-  };
-
-  const validateFiles = (fileList) => {
-    const valid = [];
-    const errors = [];
-    for (const file of fileList) {
-      if (file.size > MAX_FILE_SIZE) { errors.push(`"${file.name}" exceeds the 10MB limit.`); continue; }
-      if (!ALLOWED_TYPES.includes(file.type)) { errors.push(`"${file.name}" has an unsupported file type.`); continue; }
-      valid.push(file);
+    if (!apiKey) {
+      console.warn('VibeVaults: Missing data-key attribute on script tag.');
+      return;
     }
-    if (errors.length > 0) showWidgetToast(errors.join(' '));
-    return valid;
-  };
 
-  const updatePopupHeight = () => {
-    // In compact mode the popup auto-sizes to content; no-op kept for call-site compatibility.
-  };
+    const isVibeVaults = apiKey === 'e3917e214418009aea8b7a2712cb0059';
 
-  const refreshFeedbackPreviews = () => {
-    renderAttachPreviews(pendingAttachments, '#vv-attach-previews', (idx) => {
-      pendingAttachments.splice(idx, 1);
-      refreshFeedbackPreviews();
+    // --- State Management ---
+    let isOpen = false;
+    const emailKey = `vv_email_${apiKey}`;
+
+
+    let clientEmail = localStorage.getItem(emailKey) || '';
+
+    // Extract identity if passed via invite link URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const invitedEmail = urlParams.get('vv_email');
+    if (invitedEmail) {
+      clientEmail = invitedEmail;
+      localStorage.setItem(emailKey, clientEmail);
+      // Remove it from the URL so it's clean and doesn't get shared accidentally
+      urlParams.delete('vv_email');
+      const newParams = urlParams.toString();
+      const cleanUrl = window.location.pathname + (newParams ? '?' + newParams : '') + window.location.hash;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+
+    const prefsKey = `vv_prefs_${apiKey}`;
+    let notifyRepliesSetting = localStorage.getItem(prefsKey) !== 'false';
+
+
+    // Track whether the user needs to verify their email before using the widget
+    let needsEmailVerification = !clientEmail;
+
+    let selectedFeedbackId = null;
+    let cachedFeedbacks = [];
+    let pollInterval = null;
+    let listPollInterval = null;
+    let eventSource = null;
+    let sseSupported = typeof EventSource !== 'undefined';
+    let domSelector = null;
+    let pendingAttachments = []; // Files queued for upload with feedback
+    let replyAttachments = []; // Files queued for upload with reply
+
+    // --- Metadata & Logs Collection ---
+    const logs = [];
+    const MAX_LOGS = 50;
+    const originalConsole = {
+      log: console.log,
+      warn: console.warn,
+      error: console.error
+    };
+
+    const captureLog = (type, args) => {
+      try {
+        const argsArray = Array.from(args);
+        let content = '';
+        const containsFormatting = argsArray.some(arg => typeof arg === 'string' && arg.includes('%c'));
+        if (containsFormatting) {
+          content = argsArray
+            .filter(arg => {
+              if (typeof arg !== 'string') return true;
+              const isCss = (arg.includes(':') && (arg.includes('color') || arg.includes('font') || arg.includes('bg'))) ||
+                (arg.startsWith('font-') || arg.startsWith('background:'));
+              return !isCss;
+            })
+            .map(arg => {
+              try {
+                let str = typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+                return str.replace(/%c/g, '');
+              } catch (e) { return '[Object]'; }
+            })
+            .join(' ');
+        } else {
+          content = argsArray.map(arg => {
+            try { return typeof arg === 'object' ? JSON.stringify(arg) : String(arg); }
+            catch (e) { return '[Object]'; }
+          }).join(' ');
+        }
+        logs.push({ type, time: new Date().toLocaleTimeString(), content: content.trim() });
+        if (logs.length > MAX_LOGS) logs.shift();
+      } catch (e) { }
+    };
+
+    console.log = (...args) => { captureLog('log', args); originalConsole.log.apply(console, args); };
+    console.warn = (...args) => { captureLog('warn', args); originalConsole.warn.apply(console, args); };
+    console.error = (...args) => { captureLog('error', args); originalConsole.error.apply(console, args); };
+
+    const getMetadata = () => ({
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      screen: `${window.innerWidth}x${window.innerHeight}`,
+      viewport: `${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`,
+      language: navigator.language,
+      logs: logs
     });
-    updatePopupHeight();
-  };
 
-  const refreshReplyPreviews = () => {
-    renderAttachPreviews(replyAttachments, '#vv-reply-attach-previews', (idx) => {
-      replyAttachments.splice(idx, 1);
-      refreshReplyPreviews();
-    });
-  };
+    // --- File Upload Helpers ---
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain', 'text/csv'];
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    const MAX_FILES = 10;
 
-  // --- UI Construction ---
-  const host = document.createElement('div');
-  host.id = 'vibe-vaults-widget-host';
-  const shadow = host.attachShadow({ mode: 'open' });
-  document.body.appendChild(host);
+    const uploadFiles = async (files, feedbackId, replyId) => {
+      if (files.length === 0) return { attachments: [] };
+      const formData = new FormData();
+      formData.append('apiKey', apiKey);
+      formData.append('senderEmail', clientEmail);
+      if (feedbackId) formData.append('feedbackId', feedbackId);
+      if (replyId) formData.append('replyId', replyId);
+      for (const f of files) formData.append('files', f);
+      const res = await fetch(API_UPLOAD, { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Upload failed');
+      }
+      return await res.json();
+    };
 
-  const style = document.createElement('style');
-  style.textContent = `
+    const isImageType = (mimeType) => mimeType && mimeType.startsWith('image/');
+
+    const getFileExtension = (name) => {
+      const parts = name.split('.');
+      return parts.length > 1 ? parts.pop().toUpperCase() : 'FILE';
+    };
+
+    const renderAttachPreviews = (files, containerId, removeCallback) => {
+      const container = wrapper.querySelector(containerId);
+      if (!container) return;
+      container.innerHTML = '';
+      files.forEach((file, idx) => {
+        const el = document.createElement('div');
+        el.className = containerId.includes('reply') ? 'reply-attach-preview' : 'attach-preview';
+        if (isImageType(file.type)) {
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(file);
+          el.appendChild(img);
+        } else {
+          const icon = document.createElement('div');
+          icon.className = 'file-icon';
+          icon.textContent = getFileExtension(file.name);
+          el.appendChild(icon);
+        }
+        const btn = document.createElement('button');
+        btn.className = 'remove-attach';
+        btn.textContent = '✕';
+        btn.onclick = (e) => { e.preventDefault(); removeCallback(idx); };
+        el.appendChild(btn);
+        container.appendChild(el);
+      });
+    };
+
+    const showWidgetToast = (msg) => {
+      let toast = wrapper.querySelector('.vv-toast');
+      if (toast) toast.remove();
+      toast = document.createElement('div');
+      toast.className = 'vv-toast';
+      toast.textContent = msg;
+      wrapper.querySelector('.popup').appendChild(toast);
+      setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+      setTimeout(() => { toast.remove(); }, 3000);
+    };
+
+    const validateFiles = (fileList) => {
+      const valid = [];
+      const errors = [];
+      for (const file of fileList) {
+        if (file.size > MAX_FILE_SIZE) { errors.push(`"${file.name}" exceeds the 10MB limit.`); continue; }
+        if (!ALLOWED_TYPES.includes(file.type)) { errors.push(`"${file.name}" has an unsupported file type.`); continue; }
+        valid.push(file);
+      }
+      if (errors.length > 0) showWidgetToast(errors.join(' '));
+      return valid;
+    };
+
+    const updatePopupHeight = () => {
+      // In compact mode the popup auto-sizes to content; no-op kept for call-site compatibility.
+    };
+
+    const refreshFeedbackPreviews = () => {
+      renderAttachPreviews(pendingAttachments, '#vv-attach-previews', (idx) => {
+        pendingAttachments.splice(idx, 1);
+        refreshFeedbackPreviews();
+      });
+      updatePopupHeight();
+    };
+
+    const refreshReplyPreviews = () => {
+      renderAttachPreviews(replyAttachments, '#vv-reply-attach-previews', (idx) => {
+        replyAttachments.splice(idx, 1);
+        refreshReplyPreviews();
+      });
+    };
+
+    // --- UI Construction ---
+    const host = document.createElement('div');
+    host.id = 'vibe-vaults-widget-host';
+    const shadow = host.attachShadow({ mode: 'open' });
+    document.body.appendChild(host);
+
+    const style = document.createElement('style');
+    style.textContent = `
     :host {
       position: fixed; bottom: 20px; right: 20px; z-index: 999999;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       color: #1f2937;
+      pointer-events: auto !important;
     }
     * { box-sizing: border-box; }
     .trigger-btn {
@@ -397,10 +398,10 @@
       .trigger-btn .bottom-text { font-size: 8px; letter-spacing: 0.2px; }
     }
   `;
-  shadow.appendChild(style);
+    shadow.appendChild(style);
 
-  const wrapper = document.createElement('div');
-  wrapper.innerHTML = `
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
     <button class="trigger-btn">
       ${isVibeVaults ? '<div class="top-text">VibeVaults</div>' : ''}
       <div class="bottom-text">Feedback</div>
@@ -468,93 +469,93 @@
       <div class="branding">Powered by <a href="https://vibe-vaults.com" target="_blank">VibeVaults</a></div>
     </div>
   `;
-  shadow.appendChild(wrapper);
+    shadow.appendChild(wrapper);
 
-  // If user needs email verification, show the prompt view by default
-  if (needsEmailVerification) {
-    wrapper.querySelector('.view-form').style.display = 'none';
-    wrapper.querySelector('.nav').style.display = 'none';
-    wrapper.querySelector('#vv-email-prompt').style.display = 'flex';
-  }
-
-  // Fetch project setting context asynchronously
-  const fetchUrl = `${API_BASE}?key=${apiKey}${clientEmail ? '&sender=' + encodeURIComponent(clientEmail) : ''}`;
-  fetch(fetchUrl)
-    .then(r => r.json())
-    .then(data => {
-      if (data.notifyReplies !== undefined) {
-        notifyRepliesSetting = data.notifyReplies;
-        localStorage.setItem(prefsKey, data.notifyReplies.toString());
-        const checkbox = wrapper.querySelector('#vv-notify-replies');
-        if (checkbox) checkbox.checked = notifyRepliesSetting;
-      }
-      // Hide branding if the owner's plan doesn't require it
-      if (data.showBranding === false) {
-        const brandingEl = wrapper.querySelector('.branding');
-        if (brandingEl) brandingEl.style.display = 'none';
-      }
-    })
-    .catch(() => { });
-
-  // --- View switching ---
-  const switchView = (v) => {
-    wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === v));
-    wrapper.querySelector('.view-form').style.display = v === 'form' ? 'flex' : 'none';
-    wrapper.querySelector('.view-feedbacks').style.display = v === 'feedbacks' ? 'flex' : 'none';
-    wrapper.querySelector('.view-detail').style.display = v === 'detail' ? 'flex' : 'none';
-    wrapper.querySelector('#vv-success').style.display = v === 'success' ? 'block' : 'none';
-    wrapper.querySelector('#vv-email-prompt').style.display = v === 'email-prompt' ? 'flex' : 'none';
-    // Hide nav when showing email prompt
-    wrapper.querySelector('.nav').style.display = v === 'email-prompt' ? 'none' : 'flex';
-    // Compact popup for form/success views, taller for detail conversation, default for feedbacks list
-    const popup = wrapper.querySelector('.popup');
-    popup.classList.toggle('compact', v === 'form' || v === 'success' || v === 'email-prompt');
-    popup.classList.toggle('tall', v === 'detail');
-    if (v === 'feedbacks') { fetchAllFeedbacks(); startListPolling(); } else { stopListPolling(); }
-    if (v === 'detail') { startStream(); } else { stopStream(); stopPolling(); }
-  };
-
-  // --- Feedbacks list ---
-  const getStatusClass = (status) => {
-    const s = (status || 'open').toLowerCase();
-    if (s === 'in progress') return 'in-progress';
-    if (s === 'in review') return 'in-review';
-    return s;
-  };
-
-  const formatDate = (dateStr) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  };
-
-  const fetchAllFeedbacks = async () => {
-    const listEl = wrapper.querySelector('#vv-feedbacks-list');
-    // Only show loading spinner if list is empty (first load), not on poll refreshes
-    if (!listEl.querySelector('.feedback-item')) {
-      listEl.innerHTML = '<div class="feedbacks-loading">Loading feedbacks...</div>';
+    // If user needs email verification, show the prompt view by default
+    if (needsEmailVerification) {
+      wrapper.querySelector('.view-form').style.display = 'none';
+      wrapper.querySelector('.nav').style.display = 'none';
+      wrapper.querySelector('#vv-email-prompt').style.display = 'flex';
     }
-    try {
-      const res = await fetch(`${API_FEEDBACKS}?key=${apiKey}&email=${encodeURIComponent(clientEmail)}`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        // If access was revoked, clear stored email and show email prompt
-        if (res.status === 403) {
-          clientEmail = '';
-          localStorage.removeItem(emailKey);
-          needsEmailVerification = true;
-          stopAll();
-          switchView('email-prompt');
+
+    // Fetch project setting context asynchronously
+    const fetchUrl = `${API_BASE}?key=${apiKey}${clientEmail ? '&sender=' + encodeURIComponent(clientEmail) : ''}`;
+    fetch(fetchUrl)
+      .then(r => r.json())
+      .then(data => {
+        if (data.notifyReplies !== undefined) {
+          notifyRepliesSetting = data.notifyReplies;
+          localStorage.setItem(prefsKey, data.notifyReplies.toString());
+          const checkbox = wrapper.querySelector('#vv-notify-replies');
+          if (checkbox) checkbox.checked = notifyRepliesSetting;
+        }
+        // Hide branding if the owner's plan doesn't require it
+        if (data.showBranding === false) {
+          const brandingEl = wrapper.querySelector('.branding');
+          if (brandingEl) brandingEl.style.display = 'none';
+        }
+      })
+      .catch(() => { });
+
+    // --- View switching ---
+    const switchView = (v) => {
+      wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === v));
+      wrapper.querySelector('.view-form').style.display = v === 'form' ? 'flex' : 'none';
+      wrapper.querySelector('.view-feedbacks').style.display = v === 'feedbacks' ? 'flex' : 'none';
+      wrapper.querySelector('.view-detail').style.display = v === 'detail' ? 'flex' : 'none';
+      wrapper.querySelector('#vv-success').style.display = v === 'success' ? 'block' : 'none';
+      wrapper.querySelector('#vv-email-prompt').style.display = v === 'email-prompt' ? 'flex' : 'none';
+      // Hide nav when showing email prompt
+      wrapper.querySelector('.nav').style.display = v === 'email-prompt' ? 'none' : 'flex';
+      // Compact popup for form/success views, taller for detail conversation, default for feedbacks list
+      const popup = wrapper.querySelector('.popup');
+      popup.classList.toggle('compact', v === 'form' || v === 'success' || v === 'email-prompt');
+      popup.classList.toggle('tall', v === 'detail');
+      if (v === 'feedbacks') { fetchAllFeedbacks(); startListPolling(); } else { stopListPolling(); }
+      if (v === 'detail') { startStream(); } else { stopStream(); stopPolling(); }
+    };
+
+    // --- Feedbacks list ---
+    const getStatusClass = (status) => {
+      const s = (status || 'open').toLowerCase();
+      if (s === 'in progress') return 'in-progress';
+      if (s === 'in review') return 'in-review';
+      return s;
+    };
+
+    const formatDate = (dateStr) => {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    };
+
+    const fetchAllFeedbacks = async () => {
+      const listEl = wrapper.querySelector('#vv-feedbacks-list');
+      // Only show loading spinner if list is empty (first load), not on poll refreshes
+      if (!listEl.querySelector('.feedback-item')) {
+        listEl.innerHTML = '<div class="feedbacks-loading">Loading feedbacks...</div>';
+      }
+      try {
+        const res = await fetch(`${API_FEEDBACKS}?key=${apiKey}&email=${encodeURIComponent(clientEmail)}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          // If access was revoked, clear stored email and show email prompt
+          if (res.status === 403) {
+            clientEmail = '';
+            localStorage.removeItem(emailKey);
+            needsEmailVerification = true;
+            stopAll();
+            switchView('email-prompt');
+            return;
+          }
+          listEl.innerHTML = `<div class="feedbacks-loading">${err.error || 'Failed to load feedbacks.'}</div>`;
           return;
         }
-        listEl.innerHTML = `<div class="feedbacks-loading">${err.error || 'Failed to load feedbacks.'}</div>`;
-        return;
-      }
-      const data = await res.json();
-      if (data.feedbacks && data.feedbacks.length > 0) {
-        cachedFeedbacks = data.feedbacks;
-        renderFeedbacksList(data.feedbacks);
-      } else {
-        listEl.innerHTML = `
+        const data = await res.json();
+        if (data.feedbacks && data.feedbacks.length > 0) {
+          cachedFeedbacks = data.feedbacks;
+          renderFeedbacksList(data.feedbacks);
+        } else {
+          listEl.innerHTML = `
           <div class="feedbacks-empty">
             <div class="feedbacks-empty-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
@@ -563,15 +564,15 @@
             <p style="font-size:12px;margin:0">Switch to "New" to submit your first one.</p>
           </div>
         `;
+        }
+      } catch (e) {
+        listEl.innerHTML = '<div class="feedbacks-loading">Failed to load feedbacks.</div>';
       }
-    } catch (e) {
-      listEl.innerHTML = '<div class="feedbacks-loading">Failed to load feedbacks.</div>';
-    }
-  };
+    };
 
-  const renderFeedbacksList = (feedbacks) => {
-    const listEl = wrapper.querySelector('#vv-feedbacks-list');
-    listEl.innerHTML = feedbacks.map(f => `
+    const renderFeedbacksList = (feedbacks) => {
+      const listEl = wrapper.querySelector('#vv-feedbacks-list');
+      listEl.innerHTML = feedbacks.map(f => `
       <div class="feedback-item" data-id="${f.id}">
         <div class="feedback-item-header">
           <span class="feedback-status ${getStatusClass(f.status)}">${f.status || 'open'}</span>
@@ -585,29 +586,29 @@
       </div>
     `).join('');
 
-    listEl.querySelectorAll('.feedback-item').forEach(item => {
-      item.onclick = () => openFeedbackDetail(item.dataset.id);
-    });
-  };
+      listEl.querySelectorAll('.feedback-item').forEach(item => {
+        item.onclick = () => openFeedbackDetail(item.dataset.id);
+      });
+    };
 
-  // --- Feedback detail / conversation ---
-  const openFeedbackDetail = (feedbackId) => {
-    selectedFeedbackId = feedbackId;
-    const feedback = cachedFeedbacks.find(f => f.id === feedbackId);
+    // --- Feedback detail / conversation ---
+    const openFeedbackDetail = (feedbackId) => {
+      selectedFeedbackId = feedbackId;
+      const feedback = cachedFeedbacks.find(f => f.id === feedbackId);
 
-    // Render detail header with feedback-level attachments
-    const headerEl = wrapper.querySelector('#vv-detail-header');
-    if (feedback) {
-      const feedbackAttachmentsHtml = feedback.attachments && feedback.attachments.length > 0
-        ? `<div class="msg-attachments" style="margin-top:10px; padding:0 20px;">${feedback.attachments.map(a => {
-          const isImage = a.mime_type && a.mime_type.startsWith('image/');
-          if (isImage) {
-            return `<a class="msg-attachment" href="${a.file_url}" target="_blank" rel="noopener"><img src="${a.file_url}" alt="${escapeHtml(a.file_name)}" loading="lazy"></a>`;
-          }
-          return `<a class="msg-attachment-file" href="${a.file_url}" target="_blank" rel="noopener">${escapeHtml(a.file_name)}</a>`;
-        }).join('')}</div>`
-        : '';
-      headerEl.innerHTML = `
+      // Render detail header with feedback-level attachments
+      const headerEl = wrapper.querySelector('#vv-detail-header');
+      if (feedback) {
+        const feedbackAttachmentsHtml = feedback.attachments && feedback.attachments.length > 0
+          ? `<div class="msg-attachments" style="margin-top:10px; padding:0 20px;">${feedback.attachments.map(a => {
+            const isImage = a.mime_type && a.mime_type.startsWith('image/');
+            if (isImage) {
+              return `<a class="msg-attachment" href="${a.file_url}" target="_blank" rel="noopener"><img src="${a.file_url}" alt="${escapeHtml(a.file_name)}" loading="lazy"></a>`;
+            }
+            return `<a class="msg-attachment-file" href="${a.file_url}" target="_blank" rel="noopener">${escapeHtml(a.file_name)}</a>`;
+          }).join('')}</div>`
+          : '';
+        headerEl.innerHTML = `
         <div class="detail-header-top">
           <span class="feedback-status ${getStatusClass(feedback.status)}">${feedback.status || 'open'}</span>
           <span class="detail-sender">${escapeHtml(feedback.sender)}</span>
@@ -615,26 +616,26 @@
         <p class="detail-content">${escapeHtml(feedback.content)}</p>
         ${feedbackAttachmentsHtml}
       `;
-    }
+      }
 
-    // Render reply section (email prompt if no email stored, or chat input)
-    renderReplySection();
+      // Render reply section (email prompt if no email stored, or chat input)
+      renderReplySection();
 
-    // Switch to detail view and fetch replies
-    wrapper.querySelector('.view-feedbacks').style.display = 'none';
-    wrapper.querySelector('.view-detail').style.display = 'flex';
-    wrapper.querySelector('.popup').classList.add('tall');
-    // Highlight feedbacks tab in nav
-    wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === 'feedbacks'));
-    fetchReplies();
-    startStream();
-  };
+      // Switch to detail view and fetch replies
+      wrapper.querySelector('.view-feedbacks').style.display = 'none';
+      wrapper.querySelector('.view-detail').style.display = 'flex';
+      wrapper.querySelector('.popup').classList.add('tall');
+      // Highlight feedbacks tab in nav
+      wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === 'feedbacks'));
+      fetchReplies();
+      startStream();
+    };
 
-  const renderReplySection = () => {
-    const section = wrapper.querySelector('#vv-reply-section');
-    replyAttachments = [];
-    if (clientEmail) {
-      section.innerHTML = `
+    const renderReplySection = () => {
+      const section = wrapper.querySelector('#vv-reply-section');
+      replyAttachments = [];
+      if (clientEmail) {
+        section.innerHTML = `
         <div class="reply-attach-previews" id="vv-reply-attach-previews"></div>
         <div class="chat-input" style="border-top: none; padding: 0;">
           <button type="button" id="vv-reply-capture-btn" style="background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; cursor: pointer; display: flex; align-items: center; color: #6b7280;" title="Screenshot">
@@ -649,63 +650,63 @@
         </div>
       <style>#vv-reply-section { border-top: 1px solid #f3f4f6; padding: 8px 20px; }</style>
       `;
-      section.querySelector('#vv-send-reply').onclick = sendReply;
-      section.querySelector('#vv-reply-text').onkeydown = (e) => {
-        if (e.key === 'Enter') sendReply();
-      };
-      // Reply screenshot capture
-      section.querySelector('#vv-reply-capture-btn').onclick = () => captureScreenshotAndElement('reply');
-      // Reply file attachment
-      const replyFileInput = section.querySelector('#vv-reply-file-input');
-      section.querySelector('#vv-reply-attach-btn').onclick = () => replyFileInput.click();
-      replyFileInput.onchange = () => {
-        const newFiles = validateFiles(Array.from(replyFileInput.files));
-        const totalAllowed = MAX_FILES - replyAttachments.length;
-        if (newFiles.length > totalAllowed) {
-          showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
-          replyAttachments.push(...newFiles.slice(0, totalAllowed));
-        } else {
-          replyAttachments.push(...newFiles);
-        }
-        refreshReplyPreviews();
-        replyFileInput.value = '';
-      };
-    } else {
-      section.innerHTML = `
+        section.querySelector('#vv-send-reply').onclick = sendReply;
+        section.querySelector('#vv-reply-text').onkeydown = (e) => {
+          if (e.key === 'Enter') sendReply();
+        };
+        // Reply screenshot capture
+        section.querySelector('#vv-reply-capture-btn').onclick = () => captureScreenshotAndElement('reply');
+        // Reply file attachment
+        const replyFileInput = section.querySelector('#vv-reply-file-input');
+        section.querySelector('#vv-reply-attach-btn').onclick = () => replyFileInput.click();
+        replyFileInput.onchange = () => {
+          const newFiles = validateFiles(Array.from(replyFileInput.files));
+          const totalAllowed = MAX_FILES - replyAttachments.length;
+          if (newFiles.length > totalAllowed) {
+            showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
+            replyAttachments.push(...newFiles.slice(0, totalAllowed));
+          } else {
+            replyAttachments.push(...newFiles);
+          }
+          refreshReplyPreviews();
+          replyFileInput.value = '';
+        };
+      } else {
+        section.innerHTML = `
         <div style="padding: 16px; text-align: center; font-size: 12px; color: #6b7280; background: #f9fafb; border-top: 1px solid #f3f4f6;">
           You must be invited via a VibeVaults tracking link to reply.
         </div>
       `;
-    }
-  };
-
-  const goBackToList = () => {
-    selectedFeedbackId = null;
-    stopStream();
-    stopPolling();
-    wrapper.querySelector('.view-detail').style.display = 'none';
-    wrapper.querySelector('.view-feedbacks').style.display = 'flex';
-    wrapper.querySelector('.popup').classList.remove('tall');
-    fetchAllFeedbacks(); // Refresh list
-    startListPolling();
-  };
-
-  // --- Replies ---
-  const renderReplyAttachments = (attachments) => {
-    if (!attachments || attachments.length === 0) return '';
-    const items = attachments.map(a => {
-      const isImage = a.mime_type && a.mime_type.startsWith('image/');
-      if (isImage) {
-        return `<a class="msg-attachment" href="${a.file_url}" target="_blank" rel="noopener"><img src="${a.file_url}" alt="${escapeHtml(a.file_name)}" loading="lazy"></a>`;
       }
-      return `<a class="msg-attachment-file" href="${a.file_url}" target="_blank" rel="noopener">${escapeHtml(a.file_name)}</a>`;
-    }).join('');
-    return `<div class="msg-attachments">${items}</div>`;
-  };
+    };
 
-  const renderReplyBubble = (r) => {
-    const side = r.author_name === clientEmail ? 'self' : 'other';
-    return `
+    const goBackToList = () => {
+      selectedFeedbackId = null;
+      stopStream();
+      stopPolling();
+      wrapper.querySelector('.view-detail').style.display = 'none';
+      wrapper.querySelector('.view-feedbacks').style.display = 'flex';
+      wrapper.querySelector('.popup').classList.remove('tall');
+      fetchAllFeedbacks(); // Refresh list
+      startListPolling();
+    };
+
+    // --- Replies ---
+    const renderReplyAttachments = (attachments) => {
+      if (!attachments || attachments.length === 0) return '';
+      const items = attachments.map(a => {
+        const isImage = a.mime_type && a.mime_type.startsWith('image/');
+        if (isImage) {
+          return `<a class="msg-attachment" href="${a.file_url}" target="_blank" rel="noopener"><img src="${a.file_url}" alt="${escapeHtml(a.file_name)}" loading="lazy"></a>`;
+        }
+        return `<a class="msg-attachment-file" href="${a.file_url}" target="_blank" rel="noopener">${escapeHtml(a.file_name)}</a>`;
+      }).join('');
+      return `<div class="msg-attachments">${items}</div>`;
+    };
+
+    const renderReplyBubble = (r) => {
+      const side = r.author_name === clientEmail ? 'self' : 'other';
+      return `
     <div class="msg-wrapper ${side}" data-reply-id="${r.id || ''}">
       <div class="msg-meta ${side}">
         <span style="font-weight:700; text-transform:uppercase; letter-spacing:-0.5px;">${escapeHtml(r.author_name || 'Unknown')}</span>
@@ -716,14 +717,144 @@
       ${renderReplyAttachments(r.attachments)}
     </div>
   `;
-  };
+    };
 
 
-  const fetchReplies = async () => {
-    if (!selectedFeedbackId) return;
-    try {
-      const res = await fetch(`${API_REPLY}?feedbackId=${selectedFeedbackId}&key=${apiKey}&email=${encodeURIComponent(clientEmail)}`);
-      if (!res.ok) {
+    const fetchReplies = async () => {
+      if (!selectedFeedbackId) return;
+      try {
+        const res = await fetch(`${API_REPLY}?feedbackId=${selectedFeedbackId}&key=${apiKey}&email=${encodeURIComponent(clientEmail)}`);
+        if (!res.ok) {
+          if (res.status === 403) {
+            clientEmail = '';
+            localStorage.removeItem(emailKey);
+            needsEmailVerification = true;
+            stopAll();
+            switchView('email-prompt');
+            return;
+          }
+          const err = await res.json().catch(() => ({}));
+          const chatEl = wrapper.querySelector('#vv-chat');
+          if (chatEl) chatEl.innerHTML = `<div class="chat-no-replies">${err.error || 'Could not load replies.'}</div>`;
+          return;
+        }
+        const data = await res.json();
+        const chatEl = wrapper.querySelector('#vv-chat');
+        if (data.replies && data.replies.length > 0) {
+          chatEl.innerHTML = data.replies.map(renderReplyBubble).join('');
+          chatEl.scrollTop = chatEl.scrollHeight;
+        } else {
+          chatEl.innerHTML = '<div class="chat-no-replies">No replies yet. Start the conversation!</div>';
+        }
+      } catch (e) {
+        console.error('[VibeVaults] Failed to fetch replies:', e);
+        const chatEl = wrapper.querySelector('#vv-chat');
+        if (chatEl) chatEl.innerHTML = '<div class="chat-no-replies">Could not load replies. Retrying…</div>';
+      }
+    };
+
+    // --- SSE Realtime (primary) with polling fallback ---
+    const startStream = () => {
+      stopStream();
+      if (!selectedFeedbackId) return;
+
+      if (sseSupported) {
+        const url = `${API_STREAM}?feedbackId=${selectedFeedbackId}&key=${apiKey}&email=${encodeURIComponent(clientEmail)}`;
+        eventSource = new EventSource(url);
+
+        eventSource.addEventListener('new_reply', () => {
+          // Refetch all replies to get complete data including attachments
+          fetchReplies();
+        });
+
+        eventSource.addEventListener('new_attachment', () => {
+          // Refetch replies to pick up newly uploaded attachments
+          fetchReplies();
+        });
+
+        eventSource.addEventListener('status_update', (e) => {
+          try {
+            const { status } = JSON.parse(e.data);
+            // Update status in the detail header
+            const detailStatus = wrapper.querySelector('.detail-header .feedback-status');
+            if (detailStatus) {
+              detailStatus.className = 'feedback-status ' + getStatusClass(status);
+              detailStatus.textContent = status || 'open';
+            }
+            // Update cached feedback so going back to list reflects the change
+            const cached = cachedFeedbacks.find(f => f.id === selectedFeedbackId);
+            if (cached) cached.status = status;
+          } catch (err) { console.error('[VibeVaults] Failed to parse status update:', err); }
+        });
+
+        eventSource.addEventListener('connected', () => {
+          // SSE connected — stop any polling fallback
+          stopPolling();
+        });
+
+        eventSource.onerror = () => {
+          // SSE failed — fall back to polling
+          stopStream();
+          sseSupported = false;
+          startPolling();
+        };
+      } else {
+        // SSE not available — use polling
+        startPolling();
+      }
+    };
+
+    const stopStream = () => {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+    };
+
+    const startPolling = () => { stopPolling(); pollInterval = setInterval(fetchReplies, 5000); };
+    const stopPolling = () => { if (pollInterval) clearInterval(pollInterval); pollInterval = null; };
+
+    const startListPolling = () => { stopListPolling(); listPollInterval = setInterval(fetchAllFeedbacks, 10000); };
+    const stopListPolling = () => { if (listPollInterval) clearInterval(listPollInterval); listPollInterval = null; };
+
+    const stopAll = () => { stopStream(); stopPolling(); stopListPolling(); };
+
+    // --- Send feedback ---
+    const sendFeedback = async () => {
+      const text = wrapper.querySelector('#vv-textarea').value.trim();
+      const btn = wrapper.querySelector('#vv-submit');
+      if (!text) {
+        showWidgetToast('Please describe your issue.');
+        return;
+      }
+
+      if (!clientEmail) {
+        needsEmailVerification = true;
+        switchView('email-prompt');
+        return;
+      }
+
+      btn.disabled = true;
+      try {
+        const metadata = getMetadata();
+        if (domSelector) metadata.dom_selector = domSelector;
+
+        const notifyRepliesCheckbox = wrapper.querySelector('#vv-notify-replies');
+        const notifyReplies = notifyRepliesCheckbox ? notifyRepliesCheckbox.checked : true;
+        localStorage.setItem(prefsKey, notifyReplies.toString());
+
+        // Show upload progress if there are attachments
+        const progressEl = wrapper.querySelector('#vv-upload-progress');
+        if (pendingAttachments.length > 0) {
+          progressEl.textContent = `Uploading ${pendingAttachments.length} file(s)...`;
+          progressEl.style.display = 'block';
+        }
+
+        const res = await fetch(API_BASE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey, content: text, sender: clientEmail, metadata, notifyReplies })
+        });
         if (res.status === 403) {
           clientEmail = '';
           localStorage.removeItem(emailKey);
@@ -732,506 +863,394 @@
           switchView('email-prompt');
           return;
         }
-        const err = await res.json().catch(() => ({}));
-        const chatEl = wrapper.querySelector('#vv-chat');
-        if (chatEl) chatEl.innerHTML = `<div class="chat-no-replies">${err.error || 'Could not load replies.'}</div>`;
-        return;
-      }
-      const data = await res.json();
-      const chatEl = wrapper.querySelector('#vv-chat');
-      if (data.replies && data.replies.length > 0) {
-        chatEl.innerHTML = data.replies.map(renderReplyBubble).join('');
-        chatEl.scrollTop = chatEl.scrollHeight;
-      } else {
-        chatEl.innerHTML = '<div class="chat-no-replies">No replies yet. Start the conversation!</div>';
-      }
-    } catch (e) {
-      console.error('[VibeVaults] Failed to fetch replies:', e);
-      const chatEl = wrapper.querySelector('#vv-chat');
-      if (chatEl) chatEl.innerHTML = '<div class="chat-no-replies">Could not load replies. Retrying…</div>';
-    }
-  };
-
-  // --- SSE Realtime (primary) with polling fallback ---
-  const startStream = () => {
-    stopStream();
-    if (!selectedFeedbackId) return;
-
-    if (sseSupported) {
-      const url = `${API_STREAM}?feedbackId=${selectedFeedbackId}&key=${apiKey}&email=${encodeURIComponent(clientEmail)}`;
-      eventSource = new EventSource(url);
-
-      eventSource.addEventListener('new_reply', () => {
-        // Refetch all replies to get complete data including attachments
-        fetchReplies();
-      });
-
-      eventSource.addEventListener('new_attachment', () => {
-        // Refetch replies to pick up newly uploaded attachments
-        fetchReplies();
-      });
-
-      eventSource.addEventListener('status_update', (e) => {
-        try {
-          const { status } = JSON.parse(e.data);
-          // Update status in the detail header
-          const detailStatus = wrapper.querySelector('.detail-header .feedback-status');
-          if (detailStatus) {
-            detailStatus.className = 'feedback-status ' + getStatusClass(status);
-            detailStatus.textContent = status || 'open';
+        const data = await res.json();
+        if (data.success && data.feedback_id) {
+          // Upload attachments linked to the new feedback
+          if (pendingAttachments.length > 0) {
+            try {
+              await uploadFiles(pendingAttachments, data.feedback_id, null);
+            } catch (uploadErr) {
+              console.error('[VibeVaults] Attachment upload failed:', uploadErr);
+              // Feedback was created, but attachments failed — don't block success
+            }
           }
-          // Update cached feedback so going back to list reflects the change
-          const cached = cachedFeedbacks.find(f => f.id === selectedFeedbackId);
-          if (cached) cached.status = status;
-        } catch (err) { console.error('[VibeVaults] Failed to parse status update:', err); }
-      });
 
-      eventSource.addEventListener('connected', () => {
-        // SSE connected — stop any polling fallback
-        stopPolling();
-      });
+          // Reset form
+          wrapper.querySelector('#vv-textarea').value = '';
+          pendingAttachments = [];
+          wrapper.querySelector('#vv-attach-previews').innerHTML = '';
+          if (progressEl) progressEl.style.display = 'none';
+          domSelector = null;
+          updatePopupHeight();
 
-      eventSource.onerror = () => {
-        // SSE failed — fall back to polling
-        stopStream();
-        sseSupported = false;
-        startPolling();
-      };
-    } else {
-      // SSE not available — use polling
-      startPolling();
-    }
-  };
-
-  const stopStream = () => {
-    if (eventSource) {
-      eventSource.close();
-      eventSource = null;
-    }
-  };
-
-  const startPolling = () => { stopPolling(); pollInterval = setInterval(fetchReplies, 5000); };
-  const stopPolling = () => { if (pollInterval) clearInterval(pollInterval); pollInterval = null; };
-
-  const startListPolling = () => { stopListPolling(); listPollInterval = setInterval(fetchAllFeedbacks, 10000); };
-  const stopListPolling = () => { if (listPollInterval) clearInterval(listPollInterval); listPollInterval = null; };
-
-  const stopAll = () => { stopStream(); stopPolling(); stopListPolling(); };
-
-  // --- Send feedback ---
-  const sendFeedback = async () => {
-    const text = wrapper.querySelector('#vv-textarea').value.trim();
-    const btn = wrapper.querySelector('#vv-submit');
-    if (!text) {
-      showWidgetToast('Please describe your issue.');
-      return;
-    }
-
-    if (!clientEmail) {
-      needsEmailVerification = true;
-      switchView('email-prompt');
-      return;
-    }
-
-    btn.disabled = true;
-    try {
-      const metadata = getMetadata();
-      if (domSelector) metadata.dom_selector = domSelector;
-
-      const notifyRepliesCheckbox = wrapper.querySelector('#vv-notify-replies');
-      const notifyReplies = notifyRepliesCheckbox ? notifyRepliesCheckbox.checked : true;
-      localStorage.setItem(prefsKey, notifyReplies.toString());
-
-      // Show upload progress if there are attachments
-      const progressEl = wrapper.querySelector('#vv-upload-progress');
-      if (pendingAttachments.length > 0) {
-        progressEl.textContent = `Uploading ${pendingAttachments.length} file(s)...`;
-        progressEl.style.display = 'block';
-      }
-
-      const res = await fetch(API_BASE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, content: text, sender: clientEmail, metadata, notifyReplies })
-      });
-      if (res.status === 403) {
-        clientEmail = '';
-        localStorage.removeItem(emailKey);
-        needsEmailVerification = true;
-        stopAll();
-        switchView('email-prompt');
-        return;
-      }
-      const data = await res.json();
-      if (data.success && data.feedback_id) {
-        // Upload attachments linked to the new feedback
-        if (pendingAttachments.length > 0) {
-          try {
-            await uploadFiles(pendingAttachments, data.feedback_id, null);
-          } catch (uploadErr) {
-            console.error('[VibeVaults] Attachment upload failed:', uploadErr);
-            // Feedback was created, but attachments failed — don't block success
-          }
+          switchView('success');
+        } else {
+          showWidgetToast(data.error || 'Error sending feedback.');
+          if (progressEl) progressEl.style.display = 'none';
         }
-
-        // Reset form
-        wrapper.querySelector('#vv-textarea').value = '';
-        pendingAttachments = [];
-        wrapper.querySelector('#vv-attach-previews').innerHTML = '';
+      } catch (e) {
+        showWidgetToast('Network error. Please try again.');
+        const progressEl = wrapper.querySelector('#vv-upload-progress');
         if (progressEl) progressEl.style.display = 'none';
-        domSelector = null;
-        updatePopupHeight();
+      } finally { btn.disabled = false; }
+    };
 
-        switchView('success');
-      } else {
-        showWidgetToast(data.error || 'Error sending feedback.');
-        if (progressEl) progressEl.style.display = 'none';
-      }
-    } catch (e) {
-      showWidgetToast('Network error. Please try again.');
-      const progressEl = wrapper.querySelector('#vv-upload-progress');
-      if (progressEl) progressEl.style.display = 'none';
-    } finally { btn.disabled = false; }
-  };
+    // --- Screenshot shimmer placeholder ---
+    const showCaptureShimmer = (target) => {
+      const containerId = target === 'reply' ? '#vv-reply-attach-previews' : '#vv-attach-previews';
+      const container = wrapper.querySelector(containerId);
+      if (!container) return;
+      const cls = target === 'reply' ? 'reply-attach-preview' : 'attach-preview';
+      const el = document.createElement('div');
+      el.className = cls + ' shimmer';
+      el.id = 'vv-capture-shimmer';
+      el.innerHTML = '<span class="shimmer-label">Processing...</span>';
+      container.prepend(el);
+    };
 
-  // --- Screenshot shimmer placeholder ---
-  const showCaptureShimmer = (target) => {
-    const containerId = target === 'reply' ? '#vv-reply-attach-previews' : '#vv-attach-previews';
-    const container = wrapper.querySelector(containerId);
-    if (!container) return;
-    const cls = target === 'reply' ? 'reply-attach-preview' : 'attach-preview';
-    const el = document.createElement('div');
-    el.className = cls + ' shimmer';
-    el.id = 'vv-capture-shimmer';
-    el.innerHTML = '<span class="shimmer-label">Processing...</span>';
-    container.prepend(el);
-  };
+    const removeCaptureShimmer = () => {
+      const el = wrapper.querySelector('#vv-capture-shimmer');
+      if (el) el.remove();
+    };
 
-  const removeCaptureShimmer = () => {
-    const el = wrapper.querySelector('#vv-capture-shimmer');
-    if (el) el.remove();
-  };
+    // --- Inspector Mode ---
+    const captureScreenshotAndElement = (target = 'form') => {
+      wrapper.querySelector('.popup').classList.remove('open');
+      wrapper.querySelector('.badge').style.display = 'block';
 
-  // --- Inspector Mode ---
-  const captureScreenshotAndElement = (target = 'form') => {
-    wrapper.querySelector('.popup').classList.remove('open');
-    wrapper.querySelector('.badge').style.display = 'block';
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100vw';
+      overlay.style.height = '100vh';
+      overlay.style.zIndex = '999998';
+      overlay.style.cursor = 'crosshair';
 
-    const overlay = document.createElement('div');
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100vw';
-    overlay.style.height = '100vh';
-    overlay.style.zIndex = '999998';
-    overlay.style.cursor = 'crosshair';
+      const highlightBox = document.createElement('div');
+      highlightBox.style.position = 'absolute';
+      highlightBox.style.border = '2px solid #209CEE';
+      highlightBox.style.background = 'rgba(32, 156, 238, 0.1)';
+      highlightBox.style.pointerEvents = 'none';
+      highlightBox.style.transition = 'all 0.1s ease-out';
+      highlightBox.style.zIndex = '999999';
+      overlay.appendChild(highlightBox);
+      document.body.appendChild(overlay);
 
-    const highlightBox = document.createElement('div');
-    highlightBox.style.position = 'absolute';
-    highlightBox.style.border = '2px solid #209CEE';
-    highlightBox.style.background = 'rgba(32, 156, 238, 0.1)';
-    highlightBox.style.pointerEvents = 'none';
-    highlightBox.style.transition = 'all 0.1s ease-out';
-    highlightBox.style.zIndex = '999999';
-    overlay.appendChild(highlightBox);
-    document.body.appendChild(overlay);
-
-    const banner = document.createElement('div');
-    banner.innerHTML = `
+      const banner = document.createElement('div');
+      banner.innerHTML = `
       <div style="background: #1f2937; color: white; padding: 12px 20px; font-family: sans-serif; font-size: 14px; font-weight: 500; border-radius: 8px; display: flex; align-items: center; gap: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
         <span>Hover over an element and click to capture</span>
         <button id="vv-cancel-capture" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">Cancel</button>
       </div>
     `;
-    banner.style.position = 'fixed';
-    banner.style.top = '20px';
-    banner.style.left = '50%';
-    banner.style.transform = 'translateX(-50%)';
-    banner.style.zIndex = '999999';
-    document.body.appendChild(banner);
+      banner.style.position = 'fixed';
+      banner.style.top = '20px';
+      banner.style.left = '50%';
+      banner.style.transform = 'translateX(-50%)';
+      banner.style.zIndex = '999999';
+      document.body.appendChild(banner);
 
-    let currentTarget = null;
+      let currentTarget = null;
 
-    const handleMouseMove = (e) => {
-      overlay.style.pointerEvents = 'none';
-      const target = document.elementFromPoint(e.clientX, e.clientY);
-      overlay.style.pointerEvents = 'auto';
+      const handleMouseMove = (e) => {
+        overlay.style.pointerEvents = 'none';
+        const target = document.elementFromPoint(e.clientX, e.clientY);
+        overlay.style.pointerEvents = 'auto';
 
-      if (!target || target === document.body || target === document.documentElement) return;
-      if (target.closest('#vibe-vaults-widget-host') || target.closest('[id^="vv-"]')) return;
+        if (!target || target === document.body || target === document.documentElement) return;
+        if (target.closest('#vibe-vaults-widget-host') || target.closest('[id^="vv-"]')) return;
 
-      currentTarget = target;
-      const rect = target.getBoundingClientRect();
-      highlightBox.style.top = (rect.top + window.scrollY) + 'px';
-      highlightBox.style.left = (rect.left + window.scrollX) + 'px';
-      highlightBox.style.width = rect.width + 'px';
-      highlightBox.style.height = rect.height + 'px';
-    };
+        currentTarget = target;
+        const rect = target.getBoundingClientRect();
+        highlightBox.style.top = (rect.top + window.scrollY) + 'px';
+        highlightBox.style.left = (rect.left + window.scrollX) + 'px';
+        highlightBox.style.width = rect.width + 'px';
+        highlightBox.style.height = rect.height + 'px';
+      };
 
-    const cleanup = () => {
-      overlay.remove();
-      banner.remove();
-      wrapper.querySelector('.popup').classList.add('open');
-      wrapper.querySelector('.badge').style.display = 'none';
-      document.removeEventListener('keydown', handleKeyDown);
-    };
+      const cleanup = () => {
+        overlay.remove();
+        banner.remove();
+        wrapper.querySelector('.popup').classList.add('open');
+        wrapper.querySelector('.badge').style.display = 'none';
+        document.removeEventListener('keydown', handleKeyDown);
+      };
 
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') cleanup();
-    };
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') cleanup();
+      };
 
-    document.addEventListener('keydown', handleKeyDown);
-    overlay.addEventListener('mousemove', handleMouseMove);
-    overlay.addEventListener('click', async (e) => {
-      e.preventDefault(); e.stopPropagation();
-      banner.remove();
-      overlay.removeEventListener('mousemove', handleMouseMove);
+      document.addEventListener('keydown', handleKeyDown);
+      overlay.addEventListener('mousemove', handleMouseMove);
+      overlay.addEventListener('click', async (e) => {
+        e.preventDefault(); e.stopPropagation();
+        banner.remove();
+        overlay.removeEventListener('mousemove', handleMouseMove);
 
-      if (currentTarget) {
-        if (currentTarget.id) domSelector = '#' + currentTarget.id;
-        else if (currentTarget.className && typeof currentTarget.className === 'string') domSelector = '.' + currentTarget.className.split(' ').filter(Boolean).join('.');
-        else domSelector = currentTarget.tagName.toLowerCase();
-      }
+        if (currentTarget) {
+          if (currentTarget.id) domSelector = '#' + currentTarget.id;
+          else if (currentTarget.className && typeof currentTarget.className === 'string') domSelector = '.' + currentTarget.className.split(' ').filter(Boolean).join('.');
+          else domSelector = currentTarget.tagName.toLowerCase();
+        }
 
-      const capBtn = target === 'reply'
-        ? wrapper.querySelector('#vv-reply-capture-btn')
-        : wrapper.querySelector('#vv-capture-btn');
-      const originalText = capBtn ? capBtn.innerHTML : '';
-      if (capBtn) { capBtn.innerHTML = 'Capturing...'; capBtn.disabled = true; }
+        const capBtn = target === 'reply'
+          ? wrapper.querySelector('#vv-reply-capture-btn')
+          : wrapper.querySelector('#vv-capture-btn');
+        const originalText = capBtn ? capBtn.innerHTML : '';
+        if (capBtn) { capBtn.innerHTML = 'Capturing...'; capBtn.disabled = true; }
 
-      // Reopen popup and show shimmer placeholder so user sees progress while capturing
-      wrapper.querySelector('.popup').classList.add('open');
-      wrapper.querySelector('.badge').style.display = 'none';
-      showCaptureShimmer(target);
+        // Reopen popup and show shimmer placeholder so user sees progress while capturing
+        wrapper.querySelector('.popup').classList.add('open');
+        wrapper.querySelector('.badge').style.display = 'none';
+        showCaptureShimmer(target);
 
-      const finishCapture = async (dataUrl) => {
-        removeCaptureShimmer();
-        cleanup();
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-        const screenshotFile = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' });
+        const finishCapture = async (dataUrl) => {
+          removeCaptureShimmer();
+          cleanup();
+          const res = await fetch(dataUrl);
+          const blob = await res.blob();
+          const screenshotFile = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' });
 
-        if (target === 'reply') {
-          replyAttachments = replyAttachments.filter(f => f.name !== 'screenshot.jpg');
-          if (replyAttachments.length >= MAX_FILES) {
-            showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
-            if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
-            return;
+          if (target === 'reply') {
+            replyAttachments = replyAttachments.filter(f => f.name !== 'screenshot.jpg');
+            if (replyAttachments.length >= MAX_FILES) {
+              showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
+              if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
+              return;
+            }
+            replyAttachments.unshift(screenshotFile);
+            refreshReplyPreviews();
+          } else {
+            pendingAttachments = pendingAttachments.filter(f => f.name !== 'screenshot.jpg');
+            if (pendingAttachments.length >= MAX_FILES) {
+              showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
+              if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
+              return;
+            }
+            pendingAttachments.unshift(screenshotFile);
+            refreshFeedbackPreviews();
           }
-          replyAttachments.unshift(screenshotFile);
-          refreshReplyPreviews();
+          if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
+        };
+
+        const captureOptions = {
+          backgroundColor: '#ffffff',
+          exclude: ['#vibe-vaults-widget-host'],
+          excludeMode: 'remove',
+          embedFonts: true,
+          localFonts: true
+        };
+
+        const onCaptureError = () => {
+          removeCaptureShimmer();
+          cleanup();
+          if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
+          showWidgetToast('Screenshot capture failed. Please try again.');
+        };
+
+        const runCapture = () => {
+          window.snapdom.toCanvas(document.body, captureOptions).then((fullCanvas) => {
+            // Crop to visible viewport
+            const dpr = fullCanvas.width / document.body.scrollWidth;
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const cropped = document.createElement('canvas');
+            cropped.width = Math.round(vw * dpr);
+            cropped.height = Math.round(vh * dpr);
+            const ctx = cropped.getContext('2d');
+            ctx.drawImage(fullCanvas, Math.round(window.scrollX * dpr), Math.round(window.scrollY * dpr), Math.round(vw * dpr), Math.round(vh * dpr), 0, 0, cropped.width, cropped.height);
+            finishCapture(cropped.toDataURL('image/jpeg', 0.6));
+          }).catch(onCaptureError);
+        };
+
+        if (!window.snapdom) {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/@zumer/snapdom/dist/snapdom.js';
+          script.onload = runCapture;
+          script.onerror = onCaptureError;
+          document.head.appendChild(script);
         } else {
-          pendingAttachments = pendingAttachments.filter(f => f.name !== 'screenshot.jpg');
-          if (pendingAttachments.length >= MAX_FILES) {
-            showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
-            if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
+          runCapture();
+        }
+      });
+
+      banner.querySelector('#vv-cancel-capture').onclick = (e) => { e.preventDefault(); e.stopPropagation(); cleanup(); };
+    };
+
+    // --- Send reply ---
+    const sendReply = async () => {
+      const textEl = wrapper.querySelector('#vv-reply-text');
+      if (!textEl) return;
+      const text = textEl.value.trim();
+      if ((!text && replyAttachments.length === 0) || !selectedFeedbackId || !clientEmail) return;
+      const btn = wrapper.querySelector('#vv-send-reply');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(API_REPLY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feedbackId: selectedFeedbackId, content: text || '', apiKey, senderEmail: clientEmail, hasAttachments: replyAttachments.length > 0 })
+        });
+        if (res.ok) {
+          const replyData = await res.json();
+          // Upload reply attachments if any
+          if (replyAttachments.length > 0) {
+            try {
+              await uploadFiles(replyAttachments, selectedFeedbackId, replyData.replyId || null);
+            } catch (uploadErr) {
+              console.error('[VibeVaults] Reply attachment upload failed:', uploadErr);
+            }
+          }
+          textEl.value = '';
+          replyAttachments = [];
+          const replyPreviewsEl = wrapper.querySelector('#vv-reply-attach-previews');
+          if (replyPreviewsEl) replyPreviewsEl.innerHTML = '';
+          fetchReplies();
+        } else {
+          if (res.status === 403) {
+            clientEmail = '';
+            localStorage.removeItem(emailKey);
+            needsEmailVerification = true;
+            stopAll();
+            switchView('email-prompt');
             return;
           }
-          pendingAttachments.unshift(screenshotFile);
-          refreshFeedbackPreviews();
+          const err = await res.json();
+          showWidgetToast(err.error || 'Failed to send reply.');
         }
-        if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
-      };
-
-      const captureOptions = {
-        quality: 0.6,
-        backgroundColor: '#ffffff',
-        width: window.innerWidth,
-        height: window.innerHeight,
-        style: {
-          transform: `translate(${-window.scrollX}px, ${-window.scrollY}px)`,
-          overflow: 'hidden'
-        },
-        filter: (node) => {
-          // exclude the widget host from screenshot
-          return node.id !== 'vibe-vaults-widget-host';
-        }
-      };
-
-      const onCaptureError = () => {
-        removeCaptureShimmer();
-        cleanup();
-        if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
-        showWidgetToast('Screenshot capture failed. Please try again.');
-      };
-
-      if (!window.htmlToImage) {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';
-        script.onload = () => window.htmlToImage.toJpeg(document.body, captureOptions).then(finishCapture).catch(onCaptureError);
-        script.onerror = onCaptureError;
-        document.head.appendChild(script);
-      } else {
-        window.htmlToImage.toJpeg(document.body, captureOptions).then(finishCapture).catch(onCaptureError);
+      } catch (e) {
+        showWidgetToast('Network error. Please try again.');
+      } finally {
+        btn.disabled = false;
       }
-    });
+    };
 
-    banner.querySelector('#vv-cancel-capture').onclick = (e) => { e.preventDefault(); e.stopPropagation(); cleanup(); };
-  };
+    // --- Utility ---
+    const escapeHtml = (str) => {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    };
 
-  // --- Send reply ---
-  const sendReply = async () => {
-    const textEl = wrapper.querySelector('#vv-reply-text');
-    if (!textEl) return;
-    const text = textEl.value.trim();
-    if ((!text && replyAttachments.length === 0) || !selectedFeedbackId || !clientEmail) return;
-    const btn = wrapper.querySelector('#vv-send-reply');
-    btn.disabled = true;
+    // --- Event bindings ---
+    const triggerBtn = wrapper.querySelector('.trigger-btn');
 
-    try {
-      const res = await fetch(API_REPLY, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feedbackId: selectedFeedbackId, content: text || '', apiKey, senderEmail: clientEmail, hasAttachments: replyAttachments.length > 0 })
-      });
-      if (res.ok) {
-        const replyData = await res.json();
-        // Upload reply attachments if any
-        if (replyAttachments.length > 0) {
-          try {
-            await uploadFiles(replyAttachments, selectedFeedbackId, replyData.replyId || null);
-          } catch (uploadErr) {
-            console.error('[VibeVaults] Reply attachment upload failed:', uploadErr);
-          }
+    // Prevent background scroll-through on mobile: block touchmove on non-scrollable areas of the popup
+    const popup = wrapper.querySelector('.popup');
+    popup.addEventListener('touchmove', (e) => {
+      let el = e.target;
+      while (el && el !== popup) {
+        if (el.scrollHeight > el.clientHeight) {
+          const style = getComputedStyle(el);
+          if (style.overflowY === 'auto' || style.overflowY === 'scroll') return;
         }
-        textEl.value = '';
-        replyAttachments = [];
-        const replyPreviewsEl = wrapper.querySelector('#vv-reply-attach-previews');
-        if (replyPreviewsEl) replyPreviewsEl.innerHTML = '';
-        fetchReplies();
-      } else {
-        if (res.status === 403) {
-          clientEmail = '';
-          localStorage.removeItem(emailKey);
-          needsEmailVerification = true;
-          stopAll();
+        el = el.parentElement;
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    triggerBtn.onclick = () => {
+      isOpen = !isOpen;
+      popup.classList.toggle('open', isOpen);
+      if (isOpen) {
+        wrapper.querySelector('.badge').style.display = 'none';
+        if (needsEmailVerification) {
           switchView('email-prompt');
-          return;
         }
-        const err = await res.json();
-        showWidgetToast(err.error || 'Failed to send reply.');
-      }
-    } catch (e) {
-      showWidgetToast('Network error. Please try again.');
-    } finally {
-      btn.disabled = false;
-    }
-  };
-
-  // --- Utility ---
-  const escapeHtml = (str) => {
-    const div = document.createElement('div');
-    div.textContent = str || '';
-    return div.innerHTML;
-  };
-
-  // --- Event bindings ---
-  const triggerBtn = wrapper.querySelector('.trigger-btn');
-
-  // Prevent background scroll-through on mobile: block touchmove on non-scrollable areas of the popup
-  const popup = wrapper.querySelector('.popup');
-  popup.addEventListener('touchmove', (e) => {
-    let el = e.target;
-    while (el && el !== popup) {
-      if (el.scrollHeight > el.clientHeight) {
-        const style = getComputedStyle(el);
-        if (style.overflowY === 'auto' || style.overflowY === 'scroll') return;
-      }
-      el = el.parentElement;
-    }
-    e.preventDefault();
-  }, { passive: false });
-
-  triggerBtn.onclick = () => {
-    isOpen = !isOpen;
-    popup.classList.toggle('open', isOpen);
-    if (isOpen) {
-      wrapper.querySelector('.badge').style.display = 'none';
-      if (needsEmailVerification) {
-        switchView('email-prompt');
-      }
-    } else {
-      stopAll();
-    }
-  };
-  wrapper.querySelector('.close-btn').onclick = () => triggerBtn.onclick();
-  wrapper.querySelector('#vv-submit').onclick = sendFeedback;
-  wrapper.querySelector('#vv-capture-btn').onclick = captureScreenshotAndElement;
-
-  // File attachment button
-  const fileInput = wrapper.querySelector('#vv-file-input');
-  wrapper.querySelector('#vv-attach-btn').onclick = () => fileInput.click();
-  fileInput.onchange = () => {
-    const newFiles = validateFiles(Array.from(fileInput.files));
-    const totalAllowed = MAX_FILES - pendingAttachments.length;
-    if (newFiles.length > totalAllowed) {
-      showWidgetToast('Maximum ' + MAX_FILES + ' files allowed. You can add ' + totalAllowed + ' more.');
-      pendingAttachments.push(...newFiles.slice(0, totalAllowed));
-    } else {
-      pendingAttachments.push(...newFiles);
-    }
-    refreshFeedbackPreviews();
-    fileInput.value = '';
-  };
-  wrapper.querySelector('#vv-back-btn').onclick = goBackToList;
-  wrapper.querySelectorAll('.nav-item').forEach(i => i.onclick = () => {
-    if (needsEmailVerification) return; // Block navigation until email is verified
-    if (i.dataset.view === 'feedbacks' && selectedFeedbackId) {
-      // If user is in detail view and clicks "Feedbacks" tab, go back to list
-      goBackToList();
-    }
-    switchView(i.dataset.view);
-  });
-
-  const notifyCheckbox = wrapper.querySelector('#vv-notify-replies');
-  if (notifyCheckbox) {
-    notifyCheckbox.addEventListener('change', (e) => {
-      localStorage.setItem(prefsKey, e.target.checked.toString());
-      notifyRepliesSetting = e.target.checked;
-    });
-  }
-
-  // --- Email verification prompt ---
-  const verifyEmailBtn = wrapper.querySelector('#vv-email-verify');
-  const emailInput = wrapper.querySelector('#vv-email-input');
-
-  const handleEmailVerify = async () => {
-    const email = emailInput.value.trim().toLowerCase();
-
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showWidgetToast('Please enter a valid email address.');
-      return;
-    }
-
-    verifyEmailBtn.disabled = true;
-    verifyEmailBtn.textContent = 'Verifying...';
-
-    try {
-      const res = await fetch(`${API_VERIFY}?key=${apiKey}&email=${encodeURIComponent(email)}`);
-      const data = await res.json();
-
-      if (data.authorized) {
-        clientEmail = email;
-        localStorage.setItem(emailKey, clientEmail);
-        needsEmailVerification = false;
-        switchView('form');
-      } else if (data.error) {
-        showWidgetToast(data.error);
       } else {
-        showWidgetToast('This email does not have access. Please contact the site owner.');
+        stopAll();
       }
-    } catch (e) {
-      showWidgetToast('Network error. Please try again.');
-    } finally {
-      verifyEmailBtn.disabled = false;
-      verifyEmailBtn.textContent = 'Continue';
-    }
-  };
+    };
+    wrapper.querySelector('.close-btn').onclick = () => triggerBtn.onclick();
 
-  verifyEmailBtn.onclick = handleEmailVerify;
-  emailInput.onkeydown = (e) => {
-    if (e.key === 'Enter') handleEmailVerify();
-  };
+    // Close popup when clicking outside the widget
+    document.addEventListener('click', (e) => {
+      if (isOpen && !host.contains(e.target)) {
+        isOpen = false;
+        popup.classList.remove('open');
+        stopAll();
+      }
+    });
+
+    wrapper.querySelector('#vv-submit').onclick = sendFeedback;
+    wrapper.querySelector('#vv-capture-btn').onclick = captureScreenshotAndElement;
+
+    // File attachment button
+    const fileInput = wrapper.querySelector('#vv-file-input');
+    wrapper.querySelector('#vv-attach-btn').onclick = () => fileInput.click();
+    fileInput.onchange = () => {
+      const newFiles = validateFiles(Array.from(fileInput.files));
+      const totalAllowed = MAX_FILES - pendingAttachments.length;
+      if (newFiles.length > totalAllowed) {
+        showWidgetToast('Maximum ' + MAX_FILES + ' files allowed. You can add ' + totalAllowed + ' more.');
+        pendingAttachments.push(...newFiles.slice(0, totalAllowed));
+      } else {
+        pendingAttachments.push(...newFiles);
+      }
+      refreshFeedbackPreviews();
+      fileInput.value = '';
+    };
+    wrapper.querySelector('#vv-back-btn').onclick = goBackToList;
+    wrapper.querySelectorAll('.nav-item').forEach(i => i.onclick = () => {
+      if (needsEmailVerification) return; // Block navigation until email is verified
+      if (i.dataset.view === 'feedbacks' && selectedFeedbackId) {
+        // If user is in detail view and clicks "Feedbacks" tab, go back to list
+        goBackToList();
+      }
+      switchView(i.dataset.view);
+    });
+
+    const notifyCheckbox = wrapper.querySelector('#vv-notify-replies');
+    if (notifyCheckbox) {
+      notifyCheckbox.addEventListener('change', (e) => {
+        localStorage.setItem(prefsKey, e.target.checked.toString());
+        notifyRepliesSetting = e.target.checked;
+      });
+    }
+
+    // --- Email verification prompt ---
+    const verifyEmailBtn = wrapper.querySelector('#vv-email-verify');
+    const emailInput = wrapper.querySelector('#vv-email-input');
+
+    const handleEmailVerify = async () => {
+      const email = emailInput.value.trim().toLowerCase();
+
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showWidgetToast('Please enter a valid email address.');
+        return;
+      }
+
+      verifyEmailBtn.disabled = true;
+      verifyEmailBtn.textContent = 'Verifying...';
+
+      try {
+        const res = await fetch(`${API_VERIFY}?key=${apiKey}&email=${encodeURIComponent(email)}`);
+        const data = await res.json();
+
+        if (data.authorized) {
+          clientEmail = email;
+          localStorage.setItem(emailKey, clientEmail);
+          needsEmailVerification = false;
+          switchView('form');
+        } else if (data.error) {
+          showWidgetToast(data.error);
+        } else {
+          showWidgetToast('This email does not have access. Please contact the site owner.');
+        }
+      } catch (e) {
+        showWidgetToast('Network error. Please try again.');
+      } finally {
+        verifyEmailBtn.disabled = false;
+        verifyEmailBtn.textContent = 'Continue';
+      }
+    };
+
+    verifyEmailBtn.onclick = handleEmailVerify;
+    emailInput.onkeydown = (e) => {
+      if (e.key === 'Enter') handleEmailVerify();
+    };
   } // end init()
 
   // Ensure document.body exists before mounting the widget DOM

@@ -12,7 +12,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { FeedbackStatusSelect } from "./feedback-status-select"
 import { cn } from "@/lib/utils"
-import { Calendar, Trash2, Globe, Monitor, Terminal, Info, ChevronRight, Activity, Cpu, MousePointer2, Paperclip, FileText, Image as ImageIcon, AlertCircle } from "lucide-react"
+import { Calendar, Trash2, Globe, Monitor, Terminal, Info, ChevronRight, Activity, Cpu, MousePointer2, Paperclip, FileText, Image as ImageIcon, AlertCircle, Maximize2 } from "lucide-react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect, useCallback, useRef } from "react"
+import { createPortal } from "react-dom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -78,6 +79,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
     const [replyFiles, setReplyFiles] = useState<File[]>([])
     const [isUploadingReplyFiles, setIsUploadingReplyFiles] = useState(false)
     const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
     const repliesContainerRef = useRef<HTMLDivElement>(null)
 
     const status = feedback.status || 'open'
@@ -273,7 +275,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
 
     const { browser, os } = parseUA(feedback.metadata?.userAgent)
 
-    return (
+    return (<>
         <Card className="group hover:shadow-lg transition-all duration-300 border-gray-200/60 overflow-hidden flex flex-col bg-white/50 backdrop-blur-sm @container">
             <CardHeader className="pt-5 px-5 space-y-4">
                 <div className="flex flex-wrap justify-between items-start sm:items-center gap-4">
@@ -391,8 +393,11 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                 </SheetHeader>
                                             </div>
                                             <div className="flex-1 min-h-0 flex flex-col px-8 pb-8 mt-6">
-                                                <div className="bg-slate-950 rounded-xl flex-1 flex flex-col overflow-hidden ring-1 ring-white/10 shadow-2xl items-center justify-center p-2 sm:p-6">
-                                                    <img src={att.file_url} alt={att.file_name} className="max-w-full max-h-full object-contain rounded-lg border border-white/10 drop-shadow-2xl" />
+                                                <div className="bg-slate-950 rounded-xl flex-1 flex flex-col overflow-hidden ring-1 ring-white/10 shadow-2xl items-center justify-center p-2 sm:p-6 relative">
+                                                    <button onClick={() => setFullscreenImage(att.file_url)} className="absolute top-3 right-3 z-10 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white rounded-lg p-2 transition-all cursor-pointer" title="View full size">
+                                                        <Maximize2 className="w-4 h-4" />
+                                                    </button>
+                                                    <img src={att.file_url} alt={att.file_name} className="max-w-full max-h-full object-contain rounded-lg border border-white/10 drop-shadow-2xl cursor-pointer" onClick={() => setFullscreenImage(att.file_url)} />
                                                 </div>
                                             </div>
                                         </SheetContent>
@@ -600,16 +605,16 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                         </span>
                                                     </div>
                                                     {reply.content && (
-                                                    <div
-                                                        className={cn(
-                                                            "px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-xs",
-                                                            reply.author_name === currentUserEmail
-                                                                ? "bg-[#209CEE] text-white rounded-tr-none"
-                                                                : "bg-gray-100 text-gray-700 rounded-tl-none border border-gray-200/50"
-                                                        )}
-                                                    >
-                                                        {reply.content}
-                                                    </div>
+                                                        <div
+                                                            className={cn(
+                                                                "px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-xs",
+                                                                reply.author_name === currentUserEmail
+                                                                    ? "bg-[#209CEE] text-white rounded-tr-none"
+                                                                    : "bg-gray-100 text-gray-700 rounded-tl-none border border-gray-200/50"
+                                                            )}
+                                                        >
+                                                            {reply.content}
+                                                        </div>
                                                     )}
                                                     {reply.attachments && reply.attachments.length > 0 && (
                                                         <div className="flex flex-wrap gap-2 mt-1">
@@ -639,8 +644,11 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                                                                                 </SheetHeader>
                                                                             </div>
                                                                             <div className="flex-1 min-h-0 flex flex-col px-8 pb-8 mt-6">
-                                                                                <div className="bg-slate-950 rounded-xl flex-1 flex flex-col overflow-hidden ring-1 ring-white/10 shadow-2xl items-center justify-center p-2 sm:p-6">
-                                                                                    <img src={att.file_url} alt={att.file_name} className="max-w-full max-h-full object-contain rounded-lg border border-white/10 drop-shadow-2xl" />
+                                                                                <div className="bg-slate-950 rounded-xl flex-1 flex flex-col overflow-hidden ring-1 ring-white/10 shadow-2xl items-center justify-center p-2 sm:p-6 relative">
+                                                                                    <button onClick={() => setFullscreenImage(att.file_url)} className="absolute top-3 right-3 z-10 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white rounded-lg p-2 transition-all cursor-pointer" title="View full size">
+                                                                                        <Maximize2 className="w-4 h-4" />
+                                                                                    </button>
+                                                                                    <img src={att.file_url} alt={att.file_name} className="max-w-full max-h-full object-contain rounded-lg border border-white/10 drop-shadow-2xl cursor-pointer" onClick={() => setFullscreenImage(att.file_url)} />
                                                                                 </div>
                                                                             </div>
                                                                         </SheetContent>
@@ -747,5 +755,21 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
 
             </CardContent>
         </Card>
+
+        {fullscreenImage && createPortal(
+            <div
+                className="fixed inset-0 z-99999 bg-black/90 flex items-center justify-center cursor-pointer animate-in fade-in duration-200"
+                style={{ pointerEvents: 'auto' }}
+                onClick={() => setFullscreenImage(null)}
+            >
+                <img
+                    src={fullscreenImage}
+                    alt="Full size preview"
+                    className="max-w-[95vw] max-h-[95vh] object-contain drop-shadow-2xl"
+                />
+            </div>,
+            document.body
+        )}
+    </>
     )
 }
