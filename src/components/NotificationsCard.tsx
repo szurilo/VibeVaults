@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { updateAgencyPreferencesAction, updateEmailFrequencyAction } from '@/actions/preferences';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -40,6 +40,13 @@ export function NotificationsCard({ initialPreferences, canUseRealtime = false }
         (initialPreferences.notify_project_created !== false) !== notifyProjectCreated ||
         (initialPreferences.notify_project_deleted !== false) !== notifyProjectDeleted ||
         (canUseRealtime && (initialPreferences.email_frequency || 'digest') !== emailFrequency);
+
+    useEffect(() => {
+        if (!hasChanged) return;
+        const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [hasChanged]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -162,7 +169,7 @@ export function NotificationsCard({ initialPreferences, canUseRealtime = false }
                         )}
                     </CardContent>
                 </div>
-                <div className="px-6 mt-4 sm:mt-6 sm:px-0 sm:pr-6 shrink-0 pb-6 sm:pb-0">
+                <div className="px-6 mt-4 sm:mt-0 sm:px-0 sm:pr-6 sm:self-center shrink-0 flex flex-col items-start sm:items-end gap-2">
                     <Button
                         type="submit"
                         disabled={loading || !hasChanged}

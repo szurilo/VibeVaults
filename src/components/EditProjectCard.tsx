@@ -38,6 +38,15 @@ export function EditProjectCard({ project }: EditProjectCardProps) {
         setWebsiteUrl(project.website_url || '');
     }, [project.name, project.website_url]);
 
+    const hasChanged = name !== project.name || websiteUrl !== (project.website_url || '');
+
+    useEffect(() => {
+        if (!hasChanged) return;
+        const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [hasChanged]);
+
     const handleUpdateName = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim() || !websiteUrl.trim() || (name === project.name && websiteUrl === (project.website_url || ''))) return;
@@ -108,10 +117,10 @@ export function EditProjectCard({ project }: EditProjectCardProps) {
                         </div>
                     </CardContent>
                 </div>
-                <div className="px-6 mt-4 sm:mt-0 sm:px-0 sm:pr-6 shrink-0">
+                <div className="px-6 mt-4 sm:mt-0 sm:px-0 sm:pr-6 sm:self-center shrink-0 flex flex-col items-start sm:items-end gap-2">
                     <Button
                         type="submit"
-                        disabled={loading || !name.trim() || !websiteUrl.trim() || (name === project.name && websiteUrl === (project.website_url || ''))}
+                        disabled={loading || !name.trim() || !websiteUrl.trim() || !hasChanged}
                         className="cursor-pointer min-w-[100px]"
                     >
                         {loading ? (
