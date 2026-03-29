@@ -581,11 +581,7 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
                         {showReplies && (
                             <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <div className="space-y-4">
-                                    {replies.length === 0 && !isFetchingReplies ? (
-                                        <div className="text-center py-6 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
-                                            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">No conversation yet</p>
-                                        </div>
-                                    ) : (
+                                    {replies.length === 0 && !isFetchingReplies ? null : (
                                         <div ref={repliesContainerRef} className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar ">
                                             {replies.map((reply) => (
                                                 <div
