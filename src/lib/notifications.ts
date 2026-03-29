@@ -718,6 +718,8 @@ export async function sendFeedbackDigestEmail({
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
+                                If you have questions, reach out to
+                                <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
                         </div>
@@ -786,6 +788,8 @@ export async function sendReplyDigestEmail({
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
+                                If you have questions, reach out to
+                                <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
                         </div>
@@ -855,6 +859,8 @@ export async function sendProjectEventDigestEmail({
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
+                                If you have questions, reach out to
+                                <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
                         </div>

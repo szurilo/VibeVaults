@@ -87,12 +87,13 @@
 - Dismissible overlay.
 
 ### Notification System
-- DB triggers: `notify_new_feedback`, `notify_new_reply`, `notify_project_created`.
+- DB triggers: `notify_new_feedback`, `notify_new_reply`, `notify_project_created`, `notify_project_deleted`.
 - Simplified trigger messages: title = "New feedback/reply received from {sender_name}", message = content preview.
 - **All workspace members now notified on all replies** (was previously client-only).
+- **Project deletion notifications**: Bell notification includes deleter's name (derived from email, falls back to "A team member"). Excludes the user who deleted.
 - In-app: `GlobalNotificationProvider` + `NotificationBell` via Supabase Realtime.
 - NotificationBell enhancements: `clearAll()` method, notification type icons (`MessageSquare`, `PlusCircle`, `UserMinus`, `LogOut`, `Trash2`), workspace-level notification routing.
-- Email: Resend via `lib/notifications.ts` with per-user preferences. New email functions: `sendMemberRemovedNotification()`, `sendMemberLeftNotification()`.
+- Email: Resend via `lib/notifications.ts` with per-user preferences. New email functions: `sendMemberRemovedNotification()`, `sendMemberLeftNotification()`, `sendProjectEventDigestEmail()`.
 - Toast: Unified via `GlobalNotificationProvider`.
 
 ### Email Digest & Cooldown System
@@ -102,7 +103,7 @@
   - **Reply emails**: 10-min cooldown (`REPLY_COOLDOWN_MS`) per recipient per feedback thread. First email sent immediately, subsequent queued.
 - **Queue table**: `email_digest_queue` — stores pending (unsent) and sent (with `sent_at`) email records for cooldown checks.
 - **Cron scheduling**: Supabase `pg_cron` + `pg_net` every 15 min (migration `20260320000000_pg_cron_email_digest.sql`). Calls `GET https://vibe-vaults.com/api/cron/digest`. No auth needed (endpoint is idempotent). No Vercel cron dependency.
-- **Digest email templates**: `sendFeedbackDigestEmail()` and `sendReplyDigestEmail()` in `notifications.ts`.
+- **Digest email templates**: `sendFeedbackDigestEmail()`, `sendReplyDigestEmail()`, and `sendProjectEventDigestEmail()` in `notifications.ts`.
 - **Email frequency preference**: `email_preferences.email_frequency` column — `'digest'` (default) or `'realtime'` (reserved for future paid tier).
 - **Localhost safety**: All email preferences default to off when `NODE_ENV !== 'production'` — no dev email noise.
 - **Self-notification prevention**: Reply emails are never sent to the person who wrote the reply (in both `sendAgencyReplyAction` and widget reply route).
@@ -146,8 +147,31 @@
 - Public `/pricing` page with `PricingCards` component and feature comparison table.
 - Added to proxy exclusion list for unauthenticated access.
 
+### Project Deletion
+- Members (not just owners) can now delete projects in their workspace (RLS policy updated).
+- Deletion cleans up storage files via `cleanupProjectStorage()` in `src/actions/projects.ts`.
+- Bell notification sent to all workspace members (excluding deleter) with deleter's name attribution.
+- Email notification (immediate or queued to digest) with `notify_project_deleted` pref support.
+- `email_digest_queue.project_id` made nullable to support deleted project references (FK constraint removed).
+
+### Screenshot & Image Viewer
+- Replaced `html-to-image` with `snapDOM` for Safari compatibility.
+- Image viewers (feedback card lightbox) now have a maximize/fullscreen option.
+
+### Unsaved Changes Warnings
+- `WorkspaceSettingsCard` and `EditProjectCard` warn users before navigating away with unsaved changes via `beforeunload` event.
+
+### Widget Robustness
+- DOM-ready guard added to `widget.js` so it loads regardless of script placement.
+- Widget stops working after access revocation (no stale sessions).
+
+### Landing Page Redesign
+- New landing components: `BentoFeatures` (feature showcase grid), `FounderNote` (social proof/early-access), `ProductDemo` (hero with video embed), `ROICalculator` (interactive cost savings calculator).
+- Removed `UserFlowAnimation` component.
+- Branding removed from public share board.
+
 ### Email Templates
-- Consistent styling across all transactional emails.
+- Consistent styling across all transactional emails with "If you have questions, reach out to support@vibe-vaults.com" footer.
 - Branding with `public/avatar.jpg`.
 - HTML escaping via `esc()` throughout.
 - Welcome email finalized, with `scripts/send-welcome.ts` for manual sending.
@@ -178,6 +202,10 @@
 | `EditProjectCard` | `src/components/EditProjectCard.tsx` | Project name/URL editing |
 | `AddFeedbackDialog` | `src/components/AddFeedbackDialog.tsx` | Manual feedback creation dialog |
 | `PricingCards` | `src/components/landing/PricingCards.tsx` | Shared pricing cards with monthly/yearly toggle (landing, /pricing, subscribe) |
+| `BentoFeatures` | `src/components/landing/BentoFeatures.tsx` | Feature showcase grid with icons and screenshots |
+| `FounderNote` | `src/components/landing/FounderNote.tsx` | Founder social proof section with early-access framing |
+| `ProductDemo` | `src/components/landing/ProductDemo.tsx` | Hero section with video embed and screenshots |
+| `ROICalculator` | `src/components/landing/ROICalculator.tsx` | Interactive calculator showing time/cost savings |
 | `BillingCard` | `src/components/BillingCard.tsx` | Account page billing card with Stripe Customer Portal link |
 | `DeleteAccountCard` | `src/components/DeleteAccountCard.tsx` | Account page danger zone for account deletion |
 | `NotificationsCard` | `src/components/NotificationsCard.tsx` | Account page email notification preferences |
@@ -213,6 +241,7 @@
 | `toggleShareAction` | `src/actions/project-sharing.ts` | Enable/disable public board sharing |
 | `updateEmailPreferencesAction` | `src/actions/preferences.ts` | Update per-project email preferences |
 | `getTierUsageAction` | `src/actions/tier.ts` | Returns tier, limits, and account-wide usage counts |
+| `deleteProjectAction` | `src/actions/projects.ts` | Delete project with storage cleanup, notifications, and digest queuing |
 
 ## 8. Database Schema (Key Tables)
 | Table | Purpose |
@@ -238,3 +267,9 @@
 | `20260319000000_add_email_digest.sql` | Added `email_digest_queue` table + `email_frequency` column on `email_preferences` |
 | `20260320000000_pg_cron_email_digest.sql` | pg_cron + pg_net setup, `app_config` table, scheduled digest processing every 15 min |
 | `20260325000000_add_subscription_tier.sql` | Added `subscription_tier` column to `profiles` (starter/pro/business) |
+| `20260328000000_allow_members_delete_projects.sql` | Allow workspace members (not just owners) to delete projects |
+| `20260328100000_notify_project_deleted.sql` | DB trigger `notify_project_deleted` — bell notification to workspace members on project deletion |
+| `20260328200000_add_notify_project_deleted_pref.sql` | Added `notify_project_deleted` column to `email_preferences` |
+| `20260328300000_enable_rls_email_digest_queue.sql` | Enabled RLS on `email_digest_queue` (server-only access) |
+| `20260329000000_project_deleted_include_deleter_name.sql` | Enhanced deletion notification with deleter's name attribution |
+| `20260329100000_digest_queue_allow_project_deleted.sql` | Added `project_deleted` type to digest queue, made `project_id` nullable |

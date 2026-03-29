@@ -84,7 +84,7 @@ tests/              # Playwright E2E tests
 - **Email safety**: All user content in emails sanitized via `esc()` in `lib/notifications.ts`
 
 ### Notification System
-- DB triggers: `notify_new_feedback`, `notify_new_reply`, `notify_project_created`
+- DB triggers: `notify_new_feedback`, `notify_new_reply`, `notify_project_created`, `notify_project_deleted`
 - In-app: `GlobalNotificationProvider` + `NotificationBell` via Supabase Realtime
 - Email: Resend via `lib/notifications.ts` with per-user preferences
 - **Email digest system** (`src/lib/email-digest.ts`):
@@ -108,7 +108,7 @@ tests/              # Playwright E2E tests
 | `feedbacks` | `id`, `project_id`, `content`, `type`, `sender`, `status`, `metadata` |
 | `feedback_replies` | `id`, `feedback_id`, `content`, `author_role`, `author_name` |
 | `notifications` | `id`, `user_id`, `project_id`, `feedback_id`, `type`, `title`, `message`, `read` |
-| `email_preferences` | `email`, `notify_replies`, `notify_new_feedback`, `notify_project_created`, `email_frequency` |
+| `email_preferences` | `email`, `notify_replies`, `notify_new_feedback`, `notify_project_created`, `notify_project_deleted`, `email_frequency` |
 | `email_digest_queue` | `id`, `recipient_email`, `notification_type`, `project_id`, `feedback_id`, `payload`, `sent_at`, `created_at` |
 | `feedback_attachments` | `id`, `feedback_id`, `reply_id`, `project_id`, `file_name`, `file_url`, `file_size`, `mime_type`, `uploaded_by` |
 
