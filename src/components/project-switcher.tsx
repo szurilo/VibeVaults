@@ -13,7 +13,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { CreateProjectDialog } from '@/components/CreateProjectDialog';
+import { CreateProjectDialog } from '@/components/create-project-dialog';
 
 export default function ProjectSwitcher({
     projects,

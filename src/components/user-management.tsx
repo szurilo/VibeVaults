@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { MailCheck, UserX, AlertCircle } from "lucide-react";
-import { Highlight } from "@/components/Highlight";
+import { Highlight } from "@/components/highlight";
 import {
     AlertDialog,
     AlertDialogAction,

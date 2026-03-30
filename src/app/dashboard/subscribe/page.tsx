@@ -12,7 +12,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { PricingCards } from '@/components/landing/PricingCards';
+import { PricingCards } from '@/components/landing/pricing-cards';
 import { getUserTier } from '@/lib/tier-helpers';
 import { STRIPE_PRICES } from '@/lib/tier-config';
 

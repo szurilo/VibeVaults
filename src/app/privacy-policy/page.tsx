@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
             <main className="max-w-3xl mx-auto px-8 py-12">
                 <h1 className="text-4xl font-extrabold mb-4 text-gray-900">Privacy Policy</h1>
                 <p className="text-gray-500 mb-8">
-                    <strong>Last updated:</strong> January 14, 2026
+                    <strong>Last updated:</strong> March 31, 2026
                 </p>
 
                 <div className="prose prose-gray max-w-none">

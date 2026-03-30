@@ -13,8 +13,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
-import { GlobalNotificationProvider } from "@/components/GlobalNotificationProvider";
+import { AppSidebar } from "@/components/app-sidebar";
+import { GlobalNotificationProvider } from "@/components/global-notification-provider";
 import { getUserTier } from "@/lib/tier-helpers";
 
 export default async function DashboardLayout({

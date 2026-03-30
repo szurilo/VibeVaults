@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Turnstile } from '@marsidev/react-turnstile';
 
@@ -40,6 +41,7 @@ const modeConfig = {
 
 export function AuthForm({ mode, socialProviders }: AuthFormProps) {
     const config = modeConfig[mode];
+    const searchParams = useSearchParams();
 
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
@@ -74,6 +76,14 @@ export function AuthForm({ mode, socialProviders }: AuthFormProps) {
         }
 
         const supabase = createClient();
+
+        // Save the intended post-login redirect in a short-lived cookie so it survives
+        // the magic link flow. The /auth/confirm page reads this after OTP verification.
+        // Works for both magic link and OAuth flows.
+        const nextParam = searchParams.get('next');
+        if (nextParam) {
+            document.cookie = `auth_redirect=${encodeURIComponent(nextParam)}; path=/; max-age=600; SameSite=Lax`;
+        }
 
         const options: { emailRedirectTo: string; captchaToken?: string } = {
             emailRedirectTo: `${location.origin}/auth/confirm`,

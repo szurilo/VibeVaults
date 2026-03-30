@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { Highlight } from "@/components/Highlight";
+import { Highlight } from "@/components/highlight";
 import { cookies } from "next/headers";
-import { AddFeedbackDialog } from "@/components/AddFeedbackDialog";
-import { FeedbackList } from "@/components/FeedbackList";
+import { AddFeedbackDialog } from "@/components/add-feedback-dialog";
+import { FeedbackList } from "@/components/feedback-list";
 
 
 export default async function FeedbackListPage() {
@@ -21,15 +21,23 @@ export default async function FeedbackListPage() {
     // Use selected project or default to the first one
     const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
 
-    // Fetch feedbacks, filtering by current project if available
+    // Fetch feedbacks with reply and attachment counts
     let feedbacks: any[] = [];
     if (currentProject) {
         const { data } = await supabase
             .from('feedbacks')
-            .select('*')
+            .select('*, feedback_replies(count), feedback_attachments(count)')
             .eq('project_id', currentProject.id)
             .order('created_at', { ascending: false });
-        if (data) feedbacks = data;
+        if (data) {
+            feedbacks = data.map(f => ({
+                ...f,
+                reply_count: f.feedback_replies?.[0]?.count ?? 0,
+                attachment_count: f.feedback_attachments?.[0]?.count ?? 0,
+                feedback_replies: undefined,
+                feedback_attachments: undefined,
+            }));
+        }
     }
 
     return (

@@ -23,7 +23,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { CreateProjectDialog } from '@/components/CreateProjectDialog';
+import { CreateProjectDialog } from '@/components/create-project-dialog';
 import { XIcon, ExternalLink, ChevronDown, Star } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toggleOnboardingStepAction } from '@/actions/onboarding';

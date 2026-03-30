@@ -4,12 +4,12 @@
  * `<Onboarding>` component if the user profile hasn't fully set up their first project.
  * 
  * Sensitive Dependencies: 
- * - @/components/Onboarding for handling project creation flows.
+ * - @/components/onboarding for handling project creation flows.
  * - next/headers `cookies()` for reading current state. Modifying state here is critical as mismatched DB foreign keys will error (500).
  */
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import Onboarding from "@/components/Onboarding";
+import Onboarding from "@/components/onboarding";
 import { OWNER_STEPS, MEMBER_STEPS } from "@/lib/onboarding-steps";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";

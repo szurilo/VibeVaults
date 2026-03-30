@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { WorkspaceSettingsCard } from "@/components/WorkspaceSettingsCard";
-import { DeleteWorkspaceCard } from "@/components/DeleteWorkspaceCard";
-import { Highlight } from "@/components/Highlight";
+import { WorkspaceSettingsCard } from "@/components/workspace-settings-card";
+import { DeleteWorkspaceCard } from "@/components/delete-workspace-card";
+import { Highlight } from "@/components/highlight";
 
 export default async function WorkspaceSettingsPage() {
     const supabase = await createClient();

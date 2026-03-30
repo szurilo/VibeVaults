@@ -46,20 +46,13 @@ export function GlobalNotificationProvider({ children, userId }: { children: Rea
                                 window.dispatchEvent(new CustomEvent('vibe-notification-viewed', { detail: notification }));
 
                                 if (notification.project_id) {
-                                    // Navigate to the project dashboard with feedback anchor
                                     document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
-                                    const hash = notification.feedback_id ? `#${notification.feedback_id}` : '';
-                                    router.push(`/dashboard/feedback${hash}`);
-                                    router.refresh();
-
-                                    // If already on /dashboard/feedback, router.push won't fire hashchange,
-                                    // so set the hash directly to trigger Highlight's listener.
-                                    if (notification.feedback_id && window.location.pathname === '/dashboard/feedback') {
-                                        requestAnimationFrame(() => {
-                                            window.location.hash = '';
-                                            window.location.hash = notification.feedback_id;
-                                        });
+                                    if (notification.feedback_id) {
+                                        router.push(`/dashboard/feedback/${notification.feedback_id}`);
+                                    } else {
+                                        router.push('/dashboard/feedback');
                                     }
+                                    router.refresh();
                                 } else {
                                     // Workspace-level notification (member removed/left)
                                     router.push('/dashboard');

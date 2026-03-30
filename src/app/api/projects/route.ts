@@ -109,7 +109,7 @@ export async function POST(req: Request) {
                     const prefs = await getNotificationPrefs(email, 'project_created');
                     if (!prefs.shouldNotify) continue;
 
-                    const payload = { projectName: name, actorName: creatorName, workspaceName: workspace.name, type: 'created' };
+                    const payload = { projectName: name, actorName: creatorName, workspaceName: workspace.name, type: 'created', workspaceId: workspace_id, projectId: project.id };
                     const sendNow = await shouldSendProjectEventImmediately(email, 'project_created');
 
                     if (sendNow) {
@@ -118,7 +118,9 @@ export async function POST(req: Request) {
                             projectName: name,
                             creatorName,
                             workspaceName: workspace.name,
-                            unsubscribeToken: prefs.unsubscribeToken
+                            unsubscribeToken: prefs.unsubscribeToken,
+                            workspaceId: workspace_id,
+                            projectId: project.id
                         });
                         await recordEmailSent({
                             recipientEmail: email,
