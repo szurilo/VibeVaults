@@ -14,6 +14,23 @@ function esc(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/**
+ * Build a deep-link URL that sets workspace/project cookies and redirects to the target page.
+ */
+function emailRedirectUrl(params: {
+    page?: string;
+    workspaceId?: string;
+    projectId?: string;
+    feedbackId?: string;
+}): string {
+    const url = new URL('/api/email-redirect', BASE_URL);
+    if (params.page) url.searchParams.set('page', params.page);
+    if (params.workspaceId) url.searchParams.set('workspace', params.workspaceId);
+    if (params.projectId) url.searchParams.set('project', params.projectId);
+    if (params.feedbackId) url.searchParams.set('feedback', params.feedbackId);
+    return url.toString();
+}
+
 interface SendFeedbackEmailParams {
     to: string;
     projectName: string;
@@ -21,6 +38,8 @@ interface SendFeedbackEmailParams {
     sender?: string;
     metadata?: any;
     unsubscribeToken?: string;
+    workspaceId?: string;
+    projectId?: string;
 }
 
 export async function sendFeedbackNotification({
@@ -29,7 +48,9 @@ export async function sendFeedbackNotification({
     content,
     sender,
     metadata,
-    unsubscribeToken
+    unsubscribeToken,
+    workspaceId,
+    projectId
 }: SendFeedbackEmailParams) {
     try {
         const { data, error } = await resend.emails.send({
@@ -69,11 +90,11 @@ export async function sendFeedbackNotification({
                             </table>
                         </div>
                         
-                        <a href="${BASE_URL}/dashboard/feedback" 
+                        <a href="${emailRedirectUrl({ page: 'feedback', workspaceId, projectId })}"
                            style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
                            View in Dashboard
                         </a>
-                        
+
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
@@ -82,12 +103,12 @@ export async function sendFeedbackNotification({
 
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
-                                If you have questions, reach out to 
+                                If you have questions, reach out to
                                 <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
                         </div>
-                        
+
                     </div>
                 </div>
             `
@@ -110,6 +131,8 @@ interface SendProjectCreatedEmailParams {
     creatorName: string;
     workspaceName: string;
     unsubscribeToken?: string;
+    workspaceId?: string;
+    projectId?: string;
 }
 
 export async function sendProjectCreatedNotification({
@@ -117,7 +140,9 @@ export async function sendProjectCreatedNotification({
     projectName,
     creatorName,
     workspaceName,
-    unsubscribeToken
+    unsubscribeToken,
+    workspaceId,
+    projectId
 }: SendProjectCreatedEmailParams) {
     try {
         const { data, error } = await resend.emails.send({
@@ -140,25 +165,25 @@ export async function sendProjectCreatedNotification({
                             </p>
                         </div>
                         
-                        <a href="${BASE_URL}/dashboard" 
+                        <a href="${emailRedirectUrl({ page: 'feedback', workspaceId, projectId })}"
                            style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
-                           Go to Dashboard
+                           Go to Project
                         </a>
-                        
+
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
                             </p>
-                            
+
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
-                                If you have questions, reach out to 
+                                If you have questions, reach out to
                                 <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
                         </div>
-                        
+
                     </div>
                 </div>
             `
@@ -181,6 +206,7 @@ interface SendProjectDeletedEmailParams {
     deleterName: string;
     workspaceName: string;
     unsubscribeToken?: string;
+    workspaceId?: string;
 }
 
 export async function sendProjectDeletedNotification({
@@ -188,7 +214,8 @@ export async function sendProjectDeletedNotification({
     projectName,
     deleterName,
     workspaceName,
-    unsubscribeToken
+    unsubscribeToken,
+    workspaceId
 }: SendProjectDeletedEmailParams) {
     try {
         const { data, error } = await resend.emails.send({
@@ -211,7 +238,7 @@ export async function sendProjectDeletedNotification({
                             </p>
                         </div>
 
-                        <a href="${BASE_URL}/dashboard"
+                        <a href="${emailRedirectUrl({ workspaceId })}"
                            style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
                            Go to Dashboard
                         </a>
@@ -316,8 +343,11 @@ export async function sendAgencyReplyNotification({
     projectName,
     replyContent,
     sender,
-    unsubscribeToken
-}: { to: string, projectName: string, replyContent: string, sender: string, unsubscribeToken?: string }) {
+    unsubscribeToken,
+    workspaceId,
+    projectId,
+    feedbackId
+}: { to: string, projectName: string, replyContent: string, sender: string, unsubscribeToken?: string, workspaceId?: string, projectId?: string, feedbackId?: string }) {
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
@@ -339,7 +369,7 @@ export async function sendAgencyReplyNotification({
                         </div>
 
                         <div style="margin-top: 32px;">
-                            <a href="${BASE_URL}/dashboard/feedback" 
+                            <a href="${emailRedirectUrl({ page: 'feedback', workspaceId, projectId, feedbackId })}"
                                style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
                                Reply in Dashboard
                             </a>
@@ -510,8 +540,9 @@ export async function sendWorkspaceInviteNotification({
 export async function sendMemberRemovedNotification({
     to,
     workspaceName,
-    removedByName
-}: { to: string, workspaceName: string, removedByName: string }) {
+    removedByName,
+    workspaceId
+}: { to: string, workspaceName: string, removedByName: string, workspaceId?: string }) {
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
@@ -561,8 +592,9 @@ export async function sendMemberRemovedNotification({
 export async function sendMemberLeftNotification({
     to,
     workspaceName,
-    memberName
-}: { to: string, workspaceName: string, memberName: string }) {
+    memberName,
+    workspaceId
+}: { to: string, workspaceName: string, memberName: string, workspaceId?: string }) {
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
@@ -584,7 +616,7 @@ export async function sendMemberLeftNotification({
                             </p>
                         </div>
 
-                        <a href="${BASE_URL}/dashboard/settings/users"
+                        <a href="${emailRedirectUrl({ page: 'users', workspaceId })}"
                            style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;">
                            Manage Members
                         </a>
@@ -668,6 +700,8 @@ interface DigestFeedbackItem {
     content: string;
     sender?: string;
     projectName: string;
+    workspaceId?: string;
+    projectId?: string;
 }
 
 export async function sendFeedbackDigestEmail({
@@ -706,7 +740,7 @@ export async function sendFeedbackDigestEmail({
                         ${itemsHtml}
                         ${moreHtml}
 
-                        <a href="${BASE_URL}/dashboard/feedback"
+                        <a href="${emailRedirectUrl({ page: 'feedback', workspaceId: items[0]?.workspaceId, projectId: items[0]?.projectId })}"
                            style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;">
                            View All in Dashboard
                         </a>
@@ -739,6 +773,8 @@ interface DigestReplyItem {
     sender: string;
     projectName: string;
     feedbackContentPreview?: string;
+    workspaceId?: string;
+    projectId?: string;
 }
 
 export async function sendReplyDigestEmail({
@@ -776,7 +812,7 @@ export async function sendReplyDigestEmail({
                         ${itemsHtml}
                         ${moreHtml}
 
-                        <a href="${BASE_URL}/dashboard/feedback"
+                        <a href="${emailRedirectUrl({ page: 'feedback', workspaceId: items[0]?.workspaceId, projectId: items[0]?.projectId })}"
                            style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;">
                            View in Dashboard
                         </a>
@@ -809,6 +845,8 @@ interface DigestProjectEventItem {
     actorName: string;
     workspaceName: string;
     type: 'created' | 'deleted';
+    workspaceId?: string;
+    projectId?: string;
 }
 
 export async function sendProjectEventDigestEmail({
@@ -847,7 +885,7 @@ export async function sendProjectEventDigestEmail({
                         ${itemsHtml}
                         ${moreHtml}
 
-                        <a href="${BASE_URL}/dashboard"
+                        <a href="${emailRedirectUrl({ workspaceId: items[0]?.workspaceId })}"
                            style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;">
                            Go to Dashboard
                         </a>

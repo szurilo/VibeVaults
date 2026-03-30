@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
@@ -19,13 +19,11 @@ type ConfirmState = 'verifying' | 'success' | 'error'
 
 function ConfirmContent() {
     const searchParams = useSearchParams()
-    const router = useRouter()
     const [state, setState] = useState<ConfirmState>('verifying')
     const [errorMessage, setErrorMessage] = useState<string>('')
 
     const tokenHash = searchParams.get('token_hash')
     const type = searchParams.get('type')
-    const next = searchParams.get('next') ?? '/dashboard'
 
     useEffect(() => {
         async function verifyOtp() {
@@ -49,15 +47,24 @@ function ConfirmContent() {
             } else {
                 setState('success')
 
-                // Redirect after a short delay so the user sees the success state
+                // Check for a saved redirect from email deep-links (cookie set by AuthForm)
+                const cookieMatch = document.cookie.match(/(?:^|;\s*)auth_redirect=([^;]*)/)
+                const savedRedirect = cookieMatch ? decodeURIComponent(cookieMatch[1]) : null
+                if (savedRedirect) {
+                    document.cookie = 'auth_redirect=; path=/; max-age=0'
+                }
+                const next = savedRedirect || '/dashboard'
+
+                // Use window.location for redirect — the target may be an API route
+                // (e.g. /api/email-redirect) which router.push can't handle
                 setTimeout(() => {
-                    router.push(next)
+                    window.location.href = next
                 }, 500)
             }
         }
 
         verifyOtp()
-    }, [tokenHash, type, next, router])
+    }, [tokenHash, type])
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">

@@ -45,6 +45,8 @@ export async function GET() {
                             content: item.payload.content || '',
                             sender: item.payload.sender,
                             projectName: item.payload.projectName || '',
+                            workspaceId: item.payload.workspaceId,
+                            projectId: item.payload.projectId,
                         })),
                         unsubscribeToken: prefs.unsubscribeToken,
                     });
@@ -68,6 +70,8 @@ export async function GET() {
                             sender: item.payload.sender || '',
                             projectName: item.payload.projectName || '',
                             feedbackContentPreview: item.payload.originalFeedback,
+                            workspaceId: item.payload.workspaceId,
+                            projectId: item.payload.projectId,
                         })),
                         unsubscribeToken: prefs.unsubscribeToken,
                     });
@@ -104,6 +108,8 @@ export async function GET() {
                             actorName: item.payload.actorName || 'A team member',
                             workspaceName: item.payload.workspaceName || '',
                             type: item.notification_type === 'project_deleted' ? 'deleted' as const : 'created' as const,
+                            workspaceId: item.payload.workspaceId,
+                            projectId: item.payload.projectId,
                         })),
                         unsubscribeToken: (await getNotificationPrefs(recipientEmail, hasDeleted ? 'project_deleted' : 'project_created')).unsubscribeToken,
                     });

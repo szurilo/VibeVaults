@@ -72,12 +72,12 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
     // Verify ownership via RLS
     const { data: feedback, error: checkError } = await supabase
         .from('feedbacks')
-        .select('*, projects!inner(id, name)')
+        .select('*, projects!inner(id, name, workspace_id)')
         .eq('id', feedbackId)
         .single();
 
     if (checkError || !feedback) return { error: "Feedback not found or you no longer have access.", replyId: null };
-    const project = feedback.projects as unknown as { id: string; name: string };
+    const project = feedback.projects as unknown as { id: string; name: string; workspace_id: string };
 
     const { data: replyData, error: replyError } = await supabase
         .from('feedback_replies')
@@ -105,7 +105,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
         const prefs = await getNotificationPrefs(feedback.sender, 'replies');
 
         if (prefs.shouldNotify) {
-            const replyPayload = { replyContent: content, sender: senderEmail, projectName: project.name, originalFeedback: feedback.content };
+            const replyPayload = { replyContent: content, sender: senderEmail, projectName: project.name, originalFeedback: feedback.content, workspaceId: project.workspace_id, projectId: project.id };
             const sendNow = await shouldSendReplyImmediately(feedback.sender, feedbackId);
 
             if (sendNow) {
@@ -156,7 +156,7 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
                 const prefs = await getNotificationPrefs(email, 'replies');
                 if (!prefs.shouldNotify) continue;
 
-                const replyPayload = { replyContent: content, sender: senderEmail, projectName: project.name };
+                const replyPayload = { replyContent: content, sender: senderEmail, projectName: project.name, workspaceId: project.workspace_id, projectId: project.id };
                 const sendNow = await shouldSendReplyImmediately(email, feedbackId);
 
                 if (sendNow) {
@@ -165,7 +165,10 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
                         projectName: project.name,
                         replyContent: content,
                         sender: senderEmail,
-                        unsubscribeToken: prefs.unsubscribeToken
+                        unsubscribeToken: prefs.unsubscribeToken,
+                        workspaceId: project.workspace_id,
+                        projectId: project.id,
+                        feedbackId
                     });
                     await recordEmailSent({
                         recipientEmail: email,
@@ -253,7 +256,7 @@ export async function addManualFeedbackAction(projectId: string, content: string
                     .in('id', memberIds);
 
                 if (profiles) {
-                    const emailPayload = { content, sender: user.email || 'Agency Member', metadata: { is_manual: true }, projectName: projectData.name };
+                    const emailPayload = { content, sender: user.email || 'Agency Member', metadata: { is_manual: true }, projectName: projectData.name, workspaceId: projectData.workspace_id, projectId };
 
                     for (const p of profiles) {
                         const email = p.email;
@@ -271,7 +274,9 @@ export async function addManualFeedbackAction(projectId: string, content: string
                                 content,
                                 sender: user.email || 'Agency Member',
                                 metadata: { is_manual: true },
-                                unsubscribeToken: prefs.unsubscribeToken
+                                unsubscribeToken: prefs.unsubscribeToken,
+                                workspaceId: projectData.workspace_id,
+                                projectId
                             });
                             await recordEmailSent({
                                 recipientEmail: email,

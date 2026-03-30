@@ -160,7 +160,8 @@ export async function leaveWorkspaceAction(workspaceId: string) {
             sendMemberLeftNotification({
                 to: ownerProfile.email,
                 workspaceName,
-                memberName
+                memberName,
+                workspaceId
             }).catch(e => console.error('Failed to send member left email:', e));
         }
     }

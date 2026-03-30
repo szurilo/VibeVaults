@@ -145,6 +145,18 @@ export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
         })
     }, [supabase])
 
+    // Auto-expand replies when this feedback is targeted via URL hash
+    useEffect(() => {
+        const check = () => {
+            if (window.location.hash === `#${feedback.id}`) {
+                setShowReplies(true)
+            }
+        }
+        check()
+        window.addEventListener('hashchange', check)
+        return () => window.removeEventListener('hashchange', check)
+    }, [feedback.id])
+
     useEffect(() => {
         fetchReplies()
         fetchAttachments()

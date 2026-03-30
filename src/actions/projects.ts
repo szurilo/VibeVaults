@@ -72,7 +72,7 @@ export async function deleteProjectAction(projectId: string) {
                     const prefs = await getNotificationPrefs(email, 'project_deleted');
                     if (!prefs.shouldNotify) continue;
 
-                    const payload = { projectName: project.name, actorName: deleterName, workspaceName: workspace.name, type: 'deleted' };
+                    const payload = { projectName: project.name, actorName: deleterName, workspaceName: workspace.name, type: 'deleted', workspaceId: project.workspace_id };
                     const sendNow = await shouldSendProjectEventImmediately(email, 'project_deleted');
 
                     if (sendNow) {
@@ -81,7 +81,8 @@ export async function deleteProjectAction(projectId: string) {
                             projectName: project.name,
                             deleterName,
                             workspaceName: workspace.name,
-                            unsubscribeToken: prefs.unsubscribeToken
+                            unsubscribeToken: prefs.unsubscribeToken,
+                            workspaceId: project.workspace_id
                         });
                         await recordEmailSent({
                             recipientEmail: email,
