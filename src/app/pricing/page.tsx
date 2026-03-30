@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Check, X } from 'lucide-react';
-import { PricingCards } from '@/components/landing/PricingCards';
+import { PricingCards } from '@/components/landing/pricing-cards';
 import { FEATURE_COMPARISON } from '@/lib/tier-config';
 
 export const metadata = {

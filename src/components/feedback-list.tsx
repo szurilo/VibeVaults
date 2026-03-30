@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FeedbackListCard } from '@/components/FeedbackListCard';
+import { FeedbackListCard } from '@/components/feedback-list-card';
 import { SlidersHorizontal } from 'lucide-react';
 import {
     DropdownMenu,

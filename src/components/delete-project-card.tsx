@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from "next/navigation";
-import { DangerZoneCard } from "@/components/DangerZoneCard";
+import { DangerZoneCard } from "@/components/danger-zone-card";
 import { deleteProjectAction } from "@/actions/projects";
 
 interface DeleteProjectCardProps {

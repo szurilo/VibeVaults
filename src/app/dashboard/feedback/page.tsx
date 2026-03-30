@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { Highlight } from "@/components/Highlight";
+import { Highlight } from "@/components/highlight";
 import { cookies } from "next/headers";
-import { AddFeedbackDialog } from "@/components/AddFeedbackDialog";
-import { FeedbackList } from "@/components/FeedbackList";
+import { AddFeedbackDialog } from "@/components/add-feedback-dialog";
+import { FeedbackList } from "@/components/feedback-list";
 
 
 export default async function FeedbackListPage() {

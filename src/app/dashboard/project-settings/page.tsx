@@ -9,12 +9,12 @@
  */
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import { DeleteProjectCard } from "@/components/DeleteProjectCard";
-import { EditProjectCard } from "@/components/EditProjectCard";
+import { DeleteProjectCard } from "@/components/delete-project-card";
+import { EditProjectCard } from "@/components/edit-project-card";
 
-import { ShareProjectCard } from "@/components/ShareProjectCard";
-import { EmbedWidgetCard } from "@/components/EmbedWidgetCard";
-import { Highlight } from "@/components/Highlight";
+import { ShareProjectCard } from "@/components/share-project-card";
+import { EmbedWidgetCard } from "@/components/embed-widget-card";
+import { Highlight } from "@/components/highlight";
 
 
 export default async function SettingsPage() {

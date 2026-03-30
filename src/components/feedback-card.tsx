@@ -4,7 +4,7 @@
  */
 'use client';
 
-import { FeedbackDetail } from "./FeedbackDetail"
+import { FeedbackDetail } from "./feedback-detail"
 import { type FeedbackData } from "@/lib/feedback-utils"
 
 interface FeedbackCardProps {

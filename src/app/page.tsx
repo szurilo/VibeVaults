@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ProductDemo } from "@/components/landing/ProductDemo";
-import { ROICalculator } from "@/components/landing/ROICalculator";
-import { BentoFeatures } from "@/components/landing/BentoFeatures";
-import { HowItWorks } from "@/components/landing/HowItWorks";
-import { FounderNote } from "@/components/landing/FounderNote";
-import { PricingCards } from "@/components/landing/PricingCards";
+import { ProductDemo } from "@/components/landing/product-demo";
+import { ROICalculator } from "@/components/landing/roi-calculator";
+import { BentoFeatures } from "@/components/landing/bento-features";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { FounderNote } from "@/components/landing/founder-note";
+import { PricingCards } from "@/components/landing/pricing-cards";
 
 export default function Home() {
   return (

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { DangerZoneCard } from "@/components/DangerZoneCard";
+import { DangerZoneCard } from "@/components/danger-zone-card";
 
 export function DeleteAccountCard() {
     const router = useRouter();

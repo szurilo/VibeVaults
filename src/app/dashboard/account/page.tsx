@@ -1,6 +1,6 @@
-import { DeleteAccountCard } from "@/components/DeleteAccountCard";
-import { NotificationsCard } from "@/components/NotificationsCard";
-import { BillingCard } from "@/components/BillingCard";
+import { DeleteAccountCard } from "@/components/delete-account-card";
+import { NotificationsCard } from "@/components/notifications-card";
+import { BillingCard } from "@/components/billing-card";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserTier, countUserWorkspaces, countUserProjects, getStorageUsedBytes, formatBytes } from "@/lib/tier-helpers";

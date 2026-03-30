@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { FeedbackDetail } from "@/components/FeedbackDetail";
+import { FeedbackDetail } from "@/components/feedback-detail";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";

@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import WorkspaceSwitcher from "@/components/WorkspaceSwitcher"
-import ProjectSwitcher from "@/components/ProjectSwitcher"
+import WorkspaceSwitcher from "@/components/workspace-switcher"
+import ProjectSwitcher from "@/components/project-switcher"
 import {
     Sidebar,
     SidebarContent,
@@ -16,7 +16,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { LayoutDashboard, MessageSquare, Settings, LogOut, Users, ExternalLink, Crown } from "lucide-react"
 import type { TierSlug } from "@/lib/tier-config"
-import { NotificationBell } from "@/components/NotificationBell"
+import { NotificationBell } from "@/components/notification-bell"
 import { User } from "@supabase/supabase-js"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
