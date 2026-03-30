@@ -7,7 +7,12 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Read(//tmp/snapdom/**)",
       "Bash(find /c/Joco/VibeVaults -type f \\\\\\(-name *.sql -o -name *migration* \\\\\\))",
-      "Bash(curl -s http://localhost:3000/api/cron/digest)"
+      "Bash(curl -s http://localhost:3000/api/cron/digest)",
+      "Bash(grep -E \"\\\\.\\(sql|ts|md\\)$\")",
+      "Bash(grep -r \"feedback.*hash\\\\|#\" /c/Joco/VibeVaults/src/lib/notifications*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"
     ]
   }
 }

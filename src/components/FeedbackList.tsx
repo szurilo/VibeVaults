@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FeedbackCard } from '@/components/feedback-card';
-import { Highlight } from '@/components/Highlight';
+import { FeedbackListCard } from '@/components/FeedbackListCard';
 import { SlidersHorizontal } from 'lucide-react';
 import {
     DropdownMenu,
@@ -80,9 +79,12 @@ export function FeedbackList({ feedbacks }: FeedbackListProps) {
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
                     {filtered.map((item: any) => (
-                        <Highlight key={item.id} id={item.id} className="rounded-lg">
-                            <FeedbackCard feedback={item} mode="edit" />
-                        </Highlight>
+                        <FeedbackListCard
+                            key={item.id}
+                            feedback={item}
+                            replyCount={item.reply_count ?? 0}
+                            attachmentCount={item.attachment_count ?? 0}
+                        />
                     ))}
                 </div>
             )}

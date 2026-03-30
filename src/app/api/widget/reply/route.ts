@@ -120,7 +120,7 @@ export async function POST(request: Request) {
                     .in('id', memberIds);
 
                 if (profiles) {
-                    const replyPayload = { replyContent, sender: senderEmail, projectName: projectData.name, workspaceId: projectData.workspace_id, projectId: feedback.project_id };
+                    const replyPayload = { replyContent, sender: senderEmail, projectName: projectData.name, workspaceId: projectData.workspace_id, projectId: feedback.project_id, feedbackId };
 
                     for (const p of profiles) {
                         const email = p.email;

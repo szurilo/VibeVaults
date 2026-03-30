@@ -67,8 +67,10 @@ export async function GET(request: NextRequest) {
             targetPath = '/dashboard';
     }
 
-    // Append feedback hash for direct navigation to a specific feedback card
-    const hash = feedback ? `#${feedback}` : '';
+    // Navigate directly to the feedback detail page if a feedback ID is provided
+    if (page === 'feedback' && feedback) {
+        targetPath = `/dashboard/feedback/${feedback}`;
+    }
 
-    return NextResponse.redirect(new URL(`${targetPath}${hash}`, origin));
+    return NextResponse.redirect(new URL(targetPath, origin));
 }

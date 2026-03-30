@@ -40,6 +40,7 @@ interface SendFeedbackEmailParams {
     unsubscribeToken?: string;
     workspaceId?: string;
     projectId?: string;
+    feedbackId?: string;
 }
 
 export async function sendFeedbackNotification({
@@ -50,7 +51,8 @@ export async function sendFeedbackNotification({
     metadata,
     unsubscribeToken,
     workspaceId,
-    projectId
+    projectId,
+    feedbackId
 }: SendFeedbackEmailParams) {
     try {
         const { data, error } = await resend.emails.send({
@@ -90,7 +92,7 @@ export async function sendFeedbackNotification({
                             </table>
                         </div>
                         
-                        <a href="${emailRedirectUrl({ page: 'feedback', workspaceId, projectId })}"
+                        <a href="${emailRedirectUrl({ page: 'feedback', workspaceId, projectId, feedbackId })}"
                            style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
                            View in Dashboard
                         </a>
@@ -702,6 +704,7 @@ interface DigestFeedbackItem {
     projectName: string;
     workspaceId?: string;
     projectId?: string;
+    feedbackId?: string;
 }
 
 export async function sendFeedbackDigestEmail({
@@ -717,6 +720,7 @@ export async function sendFeedbackDigestEmail({
         <div style="padding: 12px 16px; border-left: 3px solid #209CEE; margin-bottom: 12px; background: #f9fafb; border-radius: 0 8px 8px 0;">
             <p style="margin: 0 0 4px; font-size: 13px; color: #718096;">${esc(item.projectName)}${item.sender ? ` &mdash; ${esc(item.sender)}` : ''}</p>
             <p style="margin: 0; font-size: 15px; color: #1a202c; line-height: 1.5;">"${esc(item.content.slice(0, 200))}${item.content.length > 200 ? '…' : ''}"</p>
+            ${item.feedbackId ? `<a href="${emailRedirectUrl({ page: 'feedback', workspaceId: item.workspaceId, projectId: item.projectId, feedbackId: item.feedbackId })}" style="display: inline-block; margin-top: 8px; font-size: 13px; color: #209CEE; text-decoration: none; font-weight: 600;">View &rarr;</a>` : ''}
         </div>
     `).join('');
 
@@ -775,6 +779,7 @@ interface DigestReplyItem {
     feedbackContentPreview?: string;
     workspaceId?: string;
     projectId?: string;
+    feedbackId?: string;
 }
 
 export async function sendReplyDigestEmail({
@@ -789,6 +794,7 @@ export async function sendReplyDigestEmail({
             <p style="margin: 0 0 4px; font-size: 13px; color: #718096;">${esc(item.projectName)} &mdash; ${esc(item.sender)}</p>
             <p style="margin: 0; font-size: 15px; color: #0369a1; line-height: 1.5;">"${esc(item.replyContent.slice(0, 200))}${item.replyContent.length > 200 ? '…' : ''}"</p>
             ${item.feedbackContentPreview ? `<p style="margin: 6px 0 0; font-size: 13px; color: #718096; font-style: italic;">Re: "${esc(item.feedbackContentPreview.slice(0, 100))}${item.feedbackContentPreview.length > 100 ? '…' : ''}"</p>` : ''}
+            ${item.feedbackId ? `<a href="${emailRedirectUrl({ page: 'feedback', workspaceId: item.workspaceId, projectId: item.projectId, feedbackId: item.feedbackId })}" style="display: inline-block; margin-top: 8px; font-size: 13px; color: #0369a1; text-decoration: none; font-weight: 600;">View &rarr;</a>` : ''}
         </div>
     `).join('');
 

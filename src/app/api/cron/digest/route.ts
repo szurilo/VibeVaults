@@ -47,6 +47,7 @@ export async function GET() {
                             projectName: item.payload.projectName || '',
                             workspaceId: item.payload.workspaceId,
                             projectId: item.payload.projectId,
+                            feedbackId: item.feedback_id || item.payload.feedbackId,
                         })),
                         unsubscribeToken: prefs.unsubscribeToken,
                     });
@@ -72,6 +73,7 @@ export async function GET() {
                             feedbackContentPreview: item.payload.originalFeedback,
                             workspaceId: item.payload.workspaceId,
                             projectId: item.payload.projectId,
+                            feedbackId: item.feedback_id || item.payload.feedbackId,
                         })),
                         unsubscribeToken: prefs.unsubscribeToken,
                     });

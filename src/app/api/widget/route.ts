@@ -128,7 +128,7 @@ export async function POST(request: Request) {
                 .in('id', memberIds);
 
             if (profiles) {
-                const emailPayload = { content, sender, metadata, projectName: project.name, workspaceId: project.workspace_id, projectId: project.id };
+                const emailPayload = { content, sender, metadata, projectName: project.name, workspaceId: project.workspace_id, projectId: project.id, feedbackId };
 
                 for (const p of profiles) {
                     const email = p.email;
@@ -148,12 +148,14 @@ export async function POST(request: Request) {
                             metadata,
                             unsubscribeToken: prefs.unsubscribeToken,
                             workspaceId: project.workspace_id,
-                            projectId: project.id
+                            projectId: project.id,
+                            feedbackId
                         });
                         await recordEmailSent({
                             recipientEmail: email,
                             notificationType: 'new_feedback',
                             projectId: project.id,
+                            feedbackId,
                             payload: emailPayload
                         });
                     } else {
@@ -161,6 +163,7 @@ export async function POST(request: Request) {
                             recipientEmail: email,
                             notificationType: 'new_feedback',
                             projectId: project.id,
+                            feedbackId,
                             payload: emailPayload
                         });
                     }

@@ -101,25 +101,17 @@ export function NotificationBell({ userId }: { userId: string }) {
         setIsOpen(false)
 
         if (notification.project_id) {
-            // Navigate by setting cookie and routing to feedback page with anchor
             document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
-            const hash = notification.feedback_id ? `#${notification.feedback_id}` : '';
-            router.push(`/dashboard/feedback${hash}`);
+            if (notification.feedback_id) {
+                router.push(`/dashboard/feedback/${notification.feedback_id}`);
+            } else {
+                router.push('/dashboard/feedback');
+            }
         } else {
             // Workspace-level notification (member removed/left)
             router.push('/dashboard');
         }
         router.refresh();
-
-        // If already on /dashboard/feedback, router.push won't fire a native hashchange,
-        // so set the hash directly to trigger Highlight's hashchange listener.
-        if (notification.project_id && notification.feedback_id && window.location.pathname === '/dashboard/feedback') {
-            requestAnimationFrame(() => {
-                // Clear hash first so re-setting the same feedback ID still fires hashchange
-                window.location.hash = '';
-                window.location.hash = notification.feedback_id;
-            });
-        }
     }
 
     return (
