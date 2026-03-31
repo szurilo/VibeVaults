@@ -58,7 +58,10 @@ export function FeedbackDetail({ feedback, mode }: FeedbackDetailProps) {
     const [isSendingReply, setIsSendingReply] = useState(false)
     const [attachments, setAttachments] = useState<any[]>([])
     const [replyFiles, setReplyFiles] = useState<File[]>([])
+    const [replyFileError, setReplyFileError] = useState("")
     const [isUploadingReplyFiles, setIsUploadingReplyFiles] = useState(false)
+    const MAX_FILES = 10
+    const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
     const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
     const repliesContainerRef = useRef<HTMLDivElement>(null)
@@ -176,15 +179,45 @@ export function FeedbackDetail({ feedback, mode }: FeedbackDetailProps) {
 
             if (replyFiles.length > 0) {
                 setIsUploadingReplyFiles(true)
-                const formData = new FormData()
-                formData.append('feedbackId', feedback.id)
-                if (replyResult?.replyId) formData.append('replyId', replyResult.replyId)
-                for (const f of replyFiles) formData.append('files', f)
 
-                await fetch('/api/dashboard/upload', {
+                // Step 1: Get presigned upload URLs
+                const fileMeta = replyFiles.map(f => ({ name: f.name, size: f.size, type: f.type }))
+                const urlRes = await fetch('/api/dashboard/upload', {
                     method: 'POST',
-                    body: formData,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ feedbackId: feedback.id, files: fileMeta }),
                 })
+                if (!urlRes.ok) {
+                    const err = await urlRes.json().catch(() => ({}))
+                    toast("Upload Error", { description: err.error || "Failed to upload files.", icon: <AlertCircle className="h-4 w-4 text-red-500" /> })
+                } else {
+                    const { projectId, feedbackId: fbId, uploads } = await urlRes.json()
+
+                    // Step 2: Upload each file directly to Supabase Storage
+                    const completedFiles = []
+                    for (let i = 0; i < uploads.length; i++) {
+                        const upload = uploads[i]
+                        await fetch(upload.signedUrl, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': upload.mimeType },
+                            body: replyFiles[i],
+                        })
+                        completedFiles.push({
+                            fileId: upload.fileId,
+                            path: upload.path,
+                            fileName: upload.fileName,
+                            size: replyFiles[i].size,
+                            mimeType: upload.mimeType,
+                        })
+                    }
+
+                    // Step 3: Confirm uploads
+                    await fetch('/api/dashboard/upload/confirm', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ projectId, feedbackId: fbId, replyId: replyResult?.replyId || null, files: completedFiles }),
+                    })
+                }
                 setReplyFiles([])
                 setIsUploadingReplyFiles(false)
             }
@@ -601,6 +634,9 @@ export function FeedbackDetail({ feedback, mode }: FeedbackDetailProps) {
                             </div>
 
                             <div className="relative group">
+                                {replyFileError && (
+                                    <p className="text-red-500 text-xs mb-2 font-medium">{replyFileError}</p>
+                                )}
                                 {replyFiles.length > 0 && (
                                     <div className="flex flex-wrap gap-2 mb-2">
                                         {replyFiles.map((file, idx) => (
@@ -648,7 +684,19 @@ export function FeedbackDetail({ feedback, mode }: FeedbackDetailProps) {
                                             className="hidden"
                                             onChange={(e) => {
                                                 if (e.target.files) {
-                                                    setReplyFiles(prev => [...prev, ...Array.from(e.target.files!)])
+                                                    const newFiles = Array.from(e.target.files)
+                                                    const combined = [...replyFiles, ...newFiles]
+                                                    if (combined.length > MAX_FILES) {
+                                                        setReplyFileError(`Maximum ${MAX_FILES} files allowed.`)
+                                                    } else {
+                                                        const oversized = newFiles.find(f => f.size > MAX_FILE_SIZE)
+                                                        if (oversized) {
+                                                            setReplyFileError(`File "${oversized.name}" exceeds the 10MB limit.`)
+                                                        } else {
+                                                            setReplyFiles(combined)
+                                                            setReplyFileError("")
+                                                        }
+                                                    }
                                                     e.target.value = ''
                                                 }
                                             }}
