@@ -1,11 +1,12 @@
 /**
- * Main Responsibility: Handle file uploads from the widget (screenshots + attachments).
- * Validates API key + sender invite, uploads to Supabase Storage, inserts into feedback_attachments.
+ * Main Responsibility: Generate presigned upload URLs for widget file attachments.
+ * Validates API key + sender authorization, checks tier limits, returns signed URLs
+ * so the client uploads directly to Supabase Storage (bypassing Vercel body size limits).
  *
- * Sensitive Dependencies: Supabase Storage (feedback-attachments bucket), feedback_attachments table
+ * Sensitive Dependencies: Supabase Storage (feedback-attachments bucket), tier-helpers
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited } from "@/lib/widget-helpers";
+import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
 import { checkStorageLimit } from "@/lib/tier-helpers";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -28,68 +29,35 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     if (isRateLimited(ip, "widget:upload")) return corsError("Too many requests. Please try again later.", 429);
 
-    const formData = await request.formData();
-    const apiKey = formData.get("apiKey") as string;
-    const senderEmail = formData.get("senderEmail") as string;
-    const feedbackId = formData.get("feedbackId") as string | null;
-    const replyId = formData.get("replyId") as string | null;
+    let body: {
+        apiKey?: string;
+        senderEmail?: string;
+        files?: { name: string; size: number; type: string }[];
+    };
+
+    try {
+        body = await request.json();
+    } catch {
+        return corsError("Invalid JSON body", 400);
+    }
+
+    const { apiKey, senderEmail, files } = body;
 
     if (!apiKey) return corsError("Missing API Key", 400);
     if (!senderEmail) return corsError("Missing sender email", 400);
+    if (!files || !Array.isArray(files) || files.length === 0) return corsError("No files provided.", 400);
+    if (files.length > MAX_FILES_PER_REQUEST) return corsError(`Maximum ${MAX_FILES_PER_REQUEST} files per upload.`, 400);
 
     // Validate API key + subscription
     const { project, error, status } = await validateApiKey(apiKey);
     if (error) return corsError(error, status);
 
-    // Verify sender is authorized (workspace member OR invited client)
-    const adminSupabase = createAdminClient();
-
-    // Check if sender is a workspace member (owner/member) by matching email → profile → membership
-    const { data: memberProfile } = await adminSupabase
-        .from('profiles')
-        .select('id')
-        .eq('email', senderEmail)
-        .single();
-
-    let isAuthorized = false;
-
-    if (memberProfile) {
-        const { data: membership } = await adminSupabase
-            .from('workspace_members')
-            .select('user_id')
-            .eq('workspace_id', project.workspace_id)
-            .eq('user_id', memberProfile.id)
-            .single();
-
-        if (membership) {
-            isAuthorized = true;
-        }
-    }
-
-    // Fall back to checking workspace_invites (for clients)
-    if (!isAuthorized) {
-        const { data: invite } = await adminSupabase
-            .from('workspace_invites')
-            .select('id')
-            .eq('workspace_id', project.workspace_id)
-            .eq('email', senderEmail)
-            .single();
-
-        if (!invite) return corsError("Unauthorized email address.", 403);
-    }
-
-    // Collect files from formData
-    const files: File[] = [];
-    for (const [key, value] of formData.entries()) {
-        if (key === 'files' && value instanceof File) {
-            files.push(value);
-        }
-    }
-
-    if (files.length === 0) return corsError("No files provided.", 400);
-    if (files.length > MAX_FILES_PER_REQUEST) return corsError(`Maximum ${MAX_FILES_PER_REQUEST} files per upload.`, 400);
+    // Verify sender is authorized
+    const isAuthorized = await verifyWidgetEmail(senderEmail, project.workspace_id);
+    if (!isAuthorized) return corsError("Unauthorized email address.", 403);
 
     // Check storage limit for workspace owner
+    const adminSupabase = createAdminClient();
     const { data: workspace } = await adminSupabase
         .from('workspaces')
         .select('owner_id')
@@ -104,8 +72,11 @@ export async function POST(request: Request) {
         }
     }
 
-    // Validate each file
+    // Validate each file's metadata
     for (const file of files) {
+        if (!file.name || !file.size || !file.type) {
+            return corsError("Each file must have name, size, and type.", 400);
+        }
         if (file.size > MAX_FILE_SIZE) {
             return corsError(`File "${file.name}" exceeds the 10MB limit.`, 400);
         }
@@ -114,56 +85,35 @@ export async function POST(request: Request) {
         }
     }
 
-    // Upload files and create DB records
-    const uploaded: { id: string; file_name: string; file_url: string; mime_type: string }[] = [];
+    // Generate presigned upload URLs
+    const uploads: { fileId: string; path: string; signedUrl: string; token: string; fileName: string; mimeType: string }[] = [];
 
     for (const file of files) {
         const fileId = crypto.randomUUID();
         const ext = file.name.split('.').pop() || 'bin';
         const storagePath = `${project.id}/${fileId}.${ext}`;
 
-        const arrayBuffer = await file.arrayBuffer();
-        const { error: uploadError } = await adminSupabase.storage
+        const { data, error: signError } = await adminSupabase.storage
             .from('feedback-attachments')
-            .upload(storagePath, arrayBuffer, {
-                contentType: file.type,
-                upsert: false,
-            });
+            .createSignedUploadUrl(storagePath);
 
-        if (uploadError) {
-            console.error("[VibeVaults] Storage upload error:", uploadError);
-            return corsError(`Failed to upload "${file.name}".`, 500);
+        if (signError || !data) {
+            console.error("[VibeVaults] Signed URL error:", signError);
+            return corsError(`Failed to prepare upload for "${file.name}".`, 500);
         }
 
-        const { data: urlData } = adminSupabase.storage
-            .from('feedback-attachments')
-            .getPublicUrl(storagePath);
-
-        const fileUrl = urlData.publicUrl;
-
-        const { data: record, error: insertError } = await adminSupabase
-            .from('feedback_attachments')
-            .insert({
-                id: fileId,
-                feedback_id: feedbackId || null,
-                reply_id: replyId || null,
-                project_id: project.id,
-                file_name: file.name,
-                file_url: fileUrl,
-                file_size: file.size,
-                mime_type: file.type,
-                uploaded_by: senderEmail,
-            })
-            .select('id, file_name, file_url, mime_type')
-            .single();
-
-        if (insertError) {
-            console.error("[VibeVaults] Attachment insert error:", insertError);
-            return corsError(`Failed to save "${file.name}".`, 500);
-        }
-
-        uploaded.push(record);
+        uploads.push({
+            fileId,
+            path: storagePath,
+            signedUrl: data.signedUrl,
+            token: data.token,
+            fileName: file.name,
+            mimeType: file.type,
+        });
     }
 
-    return corsSuccess({ attachments: uploaded });
+    return corsSuccess({
+        projectId: project.id,
+        uploads,
+    });
 }

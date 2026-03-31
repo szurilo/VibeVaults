@@ -1,8 +1,9 @@
 /**
- * Main Responsibility: Handle file uploads from authenticated dashboard users.
- * Validates auth, uploads to Supabase Storage, inserts into feedback_attachments.
+ * Main Responsibility: Generate presigned upload URLs for dashboard file attachments.
+ * Validates auth + project access, checks tier limits, returns signed URLs
+ * so the client uploads directly to Supabase Storage (bypassing Vercel body size limits).
  *
- * Sensitive Dependencies: Supabase Storage (feedback-attachments bucket), feedback_attachments table
+ * Sensitive Dependencies: Supabase Storage (feedback-attachments bucket), tier-helpers
  */
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -29,12 +30,29 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const formData = await request.formData();
-    const feedbackId = formData.get("feedbackId") as string | null;
-    const replyId = formData.get("replyId") as string | null;
+    let body: {
+        feedbackId?: string;
+        files?: { name: string; size: number; type: string }[];
+    };
+
+    try {
+        body = await request.json();
+    } catch {
+        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const { feedbackId, files } = body;
 
     if (!feedbackId) {
         return NextResponse.json({ error: "Missing feedbackId" }, { status: 400 });
+    }
+
+    if (!files || !Array.isArray(files) || files.length === 0) {
+        return NextResponse.json({ error: "No files provided" }, { status: 400 });
+    }
+
+    if (files.length > MAX_FILES_PER_REQUEST) {
+        return NextResponse.json({ error: `Maximum ${MAX_FILES_PER_REQUEST} files per upload` }, { status: 400 });
     }
 
     // Verify the feedback belongs to a project the user has access to
@@ -48,32 +66,16 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Feedback not found" }, { status: 404 });
     }
 
-    // Collect files
-    const files: File[] = [];
-    for (const [key, value] of formData.entries()) {
-        if (key === 'files' && value instanceof File) {
-            files.push(value);
-        }
-    }
-
-    if (files.length === 0) {
-        return NextResponse.json({ error: "No files provided" }, { status: 400 });
-    }
-
-    if (files.length > MAX_FILES_PER_REQUEST) {
-        return NextResponse.json({ error: `Maximum ${MAX_FILES_PER_REQUEST} files per upload` }, { status: 400 });
-    }
-
     // Check storage limit for workspace owner
-    const adminSupabaseForLimit = createAdminClient();
-    const { data: project } = await adminSupabaseForLimit
+    const adminSupabase = createAdminClient();
+    const { data: project } = await adminSupabase
         .from('projects')
         .select('workspace_id')
         .eq('id', feedback.project_id)
         .single();
 
     if (project) {
-        const { data: workspace } = await adminSupabaseForLimit
+        const { data: workspace } = await adminSupabase
             .from('workspaces')
             .select('owner_id')
             .eq('id', project.workspace_id)
@@ -88,8 +90,11 @@ export async function POST(request: Request) {
         }
     }
 
-    // Validate files
+    // Validate files metadata
     for (const file of files) {
+        if (!file.name || !file.size || !file.type) {
+            return NextResponse.json({ error: "Each file must have name, size, and type." }, { status: 400 });
+        }
         if (file.size > MAX_FILE_SIZE) {
             return NextResponse.json({ error: `File "${file.name}" exceeds the 10MB limit` }, { status: 400 });
         }
@@ -98,54 +103,36 @@ export async function POST(request: Request) {
         }
     }
 
-    const adminSupabase = createAdminClient();
-    const uploaded: { id: string; file_name: string; file_url: string; mime_type: string }[] = [];
+    // Generate presigned upload URLs
+    const uploads: { fileId: string; path: string; signedUrl: string; token: string; fileName: string; mimeType: string }[] = [];
 
     for (const file of files) {
         const fileId = crypto.randomUUID();
         const ext = file.name.split('.').pop() || 'bin';
         const storagePath = `${feedback.project_id}/${fileId}.${ext}`;
 
-        const arrayBuffer = await file.arrayBuffer();
-        const { error: uploadError } = await adminSupabase.storage
+        const { data, error: signError } = await adminSupabase.storage
             .from('feedback-attachments')
-            .upload(storagePath, arrayBuffer, {
-                contentType: file.type,
-                upsert: false,
-            });
+            .createSignedUploadUrl(storagePath);
 
-        if (uploadError) {
-            console.error("[VibeVaults] Dashboard upload error:", uploadError);
-            return NextResponse.json({ error: `Failed to upload "${file.name}"` }, { status: 500 });
+        if (signError || !data) {
+            console.error("[VibeVaults] Dashboard signed URL error:", signError);
+            return NextResponse.json({ error: `Failed to prepare upload for "${file.name}"` }, { status: 500 });
         }
 
-        const { data: urlData } = adminSupabase.storage
-            .from('feedback-attachments')
-            .getPublicUrl(storagePath);
-
-        const { data: record, error: insertError } = await adminSupabase
-            .from('feedback_attachments')
-            .insert({
-                id: fileId,
-                feedback_id: feedbackId,
-                reply_id: replyId || null,
-                project_id: feedback.project_id,
-                file_name: file.name,
-                file_url: urlData.publicUrl,
-                file_size: file.size,
-                mime_type: file.type,
-                uploaded_by: user.email || user.id,
-            })
-            .select('id, file_name, file_url, mime_type')
-            .single();
-
-        if (insertError) {
-            console.error("[VibeVaults] Dashboard attachment insert error:", insertError);
-            return NextResponse.json({ error: `Failed to save "${file.name}"` }, { status: 500 });
-        }
-
-        uploaded.push(record!);
+        uploads.push({
+            fileId,
+            path: storagePath,
+            signedUrl: data.signedUrl,
+            token: data.token,
+            fileName: file.name,
+            mimeType: file.type,
+        });
     }
 
-    return NextResponse.json({ attachments: uploaded });
+    return NextResponse.json({
+        projectId: feedback.project_id,
+        feedbackId: feedback.id,
+        uploads,
+    });
 }

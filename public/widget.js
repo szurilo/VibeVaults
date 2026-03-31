@@ -17,6 +17,7 @@
     const API_FEEDBACKS = `${origin}/api/widget/feedbacks`;
     const API_STREAM = `${origin}/api/widget/stream`;
     const API_UPLOAD = `${origin}/api/widget/upload`;
+    const API_UPLOAD_CONFIRM = `${origin}/api/widget/upload/confirm`;
     const API_VERIFY = `${origin}/api/widget/verify-email`;
 
     const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
@@ -125,18 +126,53 @@
 
     const uploadFiles = async (files, feedbackId, replyId) => {
       if (files.length === 0) return { attachments: [] };
-      const formData = new FormData();
-      formData.append('apiKey', apiKey);
-      formData.append('senderEmail', clientEmail);
-      if (feedbackId) formData.append('feedbackId', feedbackId);
-      if (replyId) formData.append('replyId', replyId);
-      for (const f of files) formData.append('files', f);
-      const res = await fetch(API_UPLOAD, { method: 'POST', body: formData });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Upload failed');
+
+      // Step 1: Request presigned upload URLs (small JSON, no file bytes)
+      const fileMeta = files.map(f => ({ name: f.name, size: f.size, type: f.type }));
+      const urlRes = await fetch(API_UPLOAD, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, senderEmail: clientEmail, files: fileMeta }),
+      });
+      if (!urlRes.ok) {
+        const err = await urlRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to prepare upload');
       }
-      return await res.json();
+      const { projectId, uploads } = await urlRes.json();
+
+      // Step 2: Upload each file directly to Supabase Storage via presigned URL
+      const completedFiles = [];
+      for (let i = 0; i < uploads.length; i++) {
+        const upload = uploads[i];
+        const file = files[i];
+        const storageRes = await fetch(upload.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': upload.mimeType },
+          body: file,
+        });
+        if (!storageRes.ok) {
+          throw new Error(`Failed to upload "${upload.fileName}"`);
+        }
+        completedFiles.push({
+          fileId: upload.fileId,
+          path: upload.path,
+          fileName: upload.fileName,
+          size: file.size,
+          mimeType: upload.mimeType,
+        });
+      }
+
+      // Step 3: Confirm uploads and create DB records
+      const confirmRes = await fetch(API_UPLOAD_CONFIRM, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, senderEmail: clientEmail, projectId, feedbackId, replyId, files: completedFiles }),
+      });
+      if (!confirmRes.ok) {
+        const err = await confirmRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to confirm upload');
+      }
+      return await confirmRes.json();
     };
 
     const isImageType = (mimeType) => mimeType && mimeType.startsWith('image/');
@@ -179,8 +215,8 @@
       toast.className = 'vv-toast';
       toast.textContent = msg;
       wrapper.querySelector('.popup').appendChild(toast);
-      setTimeout(() => { toast.style.opacity = '0'; }, 2500);
-      setTimeout(() => { toast.remove(); }, 3000);
+      setTimeout(() => { toast.style.opacity = '0'; }, 4500);
+      setTimeout(() => { toast.remove(); }, 5000);
     };
 
     const validateFiles = (fileList) => {
@@ -661,10 +697,8 @@
         section.querySelector('#vv-reply-attach-btn').onclick = () => replyFileInput.click();
         replyFileInput.onchange = () => {
           const newFiles = validateFiles(Array.from(replyFileInput.files));
-          const totalAllowed = MAX_FILES - replyAttachments.length;
-          if (newFiles.length > totalAllowed) {
+          if (replyAttachments.length + newFiles.length > MAX_FILES) {
             showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
-            replyAttachments.push(...newFiles.slice(0, totalAllowed));
           } else {
             replyAttachments.push(...newFiles);
           }
@@ -1182,10 +1216,8 @@
     wrapper.querySelector('#vv-attach-btn').onclick = () => fileInput.click();
     fileInput.onchange = () => {
       const newFiles = validateFiles(Array.from(fileInput.files));
-      const totalAllowed = MAX_FILES - pendingAttachments.length;
-      if (newFiles.length > totalAllowed) {
-        showWidgetToast('Maximum ' + MAX_FILES + ' files allowed. You can add ' + totalAllowed + ' more.');
-        pendingAttachments.push(...newFiles.slice(0, totalAllowed));
+      if (pendingAttachments.length + newFiles.length > MAX_FILES) {
+        showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
       } else {
         pendingAttachments.push(...newFiles);
       }
