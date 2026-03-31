@@ -80,7 +80,7 @@ tests/              # Playwright E2E tests
 - **Rate limiting**: 30 req/min per IP on all widget endpoints (`src/lib/widget-helpers.ts`)
 - **Content limit**: 5000 chars max for feedback/reply content
 - **Trial gate**: `validateApiKey()` checks owner's subscription/trial status — widget disabled post-trial
-- **File uploads**: `/api/widget/upload` + `/api/dashboard/upload` → Supabase Storage (`feedback-attachments` bucket), 10MB/file, 10 files/request
+- **File uploads (presigned URL flow)**: Uploads bypass Vercel serverless functions entirely to avoid the 4.5MB body size limit on Hobby plan. Two-step flow: (1) `/api/widget/upload` or `/api/dashboard/upload` validates auth + returns presigned Supabase Storage URLs, (2) client uploads directly to Supabase Storage via PUT, (3) `/api/widget/upload/confirm` or `/api/dashboard/upload/confirm` verifies actual file size/type from storage metadata and creates `feedback_attachments` records. 10MB/file, 10 files/request.
 - **Email safety**: All user content in emails sanitized via `esc()` in `lib/notifications.ts`
 
 ### Notification System
@@ -119,9 +119,11 @@ tests/              # Playwright E2E tests
 | `/api/widget/verify-email` | GET | Lightweight email authorization check for widget |
 | `/api/widget/feedbacks` | GET | List feedbacks for widget (includes reply_count) |
 | `/api/widget/reply` | POST | Widget reply submission |
-| `/api/widget/upload` | POST | Widget file attachment upload |
+| `/api/widget/upload` | POST | Request presigned upload URLs for widget attachments |
+| `/api/widget/upload/confirm` | POST | Confirm widget uploads + create DB records (verifies actual file size/type) |
 | `/api/widget/stream` | GET | SSE real-time chat stream |
-| `/api/dashboard/upload` | POST | Dashboard file attachment upload |
+| `/api/dashboard/upload` | POST | Request presigned upload URLs for dashboard attachments |
+| `/api/dashboard/upload/confirm` | POST | Confirm dashboard uploads + create DB records (verifies actual file size/type) |
 | `/api/projects` | POST | Create project |
 | `/api/workspaces/invites` | POST | Create workspace invite |
 | `/api/stripe/checkout` | POST | Stripe checkout |

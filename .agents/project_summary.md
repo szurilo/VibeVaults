@@ -112,12 +112,17 @@
 ### Public Sharing
 - Read-only project board sharing via tokenised links (`/share/[token]`). Managed in `ShareProjectCard` with server actions in `actions/project-sharing.ts`.
 
-### File Attachments
-- Full attachment support for feedbacks and replies. New `feedback_attachments` table stores file metadata (name, URL, size, MIME type, uploader). Files stored in Supabase Storage (`feedback-attachments` bucket).
-- Two upload routes: `/api/widget/upload` (validates API key + sender invite) and `/api/dashboard/upload` (authenticated user + RLS).
+### File Attachments (Presigned URL Flow)
+- Full attachment support for feedbacks and replies. `feedback_attachments` table stores file metadata (name, URL, size, MIME type, uploader). Files stored in Supabase Storage (`feedback-attachments` bucket).
+- **Presigned URL upload flow** (bypasses Vercel's 4.5MB serverless body size limit on Hobby plan):
+  1. Client sends file metadata (names, sizes, MIME types) to `/api/widget/upload` or `/api/dashboard/upload` — tiny JSON payload.
+  2. API validates (auth, API key, tier/storage limits, file types/sizes) and returns presigned Supabase Storage URLs via `createSignedUploadUrl()`.
+  3. Client uploads each file directly to Supabase Storage via PUT to the signed URL — Vercel is never in the file transfer path.
+  4. Client calls `/api/widget/upload/confirm` or `/api/dashboard/upload/confirm` — API verifies actual file size/type from storage metadata, deletes violating files, and creates `feedback_attachments` records.
+- **Client-side validation**: Both widget and dashboard enforce max 10 files and 10MB/file before sending. Widget shows toast; dashboard shows inline error or toast.
 - Widget and dashboard both support file upload with preview. Feedback card shows image thumbnails with lightbox viewer and non-image files as download links.
 - Real-time attachment updates via Supabase Realtime.
-- Constraints: 10MB max per file, 10 files per request, MIME type allowlist (images, PDFs, Office docs, text/csv).
+- Constraints: 10MB max per file, 10 files per request, MIME type allowlist (images, PDFs, Office docs, text/csv). Server-side enforcement in confirm routes reads actual storage metadata (not client-claimed values).
 - Reply attachments supported end-to-end (widget screenshot, file upload → API → storage → display).
 
 ### Multi-Tier Pricing
@@ -217,9 +222,11 @@
 | `/api/widget/verify-email` | GET | Lightweight email authorization check for widget |
 | `/api/widget/feedbacks` | GET | List feedbacks for widget (includes reply_count, attachments, excludes completed) |
 | `/api/widget/reply` | POST | Submit reply from widget chat (supports attachments, returns replyId) |
-| `/api/widget/upload` | POST | Upload attachments from widget |
+| `/api/widget/upload` | POST | Request presigned upload URLs for widget attachments |
+| `/api/widget/upload/confirm` | POST | Confirm widget uploads + create DB records (verifies actual file size/type) |
 | `/api/widget/stream` | GET | SSE stream for real-time chat |
-| `/api/dashboard/upload` | POST | Upload attachments from dashboard |
+| `/api/dashboard/upload` | POST | Request presigned upload URLs for dashboard attachments |
+| `/api/dashboard/upload/confirm` | POST | Confirm dashboard uploads + create DB records (verifies actual file size/type) |
 | `/api/projects` | POST | Create new project |
 | `/api/workspaces/invites` | POST | Create workspace invite (member or client role) |
 | `/api/auth/callback` | GET | Supabase auth callback handler |
