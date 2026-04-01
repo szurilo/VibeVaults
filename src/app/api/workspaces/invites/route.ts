@@ -227,9 +227,10 @@ export async function POST(req: Request) {
         }
 
         return NextResponse.json(invite);
-    } catch (error: any) {
+    } catch (error) {
         console.error("Invite error:", error);
-        return new NextResponse(error.message || "Internal Server Error", { status: 500 });
+        const msg = error instanceof Error ? error.message : 'Internal Server Error';
+        return new NextResponse(msg, { status: 500 });
     }
 }
 
@@ -282,7 +283,8 @@ export async function DELETE(req: Request) {
         }
 
         return new NextResponse(null, { status: 204 });
-    } catch (error: any) {
-        return new NextResponse(error.message || "Internal Server Error", { status: 500 });
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Internal Server Error';
+        return new NextResponse(msg, { status: 500 });
     }
 }

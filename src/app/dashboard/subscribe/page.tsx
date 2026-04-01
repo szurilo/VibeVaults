@@ -42,6 +42,7 @@ export default async function SubscribePage() {
     let trialDaysLeft = 0;
     if (isTrialActive && profile?.trial_ends_at) {
         trialDaysLeft = Math.max(0, Math.ceil(
+            // eslint-disable-next-line react-hooks/purity
             (new Date(profile.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
         ));
     }

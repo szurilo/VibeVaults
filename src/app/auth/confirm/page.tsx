@@ -36,6 +36,7 @@ function ConfirmContent() {
             const supabase = createClient()
 
             const { error } = await supabase.auth.verifyOtp({
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 type: type as any,
                 token_hash: tokenHash,
             })
@@ -53,7 +54,9 @@ function ConfirmContent() {
                 if (savedRedirect) {
                     document.cookie = 'auth_redirect=; path=/; max-age=0'
                 }
-                const next = savedRedirect || '/dashboard'
+                // Only allow relative paths — block protocol-relative URLs (//evil.com) and absolute URLs
+                const isSafePath = savedRedirect && savedRedirect.startsWith('/') && !savedRedirect.startsWith('//')
+                const next = isSafePath ? savedRedirect : '/dashboard'
 
                 // Use window.location for redirect — the target may be an API route
                 // (e.g. /api/email-redirect) which router.push can't handle
@@ -99,7 +102,7 @@ function ConfirmContent() {
                                 Verified!
                             </CardTitle>
                             <CardDescription className="text-base">
-                                You've been successfully authenticated. Redirecting you now...
+                                {"You've been successfully authenticated. Redirecting you now..."}
                             </CardDescription>
                         </div>
                     </CardHeader>

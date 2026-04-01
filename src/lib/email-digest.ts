@@ -21,7 +21,7 @@ interface QueueEmailParams {
     notificationType: DigestNotificationType;
     projectId: string;
     feedbackId?: string;
-    payload: Record<string, any>;
+    payload: Record<string, unknown>;
 }
 
 /**
@@ -130,40 +130,34 @@ export interface PendingDigestItem {
     notification_type: DigestNotificationType;
     project_id: string;
     feedback_id: string | null;
-    payload: Record<string, any>;
+    payload: Record<string, unknown>;
     created_at: string;
 }
 
 /**
- * Fetch all pending (unsent) digest items, grouped by recipient + type.
+ * Atomically claim and fetch all pending (unsent) digest items.
+ * Uses a two-step process to prevent concurrent cron runs from double-sending:
+ * 1. Mark pending items with a processing timestamp
+ * 2. Fetch only the items we just claimed
  */
 export async function fetchPendingDigestItems(): Promise<PendingDigestItem[]> {
     const adminSupabase = createAdminClient();
+    const claimTimestamp = new Date().toISOString();
 
-    const { data, error } = await adminSupabase
+    // Step 1: Atomically claim all pending items by setting sent_at
+    const { data: claimed, error: claimError } = await adminSupabase
         .from('email_digest_queue')
-        .select('*')
+        .update({ sent_at: claimTimestamp })
         .is('sent_at', null)
+        .select('*')
         .order('created_at', { ascending: true });
 
-    if (error) {
-        console.error('VibeVaults: Failed to fetch digest queue', error);
+    if (claimError) {
+        console.error('VibeVaults: Failed to claim digest queue items', claimError);
         return [];
     }
 
-    return (data || []) as PendingDigestItem[];
-}
-
-/**
- * Mark digest items as sent after batch processing.
- */
-export async function markDigestItemsSent(ids: string[]): Promise<void> {
-    if (ids.length === 0) return;
-    const adminSupabase = createAdminClient();
-    await adminSupabase
-        .from('email_digest_queue')
-        .update({ sent_at: new Date().toISOString() })
-        .in('id', ids);
+    return (claimed || []) as PendingDigestItem[];
 }
 
 /**

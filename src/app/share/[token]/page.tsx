@@ -112,7 +112,7 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
                         </div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">No feedback yet</h3>
                         <p className="text-gray-500 max-w-sm mx-auto text-sm">
-                            This project hasn't received any feedback submissions yet.
+                            {"This project hasn't received any feedback submissions yet."}
                         </p>
                     </div>
                 ) : (

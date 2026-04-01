@@ -86,8 +86,8 @@ export async function updateSession(request: NextRequest) {
             return supabaseResponse;
         }
 
-        const isSubscribed = profile?.subscription_status === 'active' || !!profile?.subscription_tier;
-        const isTrialActive = profile?.trial_ends_at ? new Date(profile.trial_ends_at) > new Date() : false;
+        const isSubscribed = profile?.subscription_status === 'active';
+        const isTrialActive = !isSubscribed && !!profile?.trial_ends_at && new Date(profile.trial_ends_at) > new Date();
 
         if (!isSubscribed && !isTrialActive) {
             const url = request.nextUrl.clone();

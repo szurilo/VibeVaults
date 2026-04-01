@@ -92,7 +92,7 @@ export async function POST(req: Request) {
         ]);
 
         if (memberRows && memberRows.length > 0 && workspace) {
-            const memberIds = memberRows.filter((m: any) => m.user_id !== user.id).map((m: any) => m.user_id);
+            const memberIds = memberRows.filter((m: { user_id: string }) => m.user_id !== user.id).map((m: { user_id: string }) => m.user_id);
 
             const { data: profiles } = await adminSupabase
                 .from('profiles')

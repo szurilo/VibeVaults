@@ -28,6 +28,19 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
+interface Workspace {
+    id: string;
+    name: string;
+    owner_id: string;
+    brand_logo_url?: string | null;
+}
+
+interface Project {
+    id: string;
+    name: string;
+    website_url?: string | null;
+}
+
 export function AppSidebar({
     workspaces,
     selectedWorkspaceId,
@@ -36,9 +49,9 @@ export function AppSidebar({
     user,
     tierInfo,
 }: {
-    workspaces: any[]
+    workspaces: Workspace[]
     selectedWorkspaceId?: string
-    projects: any[]
+    projects: Project[]
     selectedProjectId?: string
     user: User
     tierInfo?: { tier: TierSlug | null; isTrialing: boolean }

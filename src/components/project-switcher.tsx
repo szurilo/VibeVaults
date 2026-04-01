@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, ChevronsUpDown, FolderOpen } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -15,12 +15,17 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { CreateProjectDialog } from '@/components/create-project-dialog';
 
+interface Project {
+    id: string;
+    name: string;
+}
+
 export default function ProjectSwitcher({
     projects,
     selectedProjectId,
     selectedWorkspaceId
 }: {
-    projects: any[],
+    projects: Project[],
     selectedProjectId?: string,
     selectedWorkspaceId?: string
 }) {
@@ -40,6 +45,7 @@ export default function ProjectSwitcher({
     }, [selectedProjectId, router]);
 
     const handleProjectChange = (projectId: string) => {
+        // eslint-disable-next-line react-hooks/immutability
         document.cookie = `selectedProjectId=${projectId}; path=/; max-age=31536000`;
         // Force proper navigation to clear any feedback anchor and re-render with new project
         if (window.location.hash) {

@@ -103,7 +103,7 @@ export default function PaymentSuccessPage() {
                     {status === 'error' && (
                         <div className="space-y-4">
                             <p className="text-muted-foreground">
-                                We couldn't confirm your subscription immediately. Don't worry, your payment was likely processed.
+                                {"We couldn't confirm your subscription immediately. Don't worry, your payment was likely processed."}
                             </p>
                             <p className="text-sm text-gray-500">
                                 If you are not redirected soon, please contact support.
