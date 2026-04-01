@@ -36,7 +36,7 @@ interface SendFeedbackEmailParams {
     projectName: string;
     content: string;
     sender?: string;
-    metadata?: any;
+    metadata?: Record<string, unknown>;
     unsubscribeToken?: string;
     workspaceId?: string;
     projectId?: string;

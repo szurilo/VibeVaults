@@ -39,13 +39,14 @@ export async function GET(request: Request) {
                     console.warn(`Stripe customer ${customerId} is marked as deleted. Creating a new one.`);
                     customerId = null;
                 }
-            } catch (error: any) {
+            } catch (error) {
                 // Stripe throws an error if customer is not found (404 or 400 resource_missing)
+                const stripeError = error as { code?: string; statusCode?: number; message?: string };
                 const isNotFoundError =
-                    error.code === 'resource_missing' ||
-                    error.statusCode === 404 ||
-                    error.statusCode === 400 ||
-                    error.message?.toLowerCase().includes('no such customer');
+                    stripeError.code === 'resource_missing' ||
+                    stripeError.statusCode === 404 ||
+                    stripeError.statusCode === 400 ||
+                    stripeError.message?.toLowerCase().includes('no such customer');
 
                 if (isNotFoundError) {
                     console.warn(`Stale Stripe customer ID ${customerId} found for user ${user.id}. Resetting and creating a new one.`);

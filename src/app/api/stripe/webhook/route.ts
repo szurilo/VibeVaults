@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type Stripe from 'stripe';
 import { stripe } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 import { getTierFromPriceId, getTierLimits, type TierSlug } from '@/lib/tier-config';
@@ -12,6 +13,7 @@ const supabaseAdmin = createClient(
 /**
  * Resolve the tier slug from a Stripe subscription object.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function resolveTierFromSubscription(subscription: any): string | null {
     const priceId = subscription?.items?.data?.[0]?.price?.id;
     if (!priceId) return null;
@@ -85,9 +87,10 @@ export async function POST(req: NextRequest) {
             sig,
             process.env.STRIPE_WEBHOOK_SECRET!
         );
-    } catch (err: any) {
-        console.error(`❌ Webhook signature verification failed: ${err.message}`);
-        return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`❌ Webhook signature verification failed: ${msg}`);
+        return NextResponse.json({ error: `Webhook Error: ${msg}` }, { status: 400 });
     }
 
     const { type, data } = event;
@@ -95,6 +98,7 @@ export async function POST(req: NextRequest) {
     try {
         switch (type) {
             case 'checkout.session.completed': {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const session = data.object as any;
                 const userId = session.metadata.userId;
                 const customerId = session.customer;
@@ -122,12 +126,16 @@ export async function POST(req: NextRequest) {
             }
 
             case 'customer.subscription.updated': {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const subscription = data.object as any;
                 const customerId = subscription.customer;
-                const status = subscription.status === 'active' ? 'active' : 'inactive';
+                // 'active' = normal active subscription (including cancel_at_period_end)
+                // 'past_due' = payment failed but Stripe is retrying — keep access during grace period
+                const status = (subscription.status === 'active' || subscription.status === 'past_due')
+                    ? 'active' : 'inactive';
                 const tier = resolveTierFromSubscription(subscription);
 
-                const updateData: Record<string, any> = {
+                const updateData: Record<string, string | null> = {
                     subscription_status: status,
                     updated_at: new Date().toISOString(),
                 };
@@ -149,6 +157,7 @@ export async function POST(req: NextRequest) {
             }
 
             case 'customer.subscription.deleted': {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const subscription = data.object as any;
                 const customerId = subscription.customer;
 
@@ -171,6 +180,7 @@ export async function POST(req: NextRequest) {
             }
 
             case 'invoice.paid': {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const invoice = data.object as any;
                 const customerId = invoice.customer;
 
@@ -185,7 +195,7 @@ export async function POST(req: NextRequest) {
                     }
                 }
 
-                const updateData: Record<string, any> = {
+                const updateData: Record<string, string | null> = {
                     subscription_status: 'active',
                     updated_at: new Date().toISOString(),
                 };
@@ -210,6 +220,7 @@ export async function POST(req: NextRequest) {
                 // Fired when a scheduled plan change (e.g. end-of-period downgrade) takes effect.
                 // The actual tier update is handled by customer.subscription.updated which fires
                 // at the same time, but we log this for visibility.
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const schedule = data.object as any;
                 const subscriptionId = schedule.subscription;
                 if (subscriptionId) {
@@ -218,7 +229,7 @@ export async function POST(req: NextRequest) {
                         const tier = resolveTierFromSubscription(subscription);
                         const customerId = subscription.customer as string;
 
-                        const updateData: Record<string, any> = {
+                        const updateData: Record<string, string | null> = {
                             subscription_status: subscription.status === 'active' ? 'active' : 'inactive',
                             updated_at: new Date().toISOString(),
                         };
@@ -240,6 +251,7 @@ export async function POST(req: NextRequest) {
             }
 
             case 'invoice.payment_failed': {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const invoice = data.object as any;
                 const customerId = invoice.customer;
 
@@ -265,7 +277,7 @@ export async function POST(req: NextRequest) {
         }
 
         return NextResponse.json({ received: true });
-    } catch (error: any) {
+    } catch (error) {
         console.error(`Error processing webhook ${type}:`, error);
         return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 });
     }

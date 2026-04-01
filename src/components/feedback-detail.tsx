@@ -34,6 +34,7 @@ import { Send } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { sendAgencyReplyAction, deleteFeedback } from "@/actions/feedback"
 import { toast } from "sonner"
+import { FilePreviewImg } from "./file-preview-img"
 import {
     Sheet,
     SheetContent,
@@ -45,6 +46,23 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { type FeedbackData, getStatusStyles, parseUA, isImageFile } from "@/lib/feedback-utils"
 
+interface Attachment {
+    id: string;
+    file_name: string;
+    file_url: string;
+    file_size: number;
+    mime_type: string;
+}
+
+interface Reply {
+    id: string;
+    content: string;
+    author_role: string;
+    author_name?: string | null;
+    created_at: string;
+    attachments?: Attachment[];
+}
+
 interface FeedbackDetailProps {
     feedback: FeedbackData
     mode: 'view' | 'edit'
@@ -52,11 +70,11 @@ interface FeedbackDetailProps {
 
 export function FeedbackDetail({ feedback, mode }: FeedbackDetailProps) {
     const [isDeleting, setIsDeleting] = useState(false)
-    const [replies, setReplies] = useState<any[]>([])
+    const [replies, setReplies] = useState<Reply[]>([])
     const [isFetchingReplies, setIsFetchingReplies] = useState(false)
     const [newReply, setNewReply] = useState("")
     const [isSendingReply, setIsSendingReply] = useState(false)
-    const [attachments, setAttachments] = useState<any[]>([])
+    const [attachments, setAttachments] = useState<Attachment[]>([])
     const [replyFiles, setReplyFiles] = useState<File[]>([])
     const [replyFileError, setReplyFileError] = useState("")
     const [isUploadingReplyFiles, setIsUploadingReplyFiles] = useState(false)
@@ -572,7 +590,7 @@ export function FeedbackDetail({ feedback, mode }: FeedbackDetailProps) {
                                                 )}
                                                 {reply.attachments && reply.attachments.length > 0 && (
                                                     <div className="flex flex-wrap gap-2 mt-1">
-                                                        {reply.attachments.map((att: any) => (
+                                                        {reply.attachments.map((att) => (
                                                             isImageFile(att.mime_type) ? (
                                                                 <Sheet key={att.id}>
                                                                     <SheetTrigger asChild>
@@ -642,11 +660,7 @@ export function FeedbackDetail({ feedback, mode }: FeedbackDetailProps) {
                                         {replyFiles.map((file, idx) => (
                                             <div key={idx} className="relative w-12 h-12 rounded-md border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center group">
                                                 {file.type.startsWith('image/') ? (
-                                                    <img
-                                                        src={URL.createObjectURL(file)}
-                                                        alt={file.name}
-                                                        className="w-full h-full object-cover"
-                                                    />
+                                                    <FilePreviewImg file={file} className="w-full h-full object-cover" />
                                                 ) : (
                                                     <span className="text-[9px] font-semibold text-gray-500 text-center px-0.5 break-all leading-tight">
                                                         {file.name.split('.').pop()?.toUpperCase() || 'FILE'}

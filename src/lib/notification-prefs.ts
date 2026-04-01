@@ -42,6 +42,7 @@ export async function getNotificationPrefs(
         .from('email_preferences')
         .select(`${column}, email_frequency, unsubscribe_token`)
         .eq('email', email)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .single() as any;
 
     let shouldNotify = !isLocalhost; // default true in prod, false on localhost
@@ -50,7 +51,7 @@ export async function getNotificationPrefs(
 
     if (!prefData) {
         // Upsert with defaults — on localhost, all notifications default to off
-        const defaults: Record<string, any> = { email };
+        const defaults: Record<string, boolean | string> = { email };
         if (isLocalhost) {
             defaults.notify_new_feedback = false;
             defaults.notify_replies = false;
@@ -65,10 +66,10 @@ export async function getNotificationPrefs(
             .single();
         if (newPref) {
             unsubscribeToken = newPref.unsubscribe_token;
-            emailFrequency = (newPref as any).email_frequency || 'digest';
+            emailFrequency = (newPref.email_frequency as EmailFrequency) || 'digest';
         }
     } else {
-        shouldNotify = (prefData as any)[column];
+        shouldNotify = (prefData as Record<string, unknown>)[column] as boolean;
         emailFrequency = prefData.email_frequency || 'digest';
     }
 

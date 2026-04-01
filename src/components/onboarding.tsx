@@ -51,6 +51,7 @@ export default function Onboarding({
     // Restore collapsed state from localStorage
     useEffect(() => {
         const stored = localStorage.getItem('onboarding_collapsed');
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (stored === 'true') setCollapsed(true);
     }, []);
 
@@ -246,7 +247,7 @@ export default function Onboarding({
                                 onClick={handleCollapse}
                                 className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 cursor-pointer"
                             >
-                                I'll explore on my own
+                                {"I'll explore on my own"}
                             </button>
                         </div>
                     </CardContent>

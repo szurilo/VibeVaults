@@ -22,6 +22,7 @@ export default async function FeedbackListPage() {
     const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
 
     // Fetch feedbacks with reply and attachment counts
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let feedbacks: any[] = [];
     if (currentProject) {
         const { data } = await supabase

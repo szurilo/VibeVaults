@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { addManualFeedbackAction } from '@/actions/feedback';
 import { toast } from 'sonner';
+import { FilePreviewImg } from './file-preview-img';
 
 export function AddFeedbackDialog({ projectId }: { projectId: string }) {
     const [open, setOpen] = useState(false);
@@ -111,7 +112,7 @@ export function AddFeedbackDialog({ projectId }: { projectId: string }) {
             setOpen(false);
             setContent('');
             setFiles([]);
-        } catch (error: any) {
+        } catch {
             toast("Error", { description: "Failed to add feedback.", icon: <AlertCircle className="h-4 w-4 text-red-500" /> });
         } finally {
             setIsSubmitting(false);
@@ -173,11 +174,7 @@ export function AddFeedbackDialog({ projectId }: { projectId: string }) {
                             {files.map((file, idx) => (
                                 <div key={idx} className="relative w-12 h-12 rounded-md border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center group">
                                     {file.type.startsWith('image/') ? (
-                                        <img
-                                            src={URL.createObjectURL(file)}
-                                            alt={file.name}
-                                            className="w-full h-full object-cover"
-                                        />
+                                        <FilePreviewImg file={file} className="w-full h-full object-cover" />
                                     ) : (
                                         <span className="text-[9px] font-semibold text-gray-500 text-center px-0.5 break-all leading-tight">
                                             {file.name.split('.').pop()?.toUpperCase() || 'FILE'}

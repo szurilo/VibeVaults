@@ -23,6 +23,7 @@ const ALL_STATUSES = [
 const DEFAULT_STATUSES = ['open', 'in progress', 'in review'];
 
 interface FeedbackListProps {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     feedbacks: any[];
 }
 
@@ -78,7 +79,7 @@ export function FeedbackList({ feedbacks }: FeedbackListProps) {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
-                    {filtered.map((item: any) => (
+                    {filtered.map((item) => (
                         <FeedbackListCard
                             key={item.id}
                             feedback={item}

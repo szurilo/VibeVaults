@@ -31,7 +31,7 @@ export default function AuthCodeError() {
                     <div className="space-y-2">
                         <CardTitle className="text-2xl font-extrabold tracking-tight">Authentication Error</CardTitle>
                         <CardDescription className="text-base">
-                            We couldn't complete your authentication request.
+                            {"We couldn't complete your authentication request."}
                         </CardDescription>
                     </div>
                 </CardHeader>

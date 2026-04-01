@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { updatePreferencesAction } from "@/actions/preferences";
 
-export default function UnsubscribeForm({ initialPreferences, token, isAgency }: { initialPreferences: any, token: string, isAgency?: boolean }) {
+interface EmailPreferences {
+    notify_new_feedback?: boolean;
+    notify_replies?: boolean;
+    notify_project_created?: boolean;
+    notify_project_deleted?: boolean;
+}
+
+export default function UnsubscribeForm({ initialPreferences, token, isAgency }: { initialPreferences: EmailPreferences, token: string, isAgency?: boolean }) {
     const [notifyNewFeedback, setNotifyNewFeedback] = useState(initialPreferences.notify_new_feedback !== false);
     const [notifyReplies, setNotifyReplies] = useState(initialPreferences.notify_replies);
     const [notifyProjectCreated, setNotifyProjectCreated] = useState(initialPreferences.notify_project_created !== false);

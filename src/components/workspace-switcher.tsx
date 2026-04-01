@@ -19,12 +19,19 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+interface Workspace {
+    id: string;
+    name: string;
+    owner_id: string;
+    brand_logo_url?: string | null;
+}
+
 export default function WorkspaceSwitcher({
     workspaces,
     selectedWorkspaceId,
     user
 }: {
-    workspaces: any[],
+    workspaces: Workspace[],
     selectedWorkspaceId?: string,
     user: User
 }) {

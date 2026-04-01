@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { Bell, Check, CheckCircle2, Circle, MessageSquare, PlusCircle, Trash2, XIcon, UserMinus, UserPlus, LogOut } from "lucide-react"
+import { Bell, CheckCircle2, MessageSquare, PlusCircle, Trash2, XIcon, UserMinus, UserPlus, LogOut } from "lucide-react"
 import {
     Sheet,
     SheetClose,
@@ -16,10 +16,22 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 
+interface Notification {
+    id: string;
+    user_id: string;
+    project_id: string | null;
+    feedback_id: string | null;
+    type: string;
+    title: string;
+    message: string;
+    is_read: boolean;
+    created_at: string;
+}
+
 export function NotificationBell({ userId }: { userId: string }) {
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
     const router = useRouter()
-    const [notifications, setNotifications] = useState<any[]>([])
+    const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
     const [isOpen, setIsOpen] = useState(false)
 
@@ -38,6 +50,16 @@ export function NotificationBell({ userId }: { userId: string }) {
             setUnreadCount(data.filter(n => !n.is_read).length)
         }
     }, [userId, supabase])
+
+    const markAsRead = useCallback(async (id: string) => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
+        setUnreadCount(prev => Math.max(0, prev - 1))
+
+        await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('id', id)
+    }, [supabase])
 
     useEffect(() => {
         fetchNotifications()
@@ -61,17 +83,7 @@ export function NotificationBell({ userId }: { userId: string }) {
             window.removeEventListener('vibe-new-notification', handleNewNotification)
             window.removeEventListener('vibe-notification-viewed', handleNotificationViewed)
         }
-    }, [fetchNotifications])
-
-    const markAsRead = async (id: string) => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
-        setUnreadCount(prev => Math.max(0, prev - 1))
-
-        await supabase
-            .from('notifications')
-            .update({ is_read: true })
-            .eq('id', id)
-    }
+    }, [fetchNotifications, markAsRead])
 
     const markAllAsRead = async () => {
         setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
@@ -94,13 +106,14 @@ export function NotificationBell({ userId }: { userId: string }) {
             .eq('user_id', userId)
     }
 
-    const handleNotificationClick = async (notification: any) => {
+    const handleNotificationClick = async (notification: Notification) => {
         if (!notification.is_read) {
             await markAsRead(notification.id)
         }
         setIsOpen(false)
 
         if (notification.project_id) {
+            // eslint-disable-next-line react-hooks/immutability
             document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
             if (notification.feedback_id) {
                 router.push(`/dashboard/feedback/${notification.feedback_id}`);

@@ -6,7 +6,7 @@
  * Sensitive Dependencies: Supabase Storage (feedback-attachments bucket), tier-helpers
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
 import { checkStorageLimit } from "@/lib/tier-helpers";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB

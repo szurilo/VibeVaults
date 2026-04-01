@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 export async function updatePreferencesAction(token: string, notifyReplies: boolean, notifyNewFeedback?: boolean, notifyProjectCreated?: boolean, notifyProjectDeleted?: boolean) {
     const supabase = createAdminClient();
 
-    const updateData: any = { notify_replies: notifyReplies };
+    const updateData: Record<string, boolean> = { notify_replies: notifyReplies };
     if (notifyNewFeedback !== undefined) {
         updateData.notify_new_feedback = notifyNewFeedback;
     }

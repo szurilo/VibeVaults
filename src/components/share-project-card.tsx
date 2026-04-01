@@ -11,14 +11,22 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card'
-import { AlertCircle, Check, Copy, ExternalLink, Link as LinkIcon, Lock } from 'lucide-react'
+import { AlertCircle, Check, Copy, ExternalLink, Link as LinkIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { toggleProjectSharing } from '@/actions/project-sharing'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 
-export function ShareProjectCard({ project }: { project: any }) {
+interface Project {
+    id: string;
+    name: string;
+    is_sharing_enabled: boolean;
+    share_token?: string | null;
+    workspace_id: string;
+}
+
+export function ShareProjectCard({ project }: { project: Project }) {
     const [isEnabled, setIsEnabled] = useState(project.is_sharing_enabled || false)
     const [loading, setLoading] = useState(false)
     const [copied, setCopied] = useState(false)
@@ -73,7 +81,7 @@ export function ShareProjectCard({ project }: { project: any }) {
                             Share read-only Project Board
                         </CardTitle>
                         <CardDescription className="text-blue-700/80">
-                            Allow anyone with the link to view this project's feedback.
+                            {"Allow anyone with the link to view this project's feedback."}
                         </CardDescription>
                     </div>
                     <Switch

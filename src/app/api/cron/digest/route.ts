@@ -12,7 +12,6 @@ import { NextResponse } from 'next/server';
 import {
     fetchPendingDigestItems,
     groupDigestItems,
-    markDigestItemsSent,
 } from '@/lib/email-digest';
 import {
     sendFeedbackDigestEmail,
@@ -120,9 +119,6 @@ export async function GET() {
                 allProcessedIds.push(...projectItems.map(i => i.id));
             }
         }
-
-        // Mark all processed items as sent
-        await markDigestItemsSent(allProcessedIds);
 
         return NextResponse.json({ processed: allProcessedIds.length, emailsSent: totalSent });
     } catch (e) {

@@ -13,7 +13,7 @@ import {
 import { Check, Copy, Code } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-export function EmbedWidgetCard({ project }: { project: any }) {
+export function EmbedWidgetCard({ project }: { project: { api_key: string } }) {
     const [copied, setCopied] = useState(false)
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL!
     const scriptTag = `<script src="${baseUrl}/widget.js" data-key="${project.api_key}" async></script>`

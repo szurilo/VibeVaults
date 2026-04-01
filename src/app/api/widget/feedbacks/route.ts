@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsHeaders, corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
 
 export async function OPTIONS() {
     return optionsResponse();
@@ -63,6 +63,7 @@ export async function GET(request: Request) {
         status: f.status || 'open',
         created_at: f.created_at,
         reply_count: Array.isArray(f.feedback_replies) ? f.feedback_replies.length : 0,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         attachments: (f as any).feedback_attachments || [],
     }));
 

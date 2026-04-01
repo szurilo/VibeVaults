@@ -59,19 +59,24 @@ export default async function DashboardLayout({
                     .single();
 
                 if (!existing) {
-                    await adminSupabase
+                    const { error: insertError } = await adminSupabase
                         .from("workspace_members")
                         .insert({
                             workspace_id: invite.workspace_id,
                             user_id: user.id,
                             role: invite.role
                         });
+
+                    if (insertError) {
+                        console.error("Failed to accept invite:", insertError);
+                        continue; // Don't delete the invite if we couldn't add the member
+                    }
                 }
 
                 // Track this workspace ID to auto-select it later
                 autoSelectedWorkspaceId = invite.workspace_id;
 
-                // Delete invite
+                // Delete invite only after successful member insert (or if already a member)
                 await adminSupabase
                     .from("workspace_invites")
                     .delete()
@@ -95,6 +100,7 @@ export default async function DashboardLayout({
 
 
     // Now fetch projects for the active workspace
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let projects: any[] | null = null;
     if (selectedWorkspaceId) {
         const { data } = await supabase

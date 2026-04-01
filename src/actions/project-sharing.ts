@@ -17,11 +17,13 @@ export async function toggleProjectSharing(projectId: string, enable: boolean) {
             .eq('id', projectId)
             .single();
 
-        if (proj) {
-            const { effectiveLimits } = await getWorkspaceOwnerTier(proj.workspace_id);
-            if (!effectiveLimits.publicDashboard) {
-                return { error: 'Public dashboard sharing is available on Pro and Business plans. Upgrade to unlock.' };
-            }
+        if (!proj) {
+            return { error: 'Project not found.' };
+        }
+
+        const { effectiveLimits } = await getWorkspaceOwnerTier(proj.workspace_id);
+        if (!effectiveLimits.publicDashboard) {
+            return { error: 'Public dashboard sharing is available on Pro and Business plans. Upgrade to unlock.' };
         }
         // Check if project has a share token
         const { data: project, error: fetchError } = await supabase
