@@ -110,7 +110,7 @@ export default function WorkspaceSwitcher({
                                 {hasWorkspaces ? (
                                     <div className="flex items-center gap-2 overflow-hidden">
                                         <Avatar className="h-8 w-8 rounded-md border border-gray-200 shrink-0">
-                                            <AvatarImage src={activeWorkspace?.brand_logo_url} alt={activeWorkspace?.name} className="object-contain" />
+                                            <AvatarImage src={activeWorkspace?.brand_logo_url ?? undefined} alt={activeWorkspace?.name} className="object-contain" />
                                             <AvatarFallback className="bg-primary/10 text-primary rounded-md">
                                                 {activeWorkspace?.name.charAt(0).toUpperCase() || "W"}
                                             </AvatarFallback>
@@ -156,7 +156,7 @@ export default function WorkspaceSwitcher({
                                             className="flex items-center gap-2"
                                         >
                                             <Avatar className="h-6 w-6 rounded-md border border-gray-100">
-                                                <AvatarImage src={w.brand_logo_url} alt={w.name} className="object-contain" />
+                                                <AvatarImage src={w.brand_logo_url ?? undefined} alt={w.name} className="object-contain" />
                                                 <AvatarFallback className="bg-primary/10 text-primary text-xs rounded-md">
                                                     {w.name.charAt(0).toUpperCase()}
                                                 </AvatarFallback>
@@ -180,7 +180,7 @@ export default function WorkspaceSwitcher({
                                             className="flex items-center gap-2"
                                         >
                                             <Avatar className="h-6 w-6 rounded-md border border-gray-100">
-                                                <AvatarImage src={w.brand_logo_url} alt={w.name} className="object-contain" />
+                                                <AvatarImage src={w.brand_logo_url ?? undefined} alt={w.name} className="object-contain" />
                                                 <AvatarFallback className="bg-primary/10 text-primary text-xs rounded-md">
                                                     {w.name.charAt(0).toUpperCase()}
                                                 </AvatarFallback>

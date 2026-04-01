@@ -38,6 +38,7 @@ interface Workspace {
 interface Project {
     id: string;
     name: string;
+    website_url?: string | null;
 }
 
 export function AppSidebar({

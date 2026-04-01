@@ -52,6 +52,7 @@ interface Attachment {
     file_url: string;
     file_size: number;
     mime_type: string;
+    uploaded_by?: string | null;
 }
 
 interface Reply {

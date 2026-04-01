@@ -16,7 +16,7 @@ interface EmailPreferences {
 
 export default function UnsubscribeForm({ initialPreferences, token, isAgency }: { initialPreferences: EmailPreferences, token: string, isAgency?: boolean }) {
     const [notifyNewFeedback, setNotifyNewFeedback] = useState(initialPreferences.notify_new_feedback !== false);
-    const [notifyReplies, setNotifyReplies] = useState(initialPreferences.notify_replies);
+    const [notifyReplies, setNotifyReplies] = useState(initialPreferences.notify_replies !== false);
     const [notifyProjectCreated, setNotifyProjectCreated] = useState(initialPreferences.notify_project_created !== false);
     const [notifyProjectDeleted, setNotifyProjectDeleted] = useState(initialPreferences.notify_project_deleted !== false);
     const [loading, setLoading] = useState(false);
