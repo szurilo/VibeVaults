@@ -41,12 +41,12 @@ export async function GET() {
                     await sendFeedbackDigestEmail({
                         to: recipientEmail,
                         items: feedbackItems.map(item => ({
-                            content: item.payload.content || '',
-                            sender: item.payload.sender,
-                            projectName: item.payload.projectName || '',
-                            workspaceId: item.payload.workspaceId,
-                            projectId: item.payload.projectId,
-                            feedbackId: item.feedback_id || item.payload.feedbackId,
+                            content: (item.payload.content as string) || '',
+                            sender: item.payload.sender as string,
+                            projectName: (item.payload.projectName as string) || '',
+                            workspaceId: item.payload.workspaceId as string,
+                            projectId: item.payload.projectId as string,
+                            feedbackId: item.feedback_id || (item.payload.feedbackId as string),
                         })),
                         unsubscribeToken: prefs.unsubscribeToken,
                     });
@@ -66,13 +66,13 @@ export async function GET() {
                     await sendReplyDigestEmail({
                         to: recipientEmail,
                         items: replyItems.map(item => ({
-                            replyContent: item.payload.replyContent || '',
-                            sender: item.payload.sender || '',
-                            projectName: item.payload.projectName || '',
-                            feedbackContentPreview: item.payload.originalFeedback,
-                            workspaceId: item.payload.workspaceId,
-                            projectId: item.payload.projectId,
-                            feedbackId: item.feedback_id || item.payload.feedbackId,
+                            replyContent: (item.payload.replyContent as string) || '',
+                            sender: (item.payload.sender as string) || '',
+                            projectName: (item.payload.projectName as string) || '',
+                            feedbackContentPreview: item.payload.originalFeedback as string | undefined,
+                            workspaceId: item.payload.workspaceId as string,
+                            projectId: item.payload.projectId as string,
+                            feedbackId: item.feedback_id || (item.payload.feedbackId as string),
                         })),
                         unsubscribeToken: prefs.unsubscribeToken,
                     });
@@ -105,12 +105,12 @@ export async function GET() {
                     await sendProjectEventDigestEmail({
                         to: recipientEmail,
                         items: projectItems.map(item => ({
-                            projectName: item.payload.projectName || '',
-                            actorName: item.payload.actorName || 'A team member',
-                            workspaceName: item.payload.workspaceName || '',
+                            projectName: (item.payload.projectName as string) || '',
+                            actorName: (item.payload.actorName as string) || 'A team member',
+                            workspaceName: (item.payload.workspaceName as string) || '',
                             type: item.notification_type === 'project_deleted' ? 'deleted' as const : 'created' as const,
-                            workspaceId: item.payload.workspaceId,
-                            projectId: item.payload.projectId,
+                            workspaceId: item.payload.workspaceId as string,
+                            projectId: item.payload.projectId as string,
                         })),
                         unsubscribeToken: (await getNotificationPrefs(recipientEmail, hasDeleted ? 'project_deleted' : 'project_created')).unsubscribeToken,
                     });
