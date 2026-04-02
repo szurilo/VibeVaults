@@ -17,9 +17,10 @@ interface FeedbackListCardProps {
     }
     replyCount: number
     attachmentCount: number
+    senderAvatarUrl?: string
 }
 
-export function FeedbackListCard({ feedback, replyCount, attachmentCount }: FeedbackListCardProps) {
+export function FeedbackListCard({ feedback, replyCount, attachmentCount, senderAvatarUrl }: FeedbackListCardProps) {
     const status = feedback.status || 'open'
     const snippet = feedback.content.length > 120
         ? feedback.content.slice(0, 120) + '...'
@@ -36,9 +37,18 @@ export function FeedbackListCard({ feedback, replyCount, attachmentCount }: Feed
                         <div className="flex items-start justify-between gap-3 mb-3">
                             <div className="flex items-center gap-3 min-w-0">
                                 <div className="relative shrink-0">
-                                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[11px] font-bold text-white uppercase shadow-sm">
-                                        {feedback.sender.charAt(0)}
-                                    </div>
+                                    {senderAvatarUrl ? (
+                                        <img
+                                            src={senderAvatarUrl}
+                                            alt=""
+                                            className="w-8 h-8 rounded-full object-cover shadow-sm"
+                                            referrerPolicy="no-referrer"
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[11px] font-bold text-white uppercase shadow-sm">
+                                            {feedback.sender.charAt(0)}
+                                        </div>
+                                    )}
                                 </div>
                                 <span className="text-sm font-semibold text-gray-900 truncate">
                                     {feedback.sender}

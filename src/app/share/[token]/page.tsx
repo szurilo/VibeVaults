@@ -3,6 +3,7 @@ import { FeedbackCard } from '@/components/feedback-card'
 import Link from 'next/link'
 import { Clock, ExternalLink } from 'lucide-react'
 import { getWorkspaceOwnerTier } from '@/lib/tier-helpers'
+import { fetchSenderAvatars } from '@/lib/feedback-utils'
 
 // Define Feedback type for clarity
 type Feedback = {
@@ -64,6 +65,8 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
 
     const feedbacks = (feedbackData || []) as Feedback[]
 
+    const senderAvatars = await fetchSenderAvatars(supabase, feedbacks.map(f => f.sender))
+
 
 
     return (
@@ -118,7 +121,7 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                         {feedbacks.map((f) => (
-                            <FeedbackCard key={f.id} feedback={f} mode="view" />
+                            <FeedbackCard key={f.id} feedback={f} mode="view" senderAvatarUrl={senderAvatars[f.sender]} />
                         ))}
                     </div>
                 )}

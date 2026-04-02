@@ -67,9 +67,10 @@ interface Reply {
 interface FeedbackDetailProps {
     feedback: FeedbackData
     mode: 'view' | 'edit'
+    senderAvatarUrl?: string
 }
 
-export function FeedbackDetail({ feedback, mode }: FeedbackDetailProps) {
+export function FeedbackDetail({ feedback, mode, senderAvatarUrl }: FeedbackDetailProps) {
     const [isDeleting, setIsDeleting] = useState(false)
     const [replies, setReplies] = useState<Reply[]>([])
     const [isFetchingReplies, setIsFetchingReplies] = useState(false)
@@ -276,9 +277,18 @@ export function FeedbackDetail({ feedback, mode }: FeedbackDetailProps) {
                 <div className="flex flex-wrap justify-between items-start sm:items-center gap-4">
                     <div className="flex items-center gap-3">
                         <div className="relative shrink-0">
-                            <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[11px] font-bold text-white uppercase shadow-sm">
-                                {feedback.sender.charAt(0)}
-                            </div>
+                            {senderAvatarUrl ? (
+                                <img
+                                    src={senderAvatarUrl}
+                                    alt=""
+                                    className="w-8 h-8 rounded-full object-cover shadow-sm"
+                                    referrerPolicy="no-referrer"
+                                />
+                            ) : (
+                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[11px] font-bold text-white uppercase shadow-sm">
+                                    {feedback.sender.charAt(0)}
+                                </div>
+                            )}
                             <div className="absolute -bottom-0.5 -right-0.5 w-[9px] h-[9px] bg-green-500 border-2 border-white rounded-full"></div>
                         </div>
                         <div className="flex flex-col justify-center gap-0.5">

@@ -54,3 +54,25 @@ export function parseUA(ua?: string) {
 export function isImageFile(mimeType: string) {
     return mimeType?.startsWith('image/')
 }
+
+/**
+ * Looks up profile avatar URLs for a list of sender emails.
+ * Works with any Supabase client (server or admin).
+ */
+export async function fetchSenderAvatars(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase: { from: (table: string) => any },
+    emails: string[]
+): Promise<Record<string, string>> {
+    if (emails.length === 0) return {}
+    const unique = [...new Set(emails)]
+    const { data: profiles } = await supabase
+        .from('profiles')
+        .select('email, avatar_url')
+        .in('email', unique)
+        .not('avatar_url', 'is', null)
+    if (!profiles) return {}
+    return Object.fromEntries(
+        profiles.map((p: { email: string; avatar_url: string }) => [p.email, p.avatar_url])
+    )
+}

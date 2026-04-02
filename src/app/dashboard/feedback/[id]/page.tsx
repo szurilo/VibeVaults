@@ -3,6 +3,7 @@ import { FeedbackDetail } from "@/components/feedback-detail";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
+import { fetchSenderAvatars } from "@/lib/feedback-utils";
 
 export default async function FeedbackDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -18,6 +19,10 @@ export default async function FeedbackDetailPage({ params }: { params: Promise<{
         notFound();
     }
 
+    // Look up sender's profile avatar
+    const senderAvatars = await fetchSenderAvatars(supabase, [feedback.sender]);
+    const senderAvatarUrl = senderAvatars[feedback.sender];
+
     return (
         <div className="max-w-3xl mx-auto">
             <Link
@@ -28,7 +33,7 @@ export default async function FeedbackDetailPage({ params }: { params: Promise<{
                 Back to Feedbacks
             </Link>
 
-            <FeedbackDetail feedback={feedback} mode="edit" />
+            <FeedbackDetail feedback={feedback} mode="edit" senderAvatarUrl={senderAvatarUrl} />
         </div>
     );
 }

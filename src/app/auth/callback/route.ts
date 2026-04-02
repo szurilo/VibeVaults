@@ -1,6 +1,6 @@
 
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { type NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 
 function safeRedirectPath(path: string): string {
     // Only allow relative paths starting with / — block protocol-relative URLs (//evil.com)
@@ -8,23 +8,50 @@ function safeRedirectPath(path: string): string {
     return '/dashboard'
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
     const next = safeRedirectPath(searchParams.get('next') ?? '/dashboard')
 
-    // Handle OAuth PKCE flow (used by OAuth providers like Google, GitHub, etc.)
     if (code) {
-        const supabase = await createClient()
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        const response = NextResponse.redirect(`${origin}${next}`)
+
+        // Supabase calls setAll asynchronously (via internal auth state listener)
+        // after exchangeCodeForSession resolves. We use a promise to wait for it
+        // before returning the response, ensuring session cookies are included.
+        let resolveSetAll: () => void
+        const cookiesReady = new Promise<void>(resolve => { resolveSetAll = resolve })
+
+        const supabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+            {
+                cookies: {
+                    getAll() {
+                        return request.cookies.getAll()
+                    },
+                    setAll(cookiesToSet) {
+                        cookiesToSet.forEach(({ name, value, options }) => {
+                            response.cookies.set(name, value, options)
+                        })
+                        resolveSetAll()
+                    },
+                },
+            }
+        )
+
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (!error) {
-            return NextResponse.redirect(`${origin}${next}`)
+            await Promise.race([
+                cookiesReady,
+                new Promise(resolve => setTimeout(resolve, 5000)),
+            ])
+            return response
         }
 
         console.error('Error exchanging code for session:', error)
     }
 
-    // If we get here, either no code was provided or verification failed
     return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }
