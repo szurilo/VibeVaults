@@ -25,9 +25,10 @@ const DEFAULT_STATUSES = ['open', 'in progress', 'in review'];
 interface FeedbackListProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     feedbacks: any[];
+    senderAvatars?: Record<string, string>;
 }
 
-export function FeedbackList({ feedbacks }: FeedbackListProps) {
+export function FeedbackList({ feedbacks, senderAvatars = {} }: FeedbackListProps) {
     const [activeStatuses, setActiveStatuses] = useState<string[]>(DEFAULT_STATUSES);
 
     const toggleStatus = (status: string) => {
@@ -85,6 +86,7 @@ export function FeedbackList({ feedbacks }: FeedbackListProps) {
                             feedback={item}
                             replyCount={item.reply_count ?? 0}
                             attachmentCount={item.attachment_count ?? 0}
+                            senderAvatarUrl={senderAvatars[item.sender]}
                         />
                     ))}
                 </div>

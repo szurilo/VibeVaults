@@ -10,8 +10,9 @@ import { type FeedbackData } from "@/lib/feedback-utils"
 interface FeedbackCardProps {
     feedback: FeedbackData
     mode: 'view' | 'edit'
+    senderAvatarUrl?: string
 }
 
-export function FeedbackCard({ feedback, mode }: FeedbackCardProps) {
-    return <FeedbackDetail feedback={feedback} mode={mode} />
+export function FeedbackCard({ feedback, mode, senderAvatarUrl }: FeedbackCardProps) {
+    return <FeedbackDetail feedback={feedback} mode={mode} senderAvatarUrl={senderAvatarUrl} />
 }

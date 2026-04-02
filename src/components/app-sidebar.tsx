@@ -202,7 +202,7 @@ export function AppSidebar({
                     <DropdownMenuTrigger asChild>
                         <SidebarMenuButton size="lg" className="w-full justify-start gap-2 h-auto py-2 cursor-pointer">
                             <Avatar className="h-8 w-8 rounded-full border border-gray-200">
-                                <AvatarImage src={user.user_metadata?.avatar_url} alt={user.user_metadata?.full_name || "User avatar"} />
+                                <AvatarImage src={user.user_metadata?.avatar_url || user.user_metadata?.picture} alt={user.user_metadata?.full_name || "User avatar"} />
                                 <AvatarFallback className="bg-primary/10 text-primary">
                                     {(user.user_metadata?.full_name || user.email || "?").charAt(0).toUpperCase()}
                                 </AvatarFallback>

@@ -3,6 +3,7 @@ import { Highlight } from "@/components/highlight";
 import { cookies } from "next/headers";
 import { AddFeedbackDialog } from "@/components/add-feedback-dialog";
 import { FeedbackList } from "@/components/feedback-list";
+import { fetchSenderAvatars } from "@/lib/feedback-utils";
 
 
 export default async function FeedbackListPage() {
@@ -24,6 +25,7 @@ export default async function FeedbackListPage() {
     // Fetch feedbacks with reply and attachment counts
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let feedbacks: any[] = [];
+    let senderAvatars: Record<string, string> = {};
     if (currentProject) {
         const { data } = await supabase
             .from('feedbacks')
@@ -38,6 +40,7 @@ export default async function FeedbackListPage() {
                 feedback_replies: undefined,
                 feedback_attachments: undefined,
             }));
+            senderAvatars = await fetchSenderAvatars(supabase, data.map(f => f.sender));
         }
     }
 
@@ -67,7 +70,7 @@ export default async function FeedbackListPage() {
                     <p className="text-gray-500">No feedback received yet.</p>
                 </div>
             ) : (
-                <FeedbackList feedbacks={feedbacks} />
+                <FeedbackList feedbacks={feedbacks} senderAvatars={senderAvatars} />
             )}
         </div>
     );
