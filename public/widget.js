@@ -19,6 +19,7 @@
     const API_UPLOAD = `${origin}/api/widget/upload`;
     const API_UPLOAD_CONFIRM = `${origin}/api/widget/upload/confirm`;
     const API_VERIFY = `${origin}/api/widget/verify-email`;
+    const API_ERRORS = `${origin}/api/widget/errors`;
 
     const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
@@ -117,6 +118,43 @@
       viewport: `${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`,
       language: navigator.language,
       logs: logs
+    });
+
+    // --- Error Reporter (sends widget errors to Supabase via /api/widget/errors) ---
+    const reportedErrors = new Set();
+    const reportError = (message, stack) => {
+      // Deduplicate identical errors within the same page session
+      const key = message + (stack || '');
+      if (reportedErrors.has(key)) return;
+      reportedErrors.add(key);
+      try {
+        const payload = JSON.stringify({
+          apiKey,
+          message: String(message).slice(0, 2000),
+          stack: stack ? String(stack).slice(0, 5000) : null,
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+          metadata: { screen: `${window.innerWidth}x${window.innerHeight}` }
+        });
+        // Use sendBeacon for reliability (fires even on page unload), fallback to fetch
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(API_ERRORS, new Blob([payload], { type: 'application/json' }));
+        } else {
+          fetch(API_ERRORS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload }).catch(() => {});
+        }
+      } catch (e) { /* silently fail — error reporting must never break the widget */ }
+    };
+
+    // Capture unhandled errors and promise rejections from the widget
+    window.addEventListener('error', (e) => {
+      if (e.filename && e.filename.includes('widget.js')) {
+        reportError(e.message, e.error?.stack);
+      }
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      const msg = e.reason?.message || String(e.reason);
+      const stack = e.reason?.stack;
+      reportError(msg, stack);
     });
 
     // --- File Upload Helpers ---

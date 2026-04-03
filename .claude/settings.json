@@ -10,7 +10,8 @@
       "Bash(curl -s http://localhost:3000/api/cron/digest)",
       "Bash(grep -E \"\\\\.\\(sql|ts|md\\)$\")",
       "Bash(grep -r \"feedback.*hash\\\\|#\" /c/Joco/VibeVaults/src/lib/notifications*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npm install:*)"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"

@@ -47,6 +47,7 @@ export function AuthForm({ mode, socialProviders }: AuthFormProps) {
     const [emailError, setEmailError] = useState('');
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [devMailpitHint, setDevMailpitHint] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [captchaToken, setCaptchaToken] = useState<string>();
 
@@ -105,6 +106,9 @@ export function AuthForm({ mode, socialProviders }: AuthFormProps) {
         } else {
             setSubmitted(true);
             setLoading(false);
+            if (process.env.NODE_ENV === 'development') {
+                setDevMailpitHint(true);
+            }
         }
     }
 
@@ -133,6 +137,11 @@ export function AuthForm({ mode, socialProviders }: AuthFormProps) {
                             {"We've sent a magic link to "}<span className="font-semibold text-gray-900">{email}</span>.
                             <br />Click the link in the email to complete your {config.submittedText}.
                         </p>
+                        {devMailpitHint && (
+                            <a href="http://localhost:54324" target="_blank" rel="noopener noreferrer" className="inline-block mb-4 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium hover:bg-amber-100 transition-colors">
+                                Dev: Open Mailpit to find the magic link
+                            </a>
+                        )}
                         {mode === 'register' && (
                             <div className="mt-6">
                                 <Link href="/auth/login" className="text-sm font-medium text-primary hover:text-primary/80">
