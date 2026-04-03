@@ -15,7 +15,7 @@ export default function TermsOfService() {
             <main className="max-w-3xl mx-auto px-8 py-12">
                 <h1 className="text-4xl font-extrabold mb-4 text-gray-900">Terms of Service</h1>
                 <p className="text-gray-500 mb-8">
-                    <strong>Last updated:</strong> March 31, 2026
+                    <strong>Last updated:</strong> April 2, 2026
                 </p>
 
                 <div className="prose prose-gray max-w-none">
@@ -109,6 +109,9 @@ export default function TermsOfService() {
                         <li><strong>Supabase</strong> (authentication and database)</li>
                         <li><strong>Vercel</strong> (hosting and deployment)</li>
                         <li><strong>Stripe</strong> (payment processing)</li>
+                        <li><strong>Resend</strong> (transactional email delivery)</li>
+                        <li><strong>Cloudflare Turnstile</strong> (anti-bot verification)</li>
+                        <li><strong>PostHog</strong> (product analytics and error tracking)</li>
                     </ul>
                     <p className="mb-6">
                         We are not responsible for outages or failures caused by these providers.
@@ -133,7 +136,7 @@ export default function TermsOfService() {
                     <p className="mb-4">We may suspend or terminate your access if:</p>
                     <ul className="list-disc pl-6 mb-4 space-y-2">
                         <li>you violate these Terms</li>
-                        <li>you use creates legal or technical risk</li>
+                        <li>your use creates legal or technical risk</li>
                     </ul>
                     <p className="mb-6">
                         Upon termination, your access to the Service will be discontinued.

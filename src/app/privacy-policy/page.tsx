@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
             <main className="max-w-3xl mx-auto px-8 py-12">
                 <h1 className="text-4xl font-extrabold mb-4 text-gray-900">Privacy Policy</h1>
                 <p className="text-gray-500 mb-8">
-                    <strong>Last updated:</strong> March 31, 2026
+                    <strong>Last updated:</strong> April 2, 2026
                 </p>
 
                 <div className="prose prose-gray max-w-none">
@@ -57,7 +57,7 @@ export default function PrivacyPolicy() {
                     <p className="mb-4">We collect:</p>
                     <ul className="list-disc pl-6 mb-4 space-y-2">
                         <li>Email address</li>
-                        <li>Authentication data (handled via Supabase, stored securely)</li>
+                        <li>Authentication data (handled via Supabase, stored securely; includes Google OAuth profile data such as name and avatar if you sign in with Google)</li>
                         <li>Subscription and billing status (handled by Stripe)</li>
                     </ul>
                     <p className="mb-6">
@@ -119,6 +119,9 @@ export default function PrivacyPolicy() {
                         <li><strong>Supabase</strong> – authentication and database services</li>
                         <li><strong>Vercel</strong> – hosting and deployment infrastructure</li>
                         <li><strong>Stripe</strong> – payment processing</li>
+                        <li><strong>Resend</strong> – transactional email delivery (notifications, digests)</li>
+                        <li><strong>Cloudflare Turnstile</strong> – anti-bot verification during authentication</li>
+                        <li><strong>PostHog</strong> – product analytics, session replays, and error tracking</li>
                     </ul>
                     <p className="mb-6">
                         These providers process data only as necessary to deliver their services and under their own privacy policies.
@@ -126,7 +129,20 @@ export default function PrivacyPolicy() {
 
                     <hr className="my-8 border-gray-100" />
 
-                    <h2 className="text-2xl font-bold mb-4 text-gray-900">8. Data Storage and Retention</h2>
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">8. Cookies and Analytics</h2>
+                    <p className="mb-4">We use cookies and similar technologies for:</p>
+                    <ul className="list-disc pl-6 mb-4 space-y-2">
+                        <li><strong>Essential cookies</strong> – authentication sessions and workspace/project preferences</li>
+                        <li><strong>Analytics</strong> – PostHog collects anonymized usage data, including page views and session replays, to help us improve the Service</li>
+                        <li><strong>Anti-bot verification</strong> – Cloudflare Turnstile may set cookies to verify human users during authentication</li>
+                    </ul>
+                    <p className="mb-6">
+                        We do not use cookies for advertising or third-party tracking.
+                    </p>
+
+                    <hr className="my-8 border-gray-100" />
+
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">9. Data Storage and Retention</h2>
                     <ul className="list-disc pl-6 mb-4 space-y-2">
                         <li>Data is stored on secure servers provided by our infrastructure partners.</li>
                         <li>We retain data only as long as necessary to provide the Service or comply with legal obligations.</li>
@@ -135,7 +151,7 @@ export default function PrivacyPolicy() {
 
                     <hr className="my-8 border-gray-100" />
 
-                    <h2 className="text-2xl font-bold mb-4 text-gray-900">9. Data Security</h2>
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">10. Data Security</h2>
                     <p className="mb-4">
                         We implement reasonable technical and organizational measures to protect personal data.
                     </p>
@@ -145,7 +161,7 @@ export default function PrivacyPolicy() {
 
                     <hr className="my-8 border-gray-100" />
 
-                    <h2 className="text-2xl font-bold mb-4 text-gray-900">10. User Rights</h2>
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">11. User Rights</h2>
                     <p className="mb-4">Depending on applicable law, users may have the right to:</p>
                     <ul className="list-disc pl-6 mb-4 space-y-2">
                         <li>Access their personal data</li>
@@ -159,7 +175,7 @@ export default function PrivacyPolicy() {
 
                     <hr className="my-8 border-gray-100" />
 
-                    <h2 className="text-2xl font-bold mb-4 text-gray-900">11. Changes to This Policy</h2>
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">12. Changes to This Policy</h2>
                     <p className="mb-4">We may update this Privacy Policy from time to time.</p>
                     <p className="mb-6">
                         Changes will be posted on this page with an updated &#8220;Last updated&#8221; date.
@@ -167,7 +183,7 @@ export default function PrivacyPolicy() {
 
                     <hr className="my-8 border-gray-100" />
 
-                    <h2 className="text-2xl font-bold mb-4 text-gray-900">12. Contact</h2>
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">13. Contact</h2>
                     <p className="mb-4">
                         If you have questions about this Privacy Policy or data protection matters, contact:
                     </p>
