@@ -17,6 +17,14 @@ export function DeleteAccountCard() {
             throw new Error("Failed to delete account");
         }
 
+        // Clear app localStorage
+        localStorage.removeItem('onboarding_collapsed');
+
+        // Clear app cookies
+        document.cookie = 'selectedWorkspaceId=; path=/; max-age=0';
+        document.cookie = 'selectedProjectId=; path=/; max-age=0';
+        document.cookie = 'sidebar_state=; path=/; max-age=0';
+
         await supabase.auth.signOut();
         router.push("/auth/login");
     };
