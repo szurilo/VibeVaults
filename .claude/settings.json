@@ -11,7 +11,8 @@
       "Bash(grep -E \"\\\\.\\(sql|ts|md\\)$\")",
       "Bash(grep -r \"feedback.*hash\\\\|#\" /c/Joco/VibeVaults/src/lib/notifications*)",
       "Bash(npm run:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"

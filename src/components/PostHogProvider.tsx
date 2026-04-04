@@ -20,6 +20,7 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
     capture_pageview: false, // We capture manually for Next.js route changes
     capture_pageleave: true,
     autocapture: true,
+    capture_exceptions: true,
   })
 }
 
