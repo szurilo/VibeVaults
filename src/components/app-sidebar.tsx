@@ -68,8 +68,7 @@ export function AppSidebar({
     const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
     const activeProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
     const isOwner = activeWorkspace?.owner_id === user.id;
-    const isSubscribePage = pathname === "/dashboard/subscribe";
-    const isTrialExpired = isSubscribePage && !!tierInfo && !tierInfo.isTrialing && !tierInfo.tier;
+    const isTrialExpired = !!tierInfo && !tierInfo.isTrialing && !tierInfo.tier;
     const lockSidebar = isTrialExpired;
 
     // Derive tier display label

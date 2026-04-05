@@ -12,6 +12,7 @@ import { useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { navigateToNotification } from "@/lib/notification-navigation"
 
 import { Toaster } from "@/components/ui/sonner"
 
@@ -44,20 +45,11 @@ export function GlobalNotificationProvider({ children, userId }: { children: Rea
                             onClick: () => {
                                 // Tell NotificationBell to mark this notification as read
                                 window.dispatchEvent(new CustomEvent('vibe-notification-viewed', { detail: notification }));
-
-                                if (notification.project_id) {
-                                    document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
-                                    if (notification.feedback_id) {
-                                        router.push(`/dashboard/feedback/${notification.feedback_id}`);
-                                    } else {
-                                        router.push('/dashboard/feedback');
-                                    }
-                                    router.refresh();
-                                } else {
-                                    // Workspace-level notification (member removed/left)
-                                    router.push('/dashboard');
-                                    router.refresh();
-                                }
+                                navigateToNotification(
+                                    { project_id: notification.project_id, feedback_id: notification.feedback_id },
+                                    router,
+                                    supabase
+                                );
                             }
                         },
                         duration: 8000,

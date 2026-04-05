@@ -4,9 +4,11 @@ import { cookies } from "next/headers";
 import { AddFeedbackDialog } from "@/components/add-feedback-dialog";
 import { FeedbackList } from "@/components/feedback-list";
 import { fetchSenderAvatars } from "@/lib/feedback-utils";
+import { FeedbackDeletedToast } from "@/components/feedback-deleted-toast";
 
 
-export default async function FeedbackListPage() {
+export default async function FeedbackListPage({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
+    const { deleted } = await searchParams;
     const supabase = await createClient();
 
     const cookieStore = await cookies();
@@ -46,6 +48,7 @@ export default async function FeedbackListPage() {
 
     return (
         <div>
+            {deleted === "1" && <FeedbackDeletedToast />}
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-semibold text-gray-900 flex items-center flex-wrap gap-2">
                     Feedbacks {currentProject && (
