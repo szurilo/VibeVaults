@@ -9,16 +9,17 @@ dotenv.config({ path: path.resolve(__dirname, '.env.local') });
  */
 export default defineConfig({
   testDir: './tests',
-  /* Ignore the global-setup file — it is not a test file */
-  testIgnore: '**/global-setup.ts',
-  /* Run tests in files in parallel */
-  fullyParallel: true,
+  /* Ignore non-test files in the tests directory */
+  testIgnore: ['**/global-setup.ts', '**/fixtures/**', '**/utils/**', '**/*.html'],
+  /* Run test files sequentially (some tests mutate shared DB state).
+   * Tests within a single file can still run in parallel unless the file opts into serial mode. */
+  fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Single worker — tests mutate shared DB state (trial, subscription, etc.) */
+  workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
 
@@ -33,8 +34,9 @@ export default defineConfig({
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
 
-    /* Default auth state for all tests — the onboarding test overrides this with an empty state. */
-    storageState: 'tests/.auth/user.json',
+    /* Default auth state for all tests — uses the owner session.
+     * Individual tests can override with member/client sessions via test.use(). */
+    storageState: 'tests/.auth/owner.json',
   },
 
   /* Only run Chromium in CI to keep the suite fast and reliable. */

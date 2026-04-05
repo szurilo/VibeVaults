@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { getMagicLink } from './utils/auth';
+import { generateMagicLink } from './utils/supabase-admin';
 
 // ---------------------------------------------------------------------------
 // Onboarding helper — only used by the fresh-user onboarding test.
@@ -7,7 +7,7 @@ import { getMagicLink } from './utils/auth';
 // ---------------------------------------------------------------------------
 async function signInFreshUser(page: Page): Promise<void> {
     const testEmail = `e2e-onboard-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
-    const magicLink = await getMagicLink(page, testEmail);
+    const magicLink = await generateMagicLink(testEmail);
     await page.goto(magicLink);
     await page.waitForURL('**/dashboard**');
 }

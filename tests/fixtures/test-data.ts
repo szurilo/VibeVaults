@@ -1,0 +1,50 @@
+/**
+ * Main Responsibility: Central constants for all E2E test data.
+ * Every test user, project, and workspace name is defined here
+ * so that seeding and assertions stay in sync.
+ */
+
+// ---------------------------------------------------------------------------
+// Test users
+// ---------------------------------------------------------------------------
+
+/** Unique prefix so we can identify (and clean up) E2E data. */
+const PREFIX = `e2e-${Date.now()}`;
+
+export const TEST_USERS = {
+    owner: {
+        email: `${PREFIX}-owner@example.com`,
+        label: 'E2E Owner',
+    },
+    member: {
+        email: `${PREFIX}-member@example.com`,
+        label: 'E2E Member',
+    },
+    client: {
+        email: `${PREFIX}-client@example.com`,
+        label: 'E2E Client',
+    },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Test workspace & project
+// ---------------------------------------------------------------------------
+
+export const TEST_WORKSPACE = {
+    name: 'E2E Test Workspace',
+} as const;
+
+export const TEST_PROJECT = {
+    name: 'E2E Test Project',
+    websiteUrl: 'https://e2e-test.example.com',
+} as const;
+
+// ---------------------------------------------------------------------------
+// Auth storage paths (consumed by playwright.config.ts and tests)
+// ---------------------------------------------------------------------------
+
+export const AUTH_FILES = {
+    owner: 'tests/.auth/owner.json',
+    member: 'tests/.auth/member.json',
+    client: 'tests/.auth/client.json',
+} as const;

@@ -12,7 +12,11 @@
       "Bash(grep -r \"feedback.*hash\\\\|#\" /c/Joco/VibeVaults/src/lib/notifications*)",
       "Bash(npm run:*)",
       "Bash(npm install:*)",
-      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")"
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(npx playwright:*)",
+      "Bash(node -e \"const pkg = require\\('./package.json'\\); console.log\\(JSON.stringify\\(Object.entries\\(pkg.scripts\\).filter\\(\\([k]\\) => k.includes\\('test'\\) || k.includes\\('e2e'\\) || k.includes\\('playwright'\\)\\), null, 2\\)\\)\")",
+      "Bash(ls *.json)",
+      "Bash(ls tests/*.spec.ts)"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"
