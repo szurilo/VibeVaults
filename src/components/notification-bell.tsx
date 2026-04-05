@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import { navigateToNotification } from "@/lib/notification-navigation"
 
 interface Notification {
     id: string;
@@ -112,19 +113,7 @@ export function NotificationBell({ userId }: { userId: string }) {
         }
         setIsOpen(false)
 
-        if (notification.project_id) {
-            // eslint-disable-next-line react-hooks/immutability
-            document.cookie = `selectedProjectId=${notification.project_id}; path=/`;
-            if (notification.feedback_id) {
-                router.push(`/dashboard/feedback/${notification.feedback_id}`);
-            } else {
-                router.push('/dashboard/feedback');
-            }
-        } else {
-            // Workspace-level notification (member removed/left)
-            router.push('/dashboard');
-        }
-        router.refresh();
+        await navigateToNotification(notification, router, supabase);
     }
 
     return (

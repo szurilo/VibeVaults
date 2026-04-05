@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { FeedbackDetail } from "@/components/feedback-detail";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { fetchSenderAvatars } from "@/lib/feedback-utils";
 
 export default async function FeedbackDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,7 +16,7 @@ export default async function FeedbackDetailPage({ params }: { params: Promise<{
         .single();
 
     if (error || !feedback) {
-        notFound();
+        redirect("/dashboard/feedback?deleted=1");
     }
 
     // Look up sender's profile avatar
