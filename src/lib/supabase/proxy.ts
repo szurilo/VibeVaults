@@ -40,6 +40,18 @@ export async function updateSession(request: NextRequest) {
     const { data } = await supabase.auth.getClaims();
     const user = data?.claims;
 
+    // If authenticated user visits login/register pages, send them to the dashboard.
+    if (
+        user &&
+        (request.nextUrl.pathname === "/auth/login" ||
+            request.nextUrl.pathname === "/auth/register")
+    ) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/dashboard";
+        url.search = "";
+        return NextResponse.redirect(url, 303);
+    }
+
     if (
         !user &&
         !request.nextUrl.pathname.startsWith("/auth") &&
