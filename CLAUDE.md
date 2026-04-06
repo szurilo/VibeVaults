@@ -7,7 +7,7 @@
 - **Framework**: Next.js 16.1.4 (App Router, Turbopack) + React 19
 - **Styling**: Tailwind CSS v4 + Shadcn/UI (Radix) + Framer Motion + Lucide
 - **Backend/DB**: Supabase (PostgreSQL, Auth, Realtime) — Docker locally, Supabase Cloud in prod
-- **Auth**: Magic Link (OTP) + Cloudflare Turnstile for anti-bot
+- **Auth**: Magic Link (OTP) + Google OAuth + Cloudflare Turnstile for anti-bot
 - **Emails**: Resend (transactional + notifications)
 - **Payments**: Stripe — mandatory 14-day paid trial, NO free tier
 - **Proxy**: `src/proxy.ts` (NOT `middleware.ts` — Next.js 16+ paradigm)
@@ -82,6 +82,13 @@ tests/              # Playwright E2E tests
 - **Trial gate**: `validateApiKey()` checks owner's subscription/trial status — widget disabled post-trial
 - **File uploads (presigned URL flow)**: Uploads bypass Vercel serverless functions entirely to avoid the 4.5MB body size limit on Hobby plan. Two-step flow: (1) `/api/widget/upload` or `/api/dashboard/upload` validates auth + returns presigned Supabase Storage URLs, (2) client uploads directly to Supabase Storage via PUT, (3) `/api/widget/upload/confirm` or `/api/dashboard/upload/confirm` verifies actual file size/type from storage metadata and creates `feedback_attachments` records. 10MB/file, 10 files/request.
 - **Email safety**: All user content in emails sanitized via `esc()` in `lib/notifications.ts`
+
+### Auth Cookie Size & Realtime
+- **`cookies.encode: 'tokens-only'`** on all three Supabase client factories (`client.ts`, `server.ts`, `proxy.ts`). Stores only access + refresh tokens in the cookie, dropping `user_metadata`, `identities`, `app_metadata`, and `provider_token`. Without this, Google OAuth metadata bloats cookies to ~5KB+, causing HTTP 431 on Realtime WebSocket upgrades (Kong rejects oversized headers).
+- `@supabase/ssr` pinned to exact `0.8.0` because `encode` is `@experimental`.
+- `cookie` package is a direct dependency (parse/serialize for browser client's `getAll`/`setAll`).
+- `client.ts` provides explicit `auth.userStorage` (SSR-safe) because the library accesses `window.localStorage` unconditionally when `encode: 'tokens-only'` is set.
+- **Never use `getSession()` to read `session.user.*`** — it will be empty. Use `getUser()` (server round-trip) or `getClaims()` (JWT decode) instead.
 
 ### Notification System
 - DB triggers: `notify_new_feedback`, `notify_new_reply`, `notify_project_created`, `notify_project_deleted`

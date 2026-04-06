@@ -1,3 +1,18 @@
+/**
+ * Main Responsibility:
+ *   Next.js middleware helper (called from src/proxy.ts) that refreshes the
+ *   Supabase session cookie on every request and enforces auth/subscription
+ *   routing rules. Uses `encode: 'tokens-only'` to keep the auth cookie small
+ *   enough for Realtime WebSocket upgrades.
+ *
+ * Sensitive Dependencies:
+ *   - `encode` must match the browser and server clients exactly; inconsistent
+ *     encoding across client/server will corrupt sessions on refresh.
+ *   - Uses `supabase.auth.getClaims()` to read the JWT — does not need
+ *     session.user, so the `tokens-only` encoding is transparent here.
+ *   - Do not insert code between createServerClient and getClaims().
+ */
+
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -13,6 +28,7 @@ export async function updateSession(request: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
         {
             cookies: {
+                encode: 'tokens-only',
                 getAll() {
                     return request.cookies.getAll();
                 },
@@ -39,6 +55,18 @@ export async function updateSession(request: NextRequest) {
     // with the Supabase client, your users may be randomly logged out.
     const { data } = await supabase.auth.getClaims();
     const user = data?.claims;
+
+    // If authenticated user visits login/register pages, send them to the dashboard.
+    if (
+        user &&
+        (request.nextUrl.pathname === "/auth/login" ||
+            request.nextUrl.pathname === "/auth/register")
+    ) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/dashboard";
+        url.search = "";
+        return NextResponse.redirect(url, 303);
+    }
 
     if (
         !user &&

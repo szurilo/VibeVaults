@@ -10,7 +10,7 @@
 - **Backend/Database**: Supabase (PostgreSQL, Auth, Realtime) — local Docker instance for development, Supabase cloud for production.
 - **Widget Flow**: A lightweight Vanilla JS script (`public/widget.js`) embedded on client sites, interacting with Next.js API routes (`/api/widget/*`) and SSE streams.
 - **Communications**: Server-Sent Events (SSE) via `/api/widget/stream` and Supabase Realtime power the live chat, broadcasting instant replies to dashboard views and widget instances.
-- **Authentication**: Supabase Magic Link (OTP) with client-side verification handlers (edge-case email link scanner bypass). Turnstile for anti-bot on public forms.
+- **Authentication**: Supabase Magic Link (OTP) + Google OAuth (both passwordless). Turnstile for anti-bot on public forms.
 - **Transactions & Emails**: Resend powers transactional emails (signup, invites, notifications). Stripe enforces a mandatory 14-day paid trial pipeline.
 - **Proxy (Middleware)**: `src/lib/supabase/proxy.ts` replaces the traditional `middleware.ts` per Next.js 16+ paradigm. Handles auth session refresh and protected route enforcement.
 - **Analytics**: Vercel Analytics + Speed Insights integrated.
@@ -183,6 +183,13 @@
 
 ### E2E Testing
 - Playwright-based end-to-end test infrastructure (`tests/dashboard.spec.ts`, `tests/feedback-flow.spec.ts`) with GitHub Actions CI integration.
+
+### Auth Cookie Size Fix (tokens-only encoding)
+- Google OAuth metadata bloats session cookies to ~5KB+, exceeding Kong's WebSocket upgrade header buffer and causing HTTP 431 errors that silently kill Supabase Realtime (in-app notifications stop while server-side emails keep working).
+- Fix: `cookies.encode: 'tokens-only'` on all three Supabase client factories (`client.ts`, `server.ts`, `proxy.ts`). Drops cookie from ~5.2KB to ~800B by storing only access + refresh tokens.
+- `@supabase/ssr` pinned to exact `0.8.0` (the `encode` option is `@experimental`). `cookie` package promoted to direct dep for browser client's `getAll`/`setAll` handlers.
+- Browser client provides explicit `auth.userStorage` with SSR-safe fallback (library bug: tries `window.localStorage` during SSR pre-rendering when `tokens-only` is set).
+- **IMPORTANT**: `getSession().user` is empty with this encoding. Always use `getUser()` or `getClaims()`.
 
 ### Landing Page
 - Refining the landing page (`src/app/page.tsx`) to effectively promote product selling points and encourage sign-ups.
