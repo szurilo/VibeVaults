@@ -25,6 +25,8 @@ export default defineConfig({
 
   /* Runs once before all tests: creates an authenticated browser session. */
   globalSetup: require.resolve('./tests/global-setup.ts'),
+  /* Runs once after all tests: removes E2E test users from the local DB. */
+  globalTeardown: require.resolve('./tests/global-teardown.ts'),
 
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
