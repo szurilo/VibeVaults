@@ -16,7 +16,11 @@
       "Bash(npx playwright:*)",
       "Bash(node -e \"const pkg = require\\('./package.json'\\); console.log\\(JSON.stringify\\(Object.entries\\(pkg.scripts\\).filter\\(\\([k]\\) => k.includes\\('test'\\) || k.includes\\('e2e'\\) || k.includes\\('playwright'\\)\\), null, 2\\)\\)\")",
       "Bash(ls *.json)",
-      "Bash(ls tests/*.spec.ts)"
+      "Bash(ls tests/*.spec.ts)",
+      "WebFetch(domain:supabase.com)",
+      "Bash(grep -rE \"cookieEncoding|tokens-only\" node_modules/@supabase/ssr/dist/main/*.d.ts)",
+      "Bash(npm view:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:54321/realtime/v1/\")"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"
