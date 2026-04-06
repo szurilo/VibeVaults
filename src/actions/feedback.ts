@@ -219,7 +219,7 @@ export async function addManualFeedbackAction(projectId: string, content: string
     const { error: insertError } = await supabase.from('feedbacks').insert({
         id: feedbackId,
         content,
-        type: 'Bug', // or 'Feature', default value
+        type: 'Feature',
         sender: user.email || 'Agency Member',
         project_id: projectId,
         status: 'open',
