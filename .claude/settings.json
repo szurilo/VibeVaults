@@ -20,7 +20,11 @@
       "WebFetch(domain:supabase.com)",
       "Bash(grep -rE \"cookieEncoding|tokens-only\" node_modules/@supabase/ssr/dist/main/*.d.ts)",
       "Bash(npm view:*)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:54321/realtime/v1/\")"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:54321/realtime/v1/\")",
+      "WebFetch(domain:business-template-snowy.vercel.app)",
+      "WebFetch(domain:sydney-for-vv.netlify.app)",
+      "Bash(npm ls:*)",
+      "Bash(node scripts/generate-logos.mjs)"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"

@@ -1000,7 +1000,7 @@
       overlay.style.cursor = 'crosshair';
 
       const highlightBox = document.createElement('div');
-      highlightBox.style.position = 'absolute';
+      highlightBox.style.position = 'fixed';
       highlightBox.style.border = '2px solid #209CEE';
       highlightBox.style.background = 'rgba(32, 156, 238, 0.1)';
       highlightBox.style.pointerEvents = 'none';
@@ -1035,8 +1035,17 @@
 
         currentTarget = target;
         const rect = target.getBoundingClientRect();
-        highlightBox.style.top = (rect.top + window.scrollY) + 'px';
-        highlightBox.style.left = (rect.left + window.scrollX) + 'px';
+        highlightBox.style.top = rect.top + 'px';
+        highlightBox.style.left = rect.left + 'px';
+        highlightBox.style.width = rect.width + 'px';
+        highlightBox.style.height = rect.height + 'px';
+      };
+
+      const handleScroll = () => {
+        if (!currentTarget || !currentTarget.isConnected) return;
+        const rect = currentTarget.getBoundingClientRect();
+        highlightBox.style.top = rect.top + 'px';
+        highlightBox.style.left = rect.left + 'px';
         highlightBox.style.width = rect.width + 'px';
         highlightBox.style.height = rect.height + 'px';
       };
@@ -1047,6 +1056,7 @@
         wrapper.querySelector('.popup').classList.add('open');
         wrapper.querySelector('.badge').style.display = 'none';
         document.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('scroll', handleScroll, true);
       };
 
       const handleKeyDown = (e) => {
@@ -1054,6 +1064,7 @@
       };
 
       document.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('scroll', handleScroll, true);
       overlay.addEventListener('mousemove', handleMouseMove);
       overlay.addEventListener('click', async (e) => {
         e.preventDefault(); e.stopPropagation();
