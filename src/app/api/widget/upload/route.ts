@@ -68,7 +68,7 @@ export async function POST(request: Request) {
         const totalSize = files.reduce((sum, f) => sum + f.size, 0);
         const storageCheck = await checkStorageLimit(workspace.owner_id, totalSize);
         if (!storageCheck.allowed) {
-            return corsError(storageCheck.message ?? 'Storage limit exceeded', 403);
+            return corsError('Storage limit exceeded. Please contact the site owner.', 403);
         }
     }
 
