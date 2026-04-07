@@ -24,7 +24,8 @@
       "WebFetch(domain:business-template-snowy.vercel.app)",
       "WebFetch(domain:sydney-for-vv.netlify.app)",
       "Bash(npm ls:*)",
-      "Bash(node scripts/generate-logos.mjs)"
+      "Bash(node scripts/generate-logos.mjs)",
+      "Bash(node -e ':*)"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"

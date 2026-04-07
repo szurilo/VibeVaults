@@ -943,7 +943,7 @@
               await uploadFiles(pendingAttachments, data.feedback_id, null);
             } catch (uploadErr) {
               console.error('[VibeVaults] Attachment upload failed:', uploadErr);
-              // Feedback was created, but attachments failed — don't block success
+              showWidgetToast(uploadErr.message || 'Attachment upload failed.');
             }
           }
 
@@ -1184,6 +1184,7 @@
               await uploadFiles(replyAttachments, selectedFeedbackId, replyData.replyId || null);
             } catch (uploadErr) {
               console.error('[VibeVaults] Reply attachment upload failed:', uploadErr);
+              showWidgetToast(uploadErr.message || 'Attachment upload failed.');
             }
           }
           textEl.value = '';
