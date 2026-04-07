@@ -79,11 +79,19 @@ export async function validateApiKey(apiKey: string) {
         .single();
 
     if (workspace?.owner_id) {
-        const { data: profile } = await adminSupabase
+        const { data: profile, error: profileError } = await adminSupabase
             .from('profiles')
             .select('subscription_status, trial_ends_at, subscription_tier')
             .eq('id', workspace.owner_id)
             .single();
+
+        if (profileError) {
+            console.error('VibeVaults: validateApiKey profile query failed', {
+                ownerId: workspace.owner_id,
+                error: profileError.message,
+                code: profileError.code,
+            });
+        }
 
         const isSubscribed = profile?.subscription_status === 'active';
         const isTrialActive = profile?.trial_ends_at
@@ -91,6 +99,14 @@ export async function validateApiKey(apiKey: string) {
             : false;
 
         if (!isSubscribed && !isTrialActive) {
+            console.error('VibeVaults: widget blocked by trial gate', {
+                ownerId: workspace.owner_id,
+                subscriptionStatus: profile?.subscription_status ?? 'NULL',
+                trialEndsAt: profile?.trial_ends_at ?? 'NULL',
+                isSubscribed,
+                isTrialActive,
+                now: new Date().toISOString(),
+            });
             return { project: null, ownerTier: null, error: "This widget is currently inactive. Please contact the site owner.", status: 403 };
         }
 
