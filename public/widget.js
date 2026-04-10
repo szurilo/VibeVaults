@@ -140,7 +140,7 @@
         if (navigator.sendBeacon) {
           navigator.sendBeacon(API_ERRORS, new Blob([payload], { type: 'application/json' }));
         } else {
-          fetch(API_ERRORS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload }).catch(() => {});
+          fetch(API_ERRORS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload }).catch(() => { });
         }
       } catch (e) { /* silently fail — error reporting must never break the widget */ }
     };
@@ -339,7 +339,7 @@
     .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
     .view-form { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
     .view-form-body { flex: 1; overflow-y: auto; padding: 4px 20px; display: flex; flex-direction: column; gap: 6px; overscroll-behavior: contain; }
-    .view-form-footer { flex-shrink: 0; padding: 0 20px 8px; }
+    .view-form-footer { flex-shrink: 0; padding: 0 20px 20px; }
     textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; background: white; color: #1f2937; }
     .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
 
@@ -400,7 +400,7 @@
     .btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-sm { padding: 8px 12px; font-size: 12px; }
     .success-view { display: none; text-align: center; padding: 40px 20px; }
-    .view-email-prompt { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; flex: 1; }
+    .view-email-prompt { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px 20px; text-align: center; flex: 1; }
     .view-email-prompt p { font-size: 14px; color: #6b7280; margin: 0 0 20px; line-height: 1.5; }
     .view-email-prompt .email-prompt-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; box-sizing: border-box; background: #fff; color: #1f2937; }
     .view-email-prompt .email-prompt-input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.1); }
