@@ -2,19 +2,16 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Play, MonitorPlay } from "lucide-react";
 
 /**
- * Main Responsibility: Hero product demo section — video embed with fallback placeholder,
- * plus a grid of screenshot placeholders the founder will fill in.
+ * Main Responsibility: Hero product demo section — embedded video player.
  *
  * Sensitive Dependencies:
- * - Video URL is optional; renders a polished placeholder when absent.
- * - Screenshot images are loaded from /screenshots/ in public folder.
+ * - videoUrl must be a valid embed URL (YouTube, Loom, etc.).
  */
 
 interface ProductDemoProps {
-  videoUrl?: string; // YouTube or Loom embed URL
+  videoUrl: string;
 }
 
 export const ProductDemo = ({ videoUrl }: ProductDemoProps) => {
@@ -43,48 +40,13 @@ export const ProductDemo = ({ videoUrl }: ProductDemoProps) => {
           transition={{ duration: 0.6 }}
           className="relative w-full aspect-video rounded-3xl overflow-hidden border border-gray-200 shadow-2xl bg-gray-900"
         >
-          {videoUrl ? (
-            <iframe
-              src={videoUrl}
-              title="VibeVaults product demo"
-              className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          ) : (
-            /* Polished placeholder until the founder records the video */
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative group cursor-pointer">
-              {/* Decorative grid */}
-              <div className="absolute inset-0 opacity-[0.03]"
-                style={{
-                  backgroundImage: "linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px)",
-                  backgroundSize: "40px 40px",
-                }}
-              />
-
-              {/* Glow behind play button */}
-              <div className="absolute w-48 h-48 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/30 transition-all duration-700" />
-
-              <motion.div
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                className="relative z-10 w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-2xl"
-              >
-                <Play
-                  size={36}
-                  className="text-white ml-1"
-                  fill="currentColor"
-                />
-              </motion.div>
-
-              <div className="relative z-10 mt-6 flex items-center gap-2 text-white/60">
-                <MonitorPlay size={16} />
-                <span className="text-sm font-medium">
-                  Product demo coming soon
-                </span>
-              </div>
-            </div>
-          )}
+          <iframe
+            src={videoUrl}
+            title="VibeVaults product demo"
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
         </motion.div>
       </div>
     </section>
