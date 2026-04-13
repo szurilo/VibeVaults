@@ -105,12 +105,21 @@ const features: BentoItem[] = [
   },
 ];
 
-const ScreenshotPlaceholder = ({ slug }: { slug: string }) => {
+const ScreenshotPlaceholder = ({
+  slug,
+  span,
+}: {
+  slug: string;
+  span: BentoItem["span"];
+}) => {
   const [hasImage, setHasImage] = React.useState(true);
+  const heightClass = span === "wide" ? "min-h-[260px]" : "min-h-[160px]";
 
   if (!hasImage) {
     return (
-      <div className="w-full h-full min-h-[160px] bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl flex items-center justify-center">
+      <div
+        className={`w-full h-full ${heightClass} bg-linear-to-br from-gray-100 to-gray-50 rounded-2xl flex items-center justify-center`}
+      >
         <p className="text-xs text-gray-300 font-medium">
           Screenshot coming soon
         </p>
@@ -119,12 +128,14 @@ const ScreenshotPlaceholder = ({ slug }: { slug: string }) => {
   }
 
   return (
-    <div className="relative w-full h-full min-h-[160px] rounded-2xl overflow-hidden bg-gray-100">
+    <div
+      className={`relative w-full h-full ${heightClass} rounded-2xl overflow-hidden bg-linear-to-br from-gray-50 to-gray-100`}
+    >
       <Image
         src={`/screenshots/feature-${slug}.png`}
         alt={`${slug} feature screenshot`}
         fill
-        className="object-cover object-top"
+        className="object-contain"
         onError={() => setHasImage(false)}
       />
     </div>
@@ -174,7 +185,7 @@ export const BentoFeatures = () => {
             >
               {/* Screenshot area */}
               <div className="p-4 pb-0">
-                <ScreenshotPlaceholder slug={feature.slug} />
+                <ScreenshotPlaceholder slug={feature.slug} span={feature.span} />
               </div>
 
               {/* Copy */}

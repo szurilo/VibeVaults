@@ -94,7 +94,7 @@ export default function Home() {
         {/* Product Demo (video + screenshots) */}
         <div id="demo">
           <ProductDemo
-            // videoUrl="https://www.youtube.com/embed/YOUR_VIDEO_ID"
+            videoUrl="https://www.youtube-nocookie.com/embed/7Zghfanxtug?rel=0&modestbranding=1&autoplay=1&mute=1&playsinline=1&loop=1&playlist=7Zghfanxtug"
           />
         </div>
 
