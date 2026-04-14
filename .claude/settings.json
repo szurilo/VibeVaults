@@ -25,7 +25,8 @@
       "WebFetch(domain:sydney-for-vv.netlify.app)",
       "Bash(npm ls:*)",
       "Bash(node scripts/generate-logos.mjs)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(file \"c:/Joco/VibeVaults/public/screenshots/\"*.png)"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"
