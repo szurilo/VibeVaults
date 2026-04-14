@@ -10,7 +10,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Beta exclusivity banner */}
-      <div className="w-full bg-gradient-to-r from-primary to-secondary text-white px-4 py-2.5 text-center text-sm font-semibold tracking-wide">
+      <div className="w-full bg-linear-to-r from-primary to-secondary text-white px-4 py-2.5 text-center text-sm font-semibold tracking-wide">
         Early Access — Limited founding member spots.{" "}
         <Link
           href="/auth/register"
@@ -94,7 +94,7 @@ export default function Home() {
         {/* Product Demo (video + screenshots) */}
         <div id="demo">
           <ProductDemo
-            videoUrl="https://www.youtube-nocookie.com/embed/7Zghfanxtug?rel=0&modestbranding=1&autoplay=1&mute=1&playsinline=1&loop=1&playlist=7Zghfanxtug"
+            videoUrl="https://www.youtube-nocookie.com/embed/Zeaf79Idd-U?rel=0&modestbranding=1&autoplay=1&mute=1&playsinline=1&loop=1&playlist=Zeaf79Idd-U"
           />
         </div>
 
