@@ -1068,8 +1068,17 @@
       overlay.addEventListener('mousemove', handleMouseMove);
       overlay.addEventListener('click', async (e) => {
         e.preventDefault(); e.stopPropagation();
+
+        // Snapshot rect before removing overlay — fixed-position highlight box
+        // isn't captured reliably by snapdom, so we draw it on the canvas ourselves.
+        const targetRect = currentTarget ? currentTarget.getBoundingClientRect() : null;
+
+        // Remove overlay/banner up front so snapdom doesn't see them at all
+        overlay.remove();
         banner.remove();
         overlay.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('scroll', handleScroll, true);
 
         if (currentTarget) {
           if (currentTarget.id) domSelector = '#' + currentTarget.id;
@@ -1143,6 +1152,21 @@
             cropped.height = Math.round(vh * dpr);
             const ctx = cropped.getContext('2d');
             ctx.drawImage(fullCanvas, Math.round(window.scrollX * dpr), Math.round(window.scrollY * dpr), Math.round(vw * dpr), Math.round(vh * dpr), 0, 0, cropped.width, cropped.height);
+
+            // Draw the element tag on the cropped canvas — rect is viewport-relative
+            // so it maps directly onto the cropped viewport image.
+            if (targetRect && targetRect.width > 0 && targetRect.height > 0) {
+              const x = targetRect.left * dpr;
+              const y = targetRect.top * dpr;
+              const w = targetRect.width * dpr;
+              const h = targetRect.height * dpr;
+              ctx.fillStyle = 'rgba(32, 156, 238, 0.1)';
+              ctx.fillRect(x, y, w, h);
+              ctx.strokeStyle = '#209CEE';
+              ctx.lineWidth = 2 * dpr;
+              ctx.strokeRect(x, y, w, h);
+            }
+
             finishCapture(cropped.toDataURL('image/jpeg', 0.6));
           }).catch(onCaptureError);
         };
