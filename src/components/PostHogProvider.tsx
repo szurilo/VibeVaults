@@ -21,6 +21,11 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
     capture_pageleave: true,
     autocapture: true,
     capture_exceptions: true,
+    debug: true, // Temporary — verbose logging to diagnose error tracking. Remove after verified.
+    loaded: (ph) => {
+      // Expose for console testing — remove once error tracking is verified working
+      if (typeof window !== 'undefined') (window as unknown as { posthog: typeof ph }).posthog = ph
+    },
   })
 }
 
