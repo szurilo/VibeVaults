@@ -28,7 +28,7 @@ export default async function DashboardLayout({
     // Parallelize user and workspace fetching
     const [
         { data: { user } },
-        { data: workspaces }
+        { data: initialWorkspaces }
     ] = await Promise.all([
         supabase.auth.getUser(),
         supabase.from("workspaces").select("*").order("created_at", { ascending: true })
@@ -37,6 +37,11 @@ export default async function DashboardLayout({
     if (!user) {
         redirect("/auth/login");
     }
+
+    // `initialWorkspaces` is a snapshot taken BEFORE the auto-accept below may add a
+    // new membership. `workspaces` is reassigned to a fresh read when that happens,
+    // otherwise the sidebar renders "No Workspace" until the user refreshes.
+    let workspaces = initialWorkspaces;
 
     // Auto-accept pending member workspace invites for this email.
     let autoSelectedWorkspaceId: string | undefined;
@@ -82,6 +87,31 @@ export default async function DashboardLayout({
                     .delete()
                     .eq("id", invite.id);
             }
+        }
+    }
+
+    // If we just joined a workspace above, the initial parallel fetch is stale.
+    // Re-read via the admin client — NOT the user-scoped one. Reason: Next.js
+    // Request Memoization dedupes identical fetch() calls within a single server
+    // render, so a second user-scoped `supabase.from("workspaces").select("*")`
+    // would reuse the pre-insert response without hitting the DB. The admin
+    // client sends a different Authorization header, which changes the memo key
+    // and forces a real round-trip. RLS is not the issue here — memoization is.
+    if (autoSelectedWorkspaceId) {
+        const adminSupabase = createAdminClient();
+        const { data: memberships } = await adminSupabase
+            .from("workspace_members")
+            .select("workspace_id")
+            .eq("user_id", user.id);
+
+        if (memberships && memberships.length > 0) {
+            const workspaceIds = memberships.map((m) => m.workspace_id);
+            const { data: refreshedWorkspaces } = await adminSupabase
+                .from("workspaces")
+                .select("*")
+                .in("id", workspaceIds)
+                .order("created_at", { ascending: true });
+            workspaces = refreshedWorkspaces;
         }
     }
 

@@ -1,11 +1,15 @@
 /**
  * Main Responsibility: Secures API endpoints for issuing and revoking Workspace Invites. Manages
- * permission checks (owner only) and generates appropriate Supabase Magic Links depending on member vs. client roles.
- * 
- * Sensitive Dependencies: 
+ * permission checks (owner only) and composes invite emails with links that defer account creation
+ * until the invitee actively signs in (member invites) or visits the embedded widget (client invites).
+ *
+ * Sensitive Dependencies:
  * - Supabase Server Client (@/lib/supabase/server) for RLS protected insertions and role verifications.
- * - Supabase Admin Client (@/lib/supabase/admin) for generating Auth Magic Links programmatically.
- * - Emails Notifications (@/lib/notifications) for final delivery of the generated auth links.
+ * - Supabase Admin Client (@/lib/supabase/admin) for bypassing RLS where necessary.
+ * - Emails Notifications (@/lib/notifications) for delivery of the invitation emails.
+ * - /auth/accept-invite page — resolves the invite token and runs sign-in + membership provisioning.
+ *   Member invites link there directly; we deliberately do NOT call supabase.auth.admin.generateLink
+ *   because that provisions an auth.users row before the invitee has consented to ToS / Privacy.
  */
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -139,25 +143,10 @@ export async function POST(req: Request) {
         if (role === 'member') {
             const BASE_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
-            const adminSupabase = createAdminClient();
-            const { data: linkData, error: linkError } = await adminSupabase.auth.admin.generateLink({
-                type: 'magiclink',
-                email: email,
-                options: {
-                    redirectTo: `${BASE_URL}/dashboard`
-                }
-            });
-
-            if (linkError) {
-                console.error("Failed to generate magic link:", linkError);
-                return new NextResponse("Failed to generate access link", { status: 500 });
-            }
-
-            const hashedToken = linkData.properties?.hashed_token;
-            const verificationType = linkData.properties?.verification_type || 'magiclink';
-            const inviteLink = hashedToken
-                ? `${BASE_URL}/auth/confirm?token_hash=${hashedToken}&type=${verificationType}&next=/dashboard`
-                : `${BASE_URL}/auth/login?invite=${invite.id}`;
+            // The invite ID doubles as the token — UUID v4 is unguessable enough, and the
+            // /auth/accept-invite page gates acceptance on the authed user's email matching
+            // the invite's target email, so leaked tokens alone can't be used to hijack an invite.
+            const inviteLink = `${BASE_URL}/auth/accept-invite?token=${invite.id}`;
 
             const { unsubscribeToken: wsUnsubToken } = await getNotificationPrefs(email, 'replies');
 

@@ -26,7 +26,9 @@
       "Bash(npm ls:*)",
       "Bash(node scripts/generate-logos.mjs)",
       "Bash(node -e ':*)",
-      "Bash(file \"c:/Joco/VibeVaults/public/screenshots/\"*.png)"
+      "Bash(file \"c:/Joco/VibeVaults/public/screenshots/\"*.png)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(npx eslint *)"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"
