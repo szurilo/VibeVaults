@@ -80,12 +80,14 @@ export default async function AccountPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="col-span-full space-y-6">
-                    <BillingCard
-                        tierLabel={tierLabel}
-                        hasSubscription={hasSubscription}
-                        billingInterval={billingInterval}
-                        usage={usage}
-                    />
+                    {workspaceCount > 0 && (
+                        <BillingCard
+                            tierLabel={tierLabel}
+                            hasSubscription={hasSubscription}
+                            billingInterval={billingInterval}
+                            usage={usage}
+                        />
+                    )}
                     <NotificationsCard initialPreferences={initialPreferences} canUseRealtime={canUseRealtime} />
                     <DeleteAccountCard />
                 </div>

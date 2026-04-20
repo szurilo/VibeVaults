@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
-import { sendWelcomeNotification, sendMemberRemovedNotification, sendMemberLeftNotification } from '@/lib/notifications';
+import { sendMemberRemovedNotification, sendMemberLeftNotification } from '@/lib/notifications';
 import { checkWorkspaceLimit } from '@/lib/tier-helpers';
 
 export async function createWorkspaceAction(name: string) {
@@ -44,27 +44,6 @@ export async function createWorkspaceAction(name: string) {
             .from('profiles')
             .update({ has_onboarded: false })
             .eq('id', user!.id);
-
-        // Send welcome email on first workspace creation (owner only)
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('welcome_email_sent')
-            .eq('id', user!.id)
-            .single();
-
-        if (profile && !profile.welcome_email_sent) {
-            await supabase
-                .from('profiles')
-                .update({ welcome_email_sent: true })
-                .eq('id', user!.id);
-
-            const email = user!.email || 'friend';
-            const nameStr = email.split('@')[0];
-            const formattedName = nameStr.charAt(0).toUpperCase() + nameStr.slice(1);
-            sendWelcomeNotification({ to: email, name: formattedName }).catch(e =>
-                console.error('Failed to send welcome email:', e)
-            );
-        }
     }
 
     revalidatePath('/dashboard');

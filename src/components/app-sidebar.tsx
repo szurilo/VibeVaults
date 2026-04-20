@@ -68,7 +68,8 @@ export function AppSidebar({
     const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
     const activeProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
     const isOwner = activeWorkspace?.owner_id === user.id;
-    const isTrialExpired = !!tierInfo && !tierInfo.isTrialing && !tierInfo.tier;
+    const ownsAnyWorkspace = workspaces?.some(w => w.owner_id === user.id) ?? false;
+    const isTrialExpired = ownsAnyWorkspace && !!tierInfo && !tierInfo.isTrialing && !tierInfo.tier;
     const lockSidebar = isTrialExpired;
 
     // Derive tier display label
@@ -182,7 +183,7 @@ export function AppSidebar({
             </SidebarContent>
 
             <SidebarFooter className="bg-white border-t border-gray-100 p-4">
-                {tierLabel && !lockSidebar && (
+                {tierLabel && !lockSidebar && ownsAnyWorkspace && (
                     <div className="flex items-center justify-between px-2 pb-3">
                         <div className="flex items-center gap-1.5">
                             <Crown className="w-3.5 h-3.5 text-amber-500" />

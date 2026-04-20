@@ -118,9 +118,19 @@ export async function updateSession(request: NextRequest) {
         const isTrialActive = !isSubscribed && !!profile?.trial_ends_at && new Date(profile.trial_ends_at) > new Date();
 
         if (!isSubscribed && !isTrialActive) {
-            const url = request.nextUrl.clone();
-            url.pathname = "/dashboard/subscribe";
-            return NextResponse.redirect(url);
+            // Only owners hit the paywall. Members-only users have no subscription
+            // of their own — the workspace owner pays — so redirecting them would
+            // lock them out of workspaces they have every right to use.
+            const { count: ownedWorkspaces } = await supabase
+                .from('workspaces')
+                .select('*', { count: 'exact', head: true })
+                .eq('owner_id', user.sub);
+
+            if ((ownedWorkspaces ?? 0) > 0) {
+                const url = request.nextUrl.clone();
+                url.pathname = "/dashboard/subscribe";
+                return NextResponse.redirect(url);
+            }
         }
     }
 
