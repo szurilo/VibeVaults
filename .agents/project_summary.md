@@ -31,11 +31,13 @@
 
 ### Workspace Architecture (Multi-Owned, Multi-Joined)
 - Evolved the Workspace and Project hierarchy to allow users to create and own multiple workspaces securely (via RPC `create_workspace`), as well as delete their own workspaces. They can also join unlimited additional workspaces via invitation. Cookie-based state persistence (`selectedWorkspaceId`, `selectedProjectId`) navigates these environments across the dashboard.
+- **Trial start moved to first-owned-workspace creation** (not signup). `handle_new_user` no longer sets `trial_ends_at`; both `handle_new_workspace_for_user` (auto-create path) and the `create_workspace` RPC set `trial_ends_at = now() + 14 days WHERE trial_ends_at IS NULL`. Invited members who never own a workspace don't burn their trial clock. The `AppSidebar` tier badge and `isTrialExpired` lock are gated on `ownsAnyWorkspace` so members aren't shown a misleading "Trial (Pro)" badge or locked out.
 
 ### Team Member & Client Invites
 - Comprehensive invitation system supporting both `member` and `client` roles. Team members get access to all projects in a workspace. Clients can review specific projects.
 - **Client invites are now workspace-level** (moved from project-level), simplifying the invite flow.
 - Auto-acceptance of pending invites happens in `dashboard/layout.tsx` on login. RLS policies use `SECURITY DEFINER` helper functions (like `get_client_project_ids()`) to securely allow invited clients to view and interact with feedbacks.
+- **Deferred account creation (GDPR)**: invite emails now link to `/auth/accept-invite?token=<invite_id>` instead of a pre-provisioned magic link. No `auth.users` row is created until the invitee actively signs in (magic link or Google OAuth). Accept-invite page handles four states — auto-accept, guest sign-in surface, email-mismatch (with sign-out recovery), and invalid-invite. `acceptInvite()` server action (`src/actions/invites.ts`) gates membership on email match via admin client; duplicate-insert (`23505`) is treated as success. After auto-accept, `dashboard/layout.tsx` re-reads workspaces via the admin client to bypass Next.js Request Memoization (user-scoped query would return a pre-insert snapshot).
 
 ### Member Access Revocation & Notifications
 - Full notification flow when a member is removed or leaves a workspace:
@@ -182,7 +184,25 @@
 - Welcome email finalized, with `scripts/send-welcome.ts` for manual sending.
 
 ### E2E Testing
-- Playwright-based end-to-end test infrastructure (`tests/dashboard.spec.ts`, `tests/feedback-flow.spec.ts`) with GitHub Actions CI integration.
+- Playwright-based end-to-end test infrastructure with GitHub Actions CI integration. Expanded to **45 tests** across `tests/auth-roundtrip.spec.ts`, `tests/dashboard.spec.ts`, `tests/feedback-flow.spec.ts`, `tests/stripe-checkout.spec.ts`, `tests/trial-expiration.spec.ts`.
+- Fixtures in `tests/fixtures/`: `seed.ts` (programmatic test-data seeding), `stripe-mock.ts` (Stripe webhook simulation), `test-data.ts`, `tests/utils/supabase-admin.ts`.
+- `global-setup.ts` + `global-teardown.ts` handle test-data lifecycle — data is torn down after each run to keep the local DB clean.
+
+### Observability (PostHog)
+- **PostHog** (EU region `eu.i.posthog.com`) for product analytics and error tracking. Client exceptions auto-captured via `PostHogProvider` with `capture_exceptions: true`. Server errors captured by `instrumentation.ts` `onRequestError` using `posthog-node` (Next.js 15+ built-in mechanism). React render errors caught by `src/app/global-error.tsx`.
+- **Widget error reporter** in `public/widget.js`: hooks `window.error` (filtered to `widget.js` frames) and `unhandledrejection`, POSTs to `/api/widget/errors` via `navigator.sendBeacon` (fetch fallback). Per-session deduplication prevents one bug from flooding the table. Records stored in `widget_errors` table (migration `20260402100000_widget_errors_table.sql`).
+- **Admin signup alerts**: DB trigger `notify_admin_on_new_signup` → pg_net → `/api/notifications/new-signup` (secret-guarded via `SIGNUP_NOTIFY_SECRET` query param) → Resend email to `ADMIN_EMAIL`. Implemented in migration `20260401100000_notify_admin_on_new_signup.sql`.
+
+### Deleted-Feedback & Notification Navigation
+- Clicking a notification for a deleted feedback no longer 404s. `src/components/feedback-deleted-toast.tsx` renders a toast instead, driven from the feedback detail page.
+- `src/lib/notification-navigation.ts` is the shared navigation helper used by both the bell dropdown and toast-click. It looks up the target project's `workspace_id`, writes both `selectedWorkspaceId` and `selectedProjectId` cookies, then routes — so the sidebar context follows the notification rather than staying on the previously selected workspace.
+
+### Account Deletion Cleanup (Client-Side)
+- On successful account deletion, `delete-account-card.tsx` clears localStorage and all cookies before redirect — prevents stale session data from bleeding into a subsequent signup on the same browser.
+
+### Proxy Redirects
+- `src/lib/supabase/proxy.ts` now redirects already-authenticated users away from `/auth/login` and `/auth/register` to `/dashboard` (skip duplicate sign-in screens).
+- `/pricing` added to the proxy's public-routes exclusion list.
 
 ### Auth Cookie Size Fix (tokens-only encoding)
 - Google OAuth metadata bloats session cookies to ~5KB+, exceeding Kong's WebSocket upgrade header buffer and causing HTTP 431 errors that silently kill Supabase Realtime (in-app notifications stop while server-side emails keep working).
@@ -243,6 +263,8 @@
 | `/api/stripe/portal` | POST | Stripe Customer Portal session for plan management |
 | `/api/stripe/webhook` | POST | Stripe webhook handler (tier sync + downgrade enforcement) |
 | `/api/cron/digest` | GET | Processes queued digest emails (Supabase pg_cron, every 15 min) |
+| `/api/widget/errors` | POST | Receives widget-side error reports (rate-limited, sendBeacon) → `widget_errors` table |
+| `/api/notifications/new-signup` | POST | Admin signup alert endpoint (secret-guarded, invoked by DB trigger via pg_net) |
 
 ## 7. Server Actions
 | Action | Path | Purpose |
@@ -256,6 +278,7 @@
 | `updateEmailPreferencesAction` | `src/actions/preferences.ts` | Update per-project email preferences |
 | `getTierUsageAction` | `src/actions/tier.ts` | Returns tier, limits, and account-wide usage counts |
 | `deleteProjectAction` | `src/actions/projects.ts` | Delete project with storage cleanup, notifications, and digest queuing |
+| `acceptInvite` | `src/actions/invites.ts` | Email-gated invite acceptance — creates `workspace_members` row via admin client after validating authed user's email matches invite target |
 
 ## 8. Database Schema (Key Tables)
 | Table | Purpose |
@@ -268,6 +291,7 @@
 | `feedbacks` | User-submitted feedback entries with status, metadata, screenshots |
 | `feedback_replies` | Threaded replies on feedback items (real-time enabled) |
 | `feedback_attachments` | File attachments for feedbacks/replies (name, URL, size, MIME type, uploader) |
+| `widget_errors` | Widget-side error reports (api_key, message, stack, url, user_agent, metadata, created_at) |
 | `notifications` | In-app notification records. `project_id` is nullable for workspace-level notifications |
 | `email_preferences` | Per-user email notification preferences (keyed by email). Includes `email_frequency` (`digest`/`realtime`) |
 | `email_digest_queue` | Queued/sent email records for digest batching and cooldown checks |
@@ -287,3 +311,7 @@
 | `20260328300000_enable_rls_email_digest_queue.sql` | Enabled RLS on `email_digest_queue` (server-only access) |
 | `20260329000000_project_deleted_include_deleter_name.sql` | Enhanced deletion notification with deleter's name attribution |
 | `20260329100000_digest_queue_allow_project_deleted.sql` | Added `project_deleted` type to digest queue, made `project_id` nullable |
+| `20260401100000_notify_admin_on_new_signup.sql` | DB trigger + pg_net call to `/api/notifications/new-signup` for admin signup alerts |
+| `20260401200000_fix_notify_project_deleted_cascade.sql` | Fix cascade behavior in project deletion notification trigger |
+| `20260402100000_widget_errors_table.sql` | Created `widget_errors` table for widget-side error reports (PostHog complement) |
+| `20260417000000_trial_starts_on_workspace_creation.sql` | `handle_new_user` no longer sets `trial_ends_at`; trial now starts in `handle_new_workspace_for_user` and `create_workspace` RPC on first-owned-workspace creation (guarded by `trial_ends_at IS NULL`) |

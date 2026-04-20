@@ -16,6 +16,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { GlobalNotificationProvider } from "@/components/global-notification-provider";
 import { getUserTier } from "@/lib/tier-helpers";
+import { sendWelcomeNotification } from "@/lib/notifications";
 
 export default async function DashboardLayout({
     children,
@@ -35,7 +36,11 @@ export default async function DashboardLayout({
     ]);
 
     if (!user) {
-        redirect("/auth/login");
+        // Bounce through the logout route so cookies actually get cleared.
+        // A direct signOut() here silently no-ops because Server Components
+        // can't write cookies, and the proxy's local JWT decode would then
+        // keep redirecting /auth/login back to /dashboard.
+        redirect("/api/auth/logout");
     }
 
     // `initialWorkspaces` is a snapshot taken BEFORE the auto-accept below may add a
@@ -112,6 +117,29 @@ export default async function DashboardLayout({
                 .in("id", workspaceIds)
                 .order("created_at", { ascending: true });
             workspaces = refreshedWorkspaces;
+        }
+    }
+
+    // Send welcome email once per user, on first dashboard visit after they own
+    // a workspace. Covers both the DB-trigger auto-create path and the manual
+    // createWorkspaceAction path. Atomic update (eq welcome_email_sent=false)
+    // guards against races from concurrent requests.
+    const ownsAnyWorkspace = workspaces?.some(w => w.owner_id === user.id) ?? false;
+    if (ownsAnyWorkspace) {
+        const { data: claimed } = await supabase
+            .from("profiles")
+            .update({ welcome_email_sent: true })
+            .eq("id", user.id)
+            .eq("welcome_email_sent", false)
+            .select("id");
+
+        if (claimed && claimed.length > 0) {
+            const email = user.email || 'friend';
+            const nameStr = email.split('@')[0];
+            const formattedName = nameStr.charAt(0).toUpperCase() + nameStr.slice(1);
+            sendWelcomeNotification({ to: email, name: formattedName }).catch(e =>
+                console.error('Failed to send welcome email:', e)
+            );
         }
     }
 

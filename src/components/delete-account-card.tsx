@@ -25,7 +25,10 @@ export function DeleteAccountCard() {
         document.cookie = 'selectedProjectId=; path=/; max-age=0';
         document.cookie = 'sidebar_state=; path=/; max-age=0';
 
-        await supabase.auth.signOut();
+        // Use local scope — the auth user is already gone server-side, so a
+        // global logout would 403 on the revoke call. Local clears cookies
+        // and localStorage without the server round-trip.
+        await supabase.auth.signOut({ scope: 'local' });
         router.push("/auth/login");
     };
 

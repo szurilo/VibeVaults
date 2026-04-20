@@ -11,8 +11,9 @@
 - **Emails**: Resend (transactional + notifications)
 - **Payments**: Stripe — mandatory 14-day paid trial, NO free tier
 - **Proxy**: `src/proxy.ts` (NOT `middleware.ts` — Next.js 16+ paradigm)
-- **Analytics**: Vercel Analytics + Speed Insights
-- **Tests**: Playwright E2E (`tests/`)
+- **Analytics**: Vercel Analytics + Speed Insights + PostHog (EU region `eu.i.posthog.com`)
+- **Error tracking**: PostHog — client (`PostHogProvider`, `capture_exceptions: true`), server (`instrumentation.ts` `onRequestError`), React boundary (`src/app/global-error.tsx`), widget (`public/widget.js` → `/api/widget/errors` → `widget_errors` table)
+- **Tests**: Playwright E2E (`tests/`) — 45 tests across `auth-roundtrip`, `dashboard`, `feedback-flow`, `stripe-checkout`, `trial-expiration` with seed fixtures in `tests/fixtures/`
 
 ## Critical Rules
 1. **Never mutate production DB** (Supabase Cloud / Stripe) without explicit permission. Migrations deploy via GitHub Actions.
@@ -60,10 +61,17 @@ tests/              # Playwright E2E tests
 ## Key Architecture Details
 
 ### Workspace / Project Hierarchy
-- Users auto-get a workspace on signup (DB trigger `handle_new_workspace_for_user`)
+- Users auto-get a workspace on signup (DB trigger `handle_new_workspace_for_user`) — skipped for member-invite users
+- **14-day trial starts on first-owned-workspace creation**, not at signup. Both `handle_new_workspace_for_user` (auto-create path) and the `create_workspace` RPC (manual path) set `profiles.trial_ends_at` via `UPDATE ... WHERE trial_ends_at IS NULL`. Members who never own a workspace have `trial_ends_at = NULL` and no trial clock running.
 - `workspace_members` table: roles are `owner`, `member`, `client`
 - Cookie-based state: `selectedWorkspaceId`, `selectedProjectId`
-- Invites auto-accepted in `dashboard/layout.tsx` on login
+- Invites auto-accepted in `dashboard/layout.tsx` on login. After auto-accept, workspaces are re-fetched via the **admin client** (not user-scoped) because Next.js Request Memoization would dedupe the second user-scoped query and return the pre-insert snapshot.
+
+### Invite Flow (deferred account creation)
+- Invite emails link to `/auth/accept-invite?token=<invite_id>` — **no auth.users row is created at invite time**. The account is provisioned only when the invitee actively signs in (magic link or Google OAuth). This is a GDPR win over the old `supabase.auth.admin.generateLink` approach, which pre-created accounts before consent.
+- Accept-invite page handles four states: (a) auto-accept when the logged-in user's email matches, (b) sign-in surface for guests, (c) email-mismatch (with sign-out button), (d) invalid/expired invite.
+- `acceptInvite()` in `src/actions/invites.ts` gates membership creation on email match. Uses admin client because the invitee has no RLS access to `workspace_invites` yet. Duplicate membership (`23505`) is treated as success.
+- The invite ID (UUID v4) doubles as the token — unguessable and the email-match check on accept prevents hijacking.
 
 ### RLS Security Pattern
 - Use `SECURITY DEFINER` helper functions to avoid infinite recursion (42P17):
@@ -90,8 +98,13 @@ tests/              # Playwright E2E tests
 - `client.ts` provides explicit `auth.userStorage` (SSR-safe) because the library accesses `window.localStorage` unconditionally when `encode: 'tokens-only'` is set.
 - **Never use `getSession()` to read `session.user.*`** — it will be empty. Use `getUser()` (server round-trip) or `getClaims()` (JWT decode) instead.
 
+### Observability & Error Tracking
+- **PostHog** for product analytics + error capture. Client-side exceptions auto-captured via `PostHogProvider` (`capture_exceptions: true`). Server-side errors captured via `instrumentation.ts` `onRequestError` hook using `posthog-node`. React render errors caught by `src/app/global-error.tsx`.
+- **Widget error reporter** (`public/widget.js`): captures `window.error` (filtered to `widget.js` frames) and `unhandledrejection`. Posts to `/api/widget/errors` via `navigator.sendBeacon` (fetch fallback). Per-session deduplication so one bug doesn't flood the table. Stored in `widget_errors` table.
+- **Admin signup alerts**: DB trigger `notify_admin_on_new_signup` fires via pg_net to `/api/notifications/new-signup` (secret-guarded via `SIGNUP_NOTIFY_SECRET`), which emails `ADMIN_EMAIL` via Resend.
+
 ### Notification System
-- DB triggers: `notify_new_feedback`, `notify_new_reply`, `notify_project_created`, `notify_project_deleted`
+- DB triggers: `notify_new_feedback`, `notify_new_reply`, `notify_project_created`, `notify_project_deleted`, `notify_admin_on_new_signup`
 - In-app: `GlobalNotificationProvider` + `NotificationBell` via Supabase Realtime
 - Email: Resend via `lib/notifications.ts` with per-user preferences
 - **Email digest system** (`src/lib/email-digest.ts`):
@@ -118,6 +131,7 @@ tests/              # Playwright E2E tests
 | `email_preferences` | `email`, `notify_replies`, `notify_new_feedback`, `notify_project_created`, `notify_project_deleted`, `email_frequency` |
 | `email_digest_queue` | `id`, `recipient_email`, `notification_type`, `project_id`, `feedback_id`, `payload`, `sent_at`, `created_at` |
 | `feedback_attachments` | `id`, `feedback_id`, `reply_id`, `project_id`, `file_name`, `file_url`, `file_size`, `mime_type`, `uploaded_by` |
+| `widget_errors` | `id`, `api_key`, `error_message`, `error_stack`, `url`, `user_agent`, `metadata`, `created_at` |
 
 ## API Routes
 | Route | Method | Purpose |
@@ -138,3 +152,10 @@ tests/              # Playwright E2E tests
 | `/api/auth/callback` | GET | Supabase auth callback |
 | `/api/auth/turnstile` | POST | Turnstile verification |
 | `/api/cron/digest` | GET | Processes queued digest emails (Supabase pg_cron, every 15 min) |
+| `/api/widget/errors` | POST | Receives widget-side error reports, writes to `widget_errors` (rate-limited) |
+| `/api/notifications/new-signup` | POST | Admin signup alert (secret-guarded, called by DB trigger via pg_net) |
+
+## Proxy Redirects (`src/lib/supabase/proxy.ts`)
+- Unauthenticated users on protected routes → `/auth/login`
+- **Authenticated users** hitting `/auth/login` or `/auth/register` → `/dashboard` (skip duplicate sign-in screens)
+- `/pricing` excluded from auth checks (public)
