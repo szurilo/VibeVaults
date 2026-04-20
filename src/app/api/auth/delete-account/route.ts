@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { cleanupWorkspaceStorage } from "@/lib/storage-cleanup";
+import { notifyOwnerMemberDeparted } from "@/lib/workspace-notifications";
 
 export async function DELETE() {
     const supabase = await createClient();
@@ -65,6 +66,33 @@ export async function DELETE() {
             for (const workspace of ownedWorkspaces) {
                 await cleanupWorkspaceStorage(adminAuthClient, workspace.id);
             }
+        }
+
+        // Notify owners of any workspaces this user is a (non-owner) member of
+        // before the cascade deletes the membership rows.
+        const { data: memberships } = await adminAuthClient
+            .from("workspace_members")
+            .select("workspace_id, workspaces(name, owner_id)")
+            .eq("user_id", user.id)
+            .neq("role", "owner");
+
+        if (memberships && memberships.length > 0) {
+            const memberName = user.email?.split("@")[0] || "A member";
+            await Promise.all(
+                memberships.map(async (m) => {
+                    const ws = (Array.isArray(m.workspaces) ? m.workspaces[0] : m.workspaces) as
+                        | { name: string | null; owner_id: string | null }
+                        | null;
+                    if (!ws?.owner_id) return;
+                    await notifyOwnerMemberDeparted({
+                        workspaceId: m.workspace_id,
+                        workspaceName: ws.name || "Unknown workspace",
+                        ownerId: ws.owner_id,
+                        memberName,
+                        reason: "account_deleted"
+                    });
+                })
+            );
         }
 
         // Delete the user from Supabase Auth (cascades to DB tables via FK)

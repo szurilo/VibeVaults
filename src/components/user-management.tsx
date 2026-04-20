@@ -447,6 +447,8 @@ export function UserManagement({
                                     </p>
                                     <Input
                                         type="email"
+                                        name="email"
+                                        autoComplete="email"
                                         placeholder="user@example.com"
                                         value={email}
                                         onChange={(e) => {

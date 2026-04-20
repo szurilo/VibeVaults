@@ -595,26 +595,39 @@ export async function sendMemberLeftNotification({
     to,
     workspaceName,
     memberName,
-    workspaceId
-}: { to: string, workspaceName: string, memberName: string, workspaceId?: string }) {
+    workspaceId,
+    reason = 'left'
+}: { to: string, workspaceName: string, memberName: string, workspaceId?: string, reason?: 'left' | 'account_deleted' }) {
+    const isAccountDeleted = reason === 'account_deleted';
+    const subject = isAccountDeleted
+        ? `${esc(memberName)} deleted their account`
+        : `${esc(memberName)} left ${esc(workspaceName)}`;
+    const heading = isAccountDeleted ? 'Member Left — Account Deleted' : 'Member Left';
+    const lead = isAccountDeleted
+        ? `<strong>${esc(memberName)}</strong> deleted their VibeVaults account, so they have been removed from your workspace <strong>${esc(workspaceName)}</strong>.`
+        : `<strong>${esc(memberName)}</strong> has left your workspace <strong>${esc(workspaceName)}</strong>.`;
+    const info = isAccountDeleted
+        ? 'Their account has been permanently removed. If you want to work with them again, they will need to sign up and be re-invited.'
+        : 'They will no longer have access to the projects and feedback in this workspace.';
+
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
             to,
-            subject: `${esc(memberName)} left ${esc(workspaceName)}`,
+            subject,
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
 
-                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">Member Left</h2>
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">${heading}</h2>
 
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            <strong>${esc(memberName)}</strong> has left your workspace <strong>${esc(workspaceName)}</strong>.
+                            ${lead}
                         </p>
 
                         <div style="background-color: #f9fafb; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #f1f5f9;">
                             <p style="margin: 0; color: #1a202c; line-height: 1.6; font-size: 16px;">
-                                They will no longer have access to the projects and feedback in this workspace.
+                                ${info}
                             </p>
                         </div>
 
