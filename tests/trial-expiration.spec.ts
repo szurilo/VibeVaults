@@ -61,17 +61,24 @@ test.describe('Trial expiration lockout', () => {
         ).toBeVisible();
     });
 
-    test('sidebar is locked when trial is expired on subscribe page', async ({ page }) => {
+    test('sidebar sub-groups are locked but workspace switcher stays clickable', async ({ page }) => {
         await page.goto('/dashboard/subscribe');
         await page.waitForLoadState('networkidle');
 
-        // The sidebar content should have pointer-events-none class when trial is expired
-        const sidebarContent = page.locator('[data-sidebar="content"]');
-        await expect(sidebarContent).toBeVisible();
+        // The Users/Settings menu group is wrapped in a SidebarMenu that carries
+        // the lock classes when the active workspace is owned + expired.
+        const usersLink = page.getByRole('link', { name: /^Users$/ });
+        await expect(usersLink).toBeVisible();
+        const lockedMenu = usersLink.locator('xpath=ancestor::ul[@data-sidebar="menu"][1]');
+        await expect(lockedMenu).toHaveClass(/pointer-events-none/);
+        await expect(lockedMenu).toHaveClass(/opacity-50/);
 
-        // Verify the lock styling class is applied
-        await expect(sidebarContent).toHaveClass(/pointer-events-none/);
-        await expect(sidebarContent).toHaveClass(/opacity-50/);
+        // The workspace switcher must stay interactive so an expired owner can
+        // navigate to an invited workspace. Its trigger should not inherit any
+        // lock styling.
+        const switcherTrigger = page.getByRole('button', { name: /Current Workspace/i });
+        await expect(switcherTrigger).toBeVisible();
+        await expect(switcherTrigger).toBeEnabled();
     });
 
     test('widget API returns 403 for expired trial owner', async ({ page }) => {

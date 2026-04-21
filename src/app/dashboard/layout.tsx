@@ -143,14 +143,28 @@ export default async function DashboardLayout({
         }
     }
 
+    // Fetch tier info early — needed both for the sidebar and for picking a
+    // sensible default workspace when the user's trial has expired.
+    const tierInfo = await getUserTier(user.id);
+    const isTrialExpired = !tierInfo.isTrialing && !tierInfo.tier;
+
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
 
-    // Determine which workspace should be active
+    // Determine which workspace should be active. We honor the cookie whenever
+    // it points at a workspace the user is still a member of — including their
+    // own paywalled workspaces. The proxy handles the redirect-to-subscribe
+    // concern; the layout's job is to render the sidebar consistently with
+    // what the user actually chose. When picking a default (no cookie yet),
+    // we prefer an invited workspace for expired users so they land somewhere
+    // usable on a fresh login instead of on the paywall.
     if (autoSelectedWorkspaceId) {
         selectedWorkspaceId = autoSelectedWorkspaceId;
     } else if (workspaces && workspaces.length > 0) {
-        if (!selectedWorkspaceId || !workspaces.some(w => w.id === selectedWorkspaceId)) {
-            selectedWorkspaceId = workspaces[0].id;
+        const cookiePointsToValidWorkspace =
+            selectedWorkspaceId && workspaces.some(w => w.id === selectedWorkspaceId);
+        if (!cookiePointsToValidWorkspace) {
+            const invited = workspaces.find(w => w.owner_id !== user.id);
+            selectedWorkspaceId = (isTrialExpired && invited ? invited : workspaces[0]).id;
         }
     } else {
         selectedWorkspaceId = undefined;
@@ -185,9 +199,6 @@ export default async function DashboardLayout({
 
     const cookie = cookieStore.get("sidebar_state");
     const defaultOpen = cookie ? cookie.value === "true" : true;
-
-    // Fetch tier info for sidebar display
-    const tierInfo = await getUserTier(user.id);
 
     return (
         <GlobalNotificationProvider userId={user.id}>

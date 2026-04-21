@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
-import { sendMemberRemovedNotification, sendMemberLeftNotification } from '@/lib/notifications';
+import { sendMemberRemovedNotification } from '@/lib/notifications';
+import { notifyOwnerMemberDeparted } from '@/lib/workspace-notifications';
 import { checkWorkspaceLimit } from '@/lib/tier-helpers';
 
 export async function createWorkspaceAction(name: string) {
@@ -95,7 +96,6 @@ export async function removeMemberAction(workspaceId: string, userId: string) {
 
 export async function leaveWorkspaceAction(workspaceId: string) {
     const supabase = await createClient();
-    const adminSupabase = createAdminClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error('Not authenticated');
@@ -117,32 +117,14 @@ export async function leaveWorkspaceAction(workspaceId: string) {
         throw new Error(error.message);
     }
 
-    // Send in-app notification + email to workspace owner (fire-and-forget)
-    const workspaceName = workspace?.name || 'Unknown workspace';
-    const memberName = user.email?.split('@')[0] || 'A member';
-
     if (workspace?.owner_id) {
-        adminSupabase.from('notifications').insert({
-            user_id: workspace.owner_id,
-            type: 'member_left',
-            title: 'Member Left',
-            message: `${memberName} has left ${workspaceName}`
-        }).then(() => {});
-
-        const { data: ownerProfile } = await adminSupabase
-            .from('profiles')
-            .select('email')
-            .eq('id', workspace.owner_id)
-            .single();
-
-        if (ownerProfile?.email) {
-            sendMemberLeftNotification({
-                to: ownerProfile.email,
-                workspaceName,
-                memberName,
-                workspaceId
-            }).catch(e => console.error('Failed to send member left email:', e));
-        }
+        notifyOwnerMemberDeparted({
+            workspaceId,
+            workspaceName: workspace.name || 'Unknown workspace',
+            ownerId: workspace.owner_id,
+            memberName: user.email?.split('@')[0] || 'A member',
+            reason: 'left'
+        }).catch((e: unknown) => console.error('Failed to notify owner of member leave:', e));
     }
 
     revalidatePath('/dashboard');

@@ -28,7 +28,8 @@
       "Bash(node -e ':*)",
       "Bash(file \"c:/Joco/VibeVaults/public/screenshots/\"*.png)",
       "Bash(echo \"EXIT=$?\")",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(echo \"exit: $?\")"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"

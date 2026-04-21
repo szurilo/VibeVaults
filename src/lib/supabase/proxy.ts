@@ -118,15 +118,42 @@ export async function updateSession(request: NextRequest) {
         const isTrialActive = !isSubscribed && !!profile?.trial_ends_at && new Date(profile.trial_ends_at) > new Date();
 
         if (!isSubscribed && !isTrialActive) {
-            // Only owners hit the paywall. Members-only users have no subscription
-            // of their own — the workspace owner pays — so redirecting them would
-            // lock them out of workspaces they have every right to use.
-            const { count: ownedWorkspaces } = await supabase
-                .from('workspaces')
-                .select('*', { count: 'exact', head: true })
-                .eq('owner_id', user.sub);
+            // Paywall is scoped to the active workspace, not the account. A user
+            // with an expired trial can still access workspaces they were invited
+            // to — the inviting owner pays for those. We only gate access when
+            // the user is viewing (or would land on) one of their OWN workspaces.
+            const selectedWorkspaceId = request.cookies.get('selectedWorkspaceId')?.value;
 
-            if ((ownedWorkspaces ?? 0) > 0) {
+            // RLS limits this to workspaces the user is a member of.
+            const { data: myWorkspaces } = await supabase
+                .from('workspaces')
+                .select('id, owner_id');
+
+            const ownsAny = myWorkspaces?.some(w => w.owner_id === user.sub) ?? false;
+            const hasInvited = myWorkspaces?.some(w => w.owner_id !== user.sub) ?? false;
+            const selectedOwnership = selectedWorkspaceId
+                ? myWorkspaces?.find(w => w.id === selectedWorkspaceId)?.owner_id
+                : undefined;
+
+            // Rules:
+            //  - Selected workspace is one the user owns → paywall. The cookie
+            //    reflects the user's current context; if that context is a
+            //    locked (owned+expired) workspace, the subscribe page is what
+            //    we show. The subscribe page itself offers a "keep working on
+            //    <invited>" CTA when applicable, so the user is never stuck.
+            //  - No valid selection → paywall only if they have no invited
+            //    workspace to fall back to. Otherwise let the layout pick an
+            //    invited workspace as the default.
+            //  - Selected workspace is invited → full access, regardless of
+            //    the user's own trial status (the inviting owner pays).
+            let shouldPaywall = false;
+            if (selectedOwnership === user.sub) {
+                shouldPaywall = true;
+            } else if (selectedOwnership === undefined) {
+                shouldPaywall = ownsAny && !hasInvited;
+            }
+
+            if (shouldPaywall) {
                 const url = request.nextUrl.clone();
                 url.pathname = "/dashboard/subscribe";
                 return NextResponse.redirect(url);
