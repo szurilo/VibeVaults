@@ -69,15 +69,20 @@ export function AppSidebar({
     const activeProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
     const isOwner = activeWorkspace?.owner_id === user.id;
     const ownsAnyWorkspace = workspaces?.some(w => w.owner_id === user.id) ?? false;
-    const isTrialExpired = ownsAnyWorkspace && !!tierInfo && !tierInfo.isTrialing && !tierInfo.tier;
-    const lockSidebar = isTrialExpired;
+    // Paywall state is the user's own trial/sub status. Only gates features
+    // when the active workspace is one they own — invited workspaces are
+    // gated by the inviting owner's subscription, not this user's.
+    const isTrialExpired = !!tierInfo && !tierInfo.isTrialing && !tierInfo.tier;
+    const lockSidebar = isOwner && isTrialExpired;
 
-    // Derive tier display label
+    // Derive tier display label. "Expired" falls through for owners whose
+    // trial ran out without subscribing — they should still see the badge
+    // and a Subscribe link even while their own workspace is locked.
     const tierLabel = tierInfo?.isTrialing
         ? 'Trial'
         : tierInfo?.tier
             ? tierInfo.tier.charAt(0).toUpperCase() + tierInfo.tier.slice(1)
-            : null;
+            : ownsAnyWorkspace ? 'Expired' : null;
 
     return (
         <Sidebar>
@@ -96,17 +101,21 @@ export function AppSidebar({
                 </div>
             </SidebarHeader>
 
-            <SidebarContent className={`bg-white px-2 py-4 gap-6 ${lockSidebar ? "pointer-events-none opacity-50" : ""}`}>
-                {/* Workspace Group */}
+            <SidebarContent className="bg-white px-2 py-4 gap-6">
+                {/* Workspace Group — switcher stays interactive even when
+                    the rest of the sidebar is locked, so a user viewing a
+                    paywalled owned workspace can always navigate to an
+                    invited one. */}
                 <div className="flex flex-col gap-2">
                     <div className="px-2">
                         <WorkspaceSwitcher
                             workspaces={workspaces || []}
                             selectedWorkspaceId={selectedWorkspaceId}
                             user={user}
+                            isTrialExpired={isTrialExpired}
                         />
                     </div>
-                    <SidebarMenu>
+                    <SidebarMenu className={lockSidebar ? "pointer-events-none opacity-50" : ""}>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings/users"}>
                                 <Link href="/dashboard/settings/users" className="font-medium flex items-center gap-2">
@@ -130,7 +139,7 @@ export function AppSidebar({
 
                 {/* Projects Group */}
                 {selectedWorkspaceId && (
-                <div className="flex flex-col gap-2">
+                <div className={`flex flex-col gap-2 ${lockSidebar ? "pointer-events-none opacity-50" : ""}`}>
                     <div className="px-2">
                         <ProjectSwitcher
                             projects={projects || []}
@@ -183,17 +192,17 @@ export function AppSidebar({
             </SidebarContent>
 
             <SidebarFooter className="bg-white border-t border-gray-100 p-4">
-                {tierLabel && !lockSidebar && ownsAnyWorkspace && (
+                {tierLabel && ownsAnyWorkspace && (
                     <div className="flex items-center justify-between px-2 pb-3">
                         <div className="flex items-center gap-1.5">
-                            <Crown className="w-3.5 h-3.5 text-amber-500" />
-                            <span className="text-xs font-semibold text-gray-600">
+                            <Crown className={`w-3.5 h-3.5 ${isTrialExpired ? "text-red-500" : "text-amber-500"}`} />
+                            <span className={`text-xs font-semibold ${isTrialExpired ? "text-red-600" : "text-gray-600"}`}>
                                 {tierLabel}{tierInfo?.isTrialing ? ' (Pro)' : ''}
                             </span>
                         </div>
                         {(tierInfo?.tier !== 'business') && (
                             <Link href="/dashboard/subscribe" className="text-xs font-semibold text-primary hover:underline">
-                                {tierInfo?.isTrialing ? 'Subscribe' : 'Upgrade'}
+                                {tierInfo?.tier ? 'Upgrade' : 'Subscribe'}
                             </Link>
                         )}
                     </div>

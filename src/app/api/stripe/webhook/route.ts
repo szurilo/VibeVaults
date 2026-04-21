@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type Stripe from 'stripe';
 import { stripe } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
-import { getTierFromPriceId, getTierLimits, type TierSlug } from '@/lib/tier-config';
+import { getTierFromPriceId, type TierSlug } from '@/lib/tier-config';
+import { enforceTierLimitsOnChange, syncProfileFromCheckoutSession } from '@/lib/stripe-sync';
 
 // Use secret key to bypass RLS for webhook updates
 const supabaseAdmin = createClient(
@@ -18,61 +18,6 @@ function resolveTierFromSubscription(subscription: any): string | null {
     const priceId = subscription?.items?.data?.[0]?.price?.id;
     if (!priceId) return null;
     return getTierFromPriceId(priceId);
-}
-
-/**
- * When a user downgrades, enforce tier-gated features:
- * - Disable public dashboard sharing if not allowed on new tier
- * - Revert email frequency to 'digest' if realtime not allowed on new tier
- */
-async function enforceTierLimitsOnChange(tier: TierSlug | null, customerId: string) {
-    const limits = getTierLimits(tier);
-
-    // Find the user by stripe_customer_id
-    const { data: profile } = await supabaseAdmin
-        .from('profiles')
-        .select('id, email')
-        .eq('stripe_customer_id', customerId)
-        .single();
-
-    if (!profile) return;
-
-    // Disable sharing if tier doesn't support it
-    if (!limits.publicDashboard) {
-        const { data: workspaces } = await supabaseAdmin
-            .from('workspaces')
-            .select('id')
-            .eq('owner_id', profile.id);
-
-        if (workspaces && workspaces.length > 0) {
-            const { error } = await supabaseAdmin
-                .from('projects')
-                .update({ is_sharing_enabled: false })
-                .in('workspace_id', workspaces.map(w => w.id))
-                .eq('is_sharing_enabled', true);
-
-            if (error) {
-                console.error('❌ Webhook: Failed to disable sharing on downgrade:', error.message);
-            } else {
-                console.log('✅ Webhook: Disabled public sharing for downgraded user', profile.id);
-            }
-        }
-    }
-
-    // Revert email frequency to digest if realtime not allowed
-    if (!limits.emailFrequencies.includes('realtime') && profile.email) {
-        const { error } = await supabaseAdmin
-            .from('email_preferences')
-            .update({ email_frequency: 'digest' })
-            .eq('email', profile.email)
-            .eq('email_frequency', 'realtime');
-
-        if (error) {
-            console.error('❌ Webhook: Failed to revert email frequency on downgrade:', error.message);
-        } else {
-            console.log('✅ Webhook: Reverted email frequency to digest for', profile.email);
-        }
-    }
 }
 
 export async function POST(req: NextRequest) {
@@ -100,28 +45,8 @@ export async function POST(req: NextRequest) {
             case 'checkout.session.completed': {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const session = data.object as any;
-                const userId = session.metadata.userId;
-                const customerId = session.customer;
-                const subscriptionId = session.subscription;
-                const tier = session.metadata.tier || null;
-
-                const { error } = await supabaseAdmin
-                    .from('profiles')
-                    .update({
-                        stripe_customer_id: customerId,
-                        stripe_subscription_id: subscriptionId,
-                        subscription_status: 'active',
-                        subscription_tier: tier,
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', userId);
-
-                if (error) {
-                    console.error('❌ Webhook: Failed to update profile on checkout.session.completed:', error.message);
-                } else {
-                    console.log('✅ Webhook: Profile updated for user', userId, `(tier: ${tier})`);
-                    await enforceTierLimitsOnChange(tier as TierSlug | null, customerId);
-                }
+                const result = await syncProfileFromCheckoutSession(session.id);
+                console.log('Webhook: checkout.session.completed sync →', result);
                 break;
             }
 

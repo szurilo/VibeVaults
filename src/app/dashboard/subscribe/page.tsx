@@ -38,6 +38,18 @@ export default async function SubscribePage() {
     const isTrialActive = tierInfo.isTrialing;
     const isSubscribed = !!tierInfo.tier;
 
+    // Does the user belong to any workspace they don't own? Those remain
+    // accessible even when their own trial/sub has expired — worth telling
+    // them so they don't think they've lost everything. The workspace
+    // switcher in the sidebar is the escape hatch to reach those workspaces.
+    let hasInvitedWorkspace = false;
+    if (isTrialExpired) {
+        const { data: memberWorkspaces } = await supabase
+            .from('workspaces')
+            .select('owner_id');
+        hasInvitedWorkspace = memberWorkspaces?.some(w => w.owner_id !== user.id) ?? false;
+    }
+
     // Calculate remaining trial days
     let trialDaysLeft = 0;
     if (isTrialActive && profile?.trial_ends_at) {
@@ -53,7 +65,9 @@ export default async function SubscribePage() {
 
     if (isTrialExpired) {
         heading = 'Your trial has expired';
-        description = 'Your 14-day free trial has ended. Choose a plan to continue using VibeVaults and keep collaborating on your projects.';
+        description = hasInvitedWorkspace
+            ? 'Your 14-day free trial has ended. Your own workspaces are paused until you subscribe — workspaces you were invited to remain fully accessible.'
+            : 'Your 14-day free trial has ended. Choose a plan to continue using VibeVaults and keep collaborating on your projects.';
     } else if (isTrialActive) {
         heading = 'Choose your plan';
         description = `You have ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left in your free trial. Pick a plan to continue seamlessly when your trial ends.`;

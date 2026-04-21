@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
-import { Plus, ChevronsUpDown } from 'lucide-react';
+import { Plus, ChevronsUpDown, Lock } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -29,11 +29,13 @@ interface Workspace {
 export default function WorkspaceSwitcher({
     workspaces,
     selectedWorkspaceId,
-    user
+    user,
+    isTrialExpired = false,
 }: {
     workspaces: Workspace[],
     selectedWorkspaceId?: string,
-    user: User
+    user: User,
+    isTrialExpired?: boolean,
 }) {
     const router = useRouter();
     const [showNewWorkspaceDialog, setShowNewWorkspaceDialog] = useState(false);
@@ -58,10 +60,27 @@ export default function WorkspaceSwitcher({
         }
     }, [selectedWorkspaceId, router]);
 
-    const handleWorkspaceChange = (workspaceId: string) => {
-        if (workspaceId === selectedWorkspaceId) return;
-        document.cookie = `selectedWorkspaceId=${workspaceId}; path=/; max-age=31536000`;
+    const handleWorkspaceChange = (workspace: Workspace) => {
+        if (workspace.id === selectedWorkspaceId) return;
+
+        // Always update the cookie so the sidebar reflects what the user
+        // actually picked.
+        document.cookie = `selectedWorkspaceId=${workspace.id}; path=/; max-age=31536000`;
         document.cookie = `selectedProjectId=; path=/; max-age=0`;
+
+        // For an owned workspace with an expired trial we navigate to the
+        // subscribe page. A client-side router.push preserves the shared
+        // dashboard layout across the segment change, which means the
+        // sidebar keeps its previous props (old selectedWorkspaceId, old
+        // lockSidebar) until something forces a re-fetch. A full reload is
+        // the simplest guarantee that the layout re-runs with the new
+        // cookie — sidebar then correctly shows the owned workspace as
+        // the active (locked) context.
+        if (isTrialExpired && workspace.owner_id === user.id) {
+            window.location.href = '/dashboard/subscribe';
+            return;
+        }
+
         router.refresh();
     };
 
@@ -84,7 +103,13 @@ export default function WorkspaceSwitcher({
             document.cookie = `selectedProjectId=; path=/; max-age=0`;
             setShowNewWorkspaceDialog(false);
             setName('');
+            // router.refresh() re-executes the dashboard layout on the server,
+            // which picks up the new cookie, new workspace, and new tier state.
+            // Avoid window.location.href here — a hard navigation aborts the
+            // in-flight server-action RSC stream and surfaces as a transient
+            // "Error in inputstream" runtime error before the reload lands.
             router.push('/dashboard');
+            router.refresh();
         } catch (error) {
             console.error(error);
             setError('Something went wrong. Please try again.');
@@ -152,8 +177,9 @@ export default function WorkspaceSwitcher({
                                     {ownedWorkspaces.map(w => (
                                         <DropdownMenuItem
                                             key={w.id}
-                                            onSelect={() => handleWorkspaceChange(w.id)}
+                                            onSelect={() => handleWorkspaceChange(w)}
                                             className="flex items-center gap-2"
+                                            title={isTrialExpired ? 'Subscribe to unlock this workspace' : undefined}
                                         >
                                             <Avatar className="h-6 w-6 rounded-md border border-gray-100">
                                                 <AvatarImage src={w.brand_logo_url ?? undefined} alt={w.name} className="object-contain" />
@@ -161,7 +187,10 @@ export default function WorkspaceSwitcher({
                                                     {w.name.charAt(0).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
-                                            <span className="truncate font-medium">{w.name}</span>
+                                            <span className="truncate font-medium flex-1">{w.name}</span>
+                                            {isTrialExpired && (
+                                                <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" aria-label="Locked — subscribe to unlock" />
+                                            )}
                                         </DropdownMenuItem>
                                     ))}
                                     {invitedWorkspaces.length > 0 && <DropdownMenuSeparator />}
@@ -176,7 +205,7 @@ export default function WorkspaceSwitcher({
                                     {invitedWorkspaces.map(w => (
                                         <DropdownMenuItem
                                             key={w.id}
-                                            onSelect={() => handleWorkspaceChange(w.id)}
+                                            onSelect={() => handleWorkspaceChange(w)}
                                             className="flex items-center gap-2"
                                         >
                                             <Avatar className="h-6 w-6 rounded-md border border-gray-100">
