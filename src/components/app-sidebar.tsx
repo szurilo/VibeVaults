@@ -15,7 +15,7 @@ import {
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { LayoutDashboard, MessageSquare, Settings, LogOut, Users, ExternalLink, Crown } from "lucide-react"
-import type { TierSlug } from "@/lib/tier-config"
+import { isTrialExpired as isTierExpired, type TierSlug } from "@/lib/tier-config"
 import { NotificationBell } from "@/components/notification-bell"
 import { User } from "@supabase/supabase-js"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -72,7 +72,7 @@ export function AppSidebar({
     // Paywall state is the user's own trial/sub status. Only gates features
     // when the active workspace is one they own — invited workspaces are
     // gated by the inviting owner's subscription, not this user's.
-    const isTrialExpired = !!tierInfo && !tierInfo.isTrialing && !tierInfo.tier;
+    const isTrialExpired = !!tierInfo && isTierExpired(tierInfo);
     const lockSidebar = isOwner && isTrialExpired;
 
     // Derive tier display label. "Expired" falls through for owners whose

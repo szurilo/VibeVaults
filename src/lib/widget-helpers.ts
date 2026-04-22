@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { getTierLimits, type TierSlug } from "@/lib/tier-config";
+import { hasActiveAccess } from "@/lib/tier-helpers";
 
 export const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -85,12 +86,7 @@ export async function validateApiKey(apiKey: string) {
             .eq('id', workspace.owner_id)
             .single();
 
-        const isSubscribed = profile?.subscription_status === 'active';
-        const isTrialActive = profile?.trial_ends_at
-            ? new Date(profile.trial_ends_at) > new Date()
-            : false;
-
-        if (!isSubscribed && !isTrialActive) {
+        if (!hasActiveAccess(profile)) {
             return { project: null, ownerTier: null, error: "This widget is currently inactive. Please contact the site owner.", status: 403 };
         }
 

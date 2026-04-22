@@ -220,3 +220,35 @@ export const FEATURE_COMPARISON: TierFeature[] = [
     { label: 'File storage', starter: '500 MB', pro: '5 GB', business: '50 GB' },
     { label: 'Priority support', starter: false, pro: false, business: true },
 ];
+
+// ---------------------------------------------------------------------------
+// Access predicates (pure — shared by server + client, no DB calls)
+// ---------------------------------------------------------------------------
+
+type AccessProfile = {
+    subscription_status?: string | null;
+    trial_ends_at?: string | null;
+};
+
+/** True if the profile is actively subscribed. */
+export function isSubscribed(profile: AccessProfile | null | undefined): boolean {
+    return profile?.subscription_status === 'active';
+}
+
+/** True if the profile is inside an active trial window. */
+export function isTrialActive(profile: AccessProfile | null | undefined): boolean {
+    return !!profile?.trial_ends_at && new Date(profile.trial_ends_at) > new Date();
+}
+
+/**
+ * True if the account has access right now — either subscribed OR in trial.
+ * Single source of truth for the widget gate, proxy paywall, and tier resolution.
+ */
+export function hasActiveAccess(profile: AccessProfile | null | undefined): boolean {
+    return isSubscribed(profile) || isTrialActive(profile);
+}
+
+/** True if the tier info indicates an expired trial (no active sub and not trialing). */
+export function isTrialExpired(info: { isTrialing: boolean; tier: TierSlug | null }): boolean {
+    return !info.isTrialing && !info.tier;
+}

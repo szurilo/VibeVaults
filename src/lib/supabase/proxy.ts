@@ -15,6 +15,7 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { hasActiveAccess } from "@/lib/tier-helpers";
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -114,10 +115,7 @@ export async function updateSession(request: NextRequest) {
             return supabaseResponse;
         }
 
-        const isSubscribed = profile?.subscription_status === 'active';
-        const isTrialActive = !isSubscribed && !!profile?.trial_ends_at && new Date(profile.trial_ends_at) > new Date();
-
-        if (!isSubscribed && !isTrialActive) {
+        if (!hasActiveAccess(profile)) {
             // Paywall is scoped to the active workspace, not the account. A user
             // with an expired trial can still access workspaces they were invited
             // to — the inviting owner pays for those. We only gate access when

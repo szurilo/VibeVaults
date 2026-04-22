@@ -1171,9 +1171,14 @@
           }).catch(onCaptureError);
         };
 
+        // Pinned to v2.5.0 — v2.6.0+ introduced a regression that renders
+        // phantom whitespace inside words on flex-laid-out text (e.g. "R ole"
+        // instead of "Role"). See snapdom commit "fix(capture): normalize
+        // foreignObject defaults for flex layout (#351) and whitespace (#349)".
+        // Revisit once upstream fixes the regression.
         if (!window.snapdom) {
           const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/@zumer/snapdom/dist/snapdom.js';
+          script.src = 'https://cdn.jsdelivr.net/npm/@zumer/snapdom@2.5.0/dist/snapdom.js';
           script.onload = runCapture;
           script.onerror = onCaptureError;
           document.head.appendChild(script);

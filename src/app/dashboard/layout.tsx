@@ -15,7 +15,7 @@ import { cookies } from "next/headers";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { GlobalNotificationProvider } from "@/components/global-notification-provider";
-import { getUserTier } from "@/lib/tier-helpers";
+import { getUserTier, isTrialExpired as isTierExpired } from "@/lib/tier-helpers";
 import { sendWelcomeNotification } from "@/lib/notifications";
 
 export default async function DashboardLayout({
@@ -146,7 +146,7 @@ export default async function DashboardLayout({
     // Fetch tier info early — needed both for the sidebar and for picking a
     // sensible default workspace when the user's trial has expired.
     const tierInfo = await getUserTier(user.id);
-    const isTrialExpired = !tierInfo.isTrialing && !tierInfo.tier;
+    const isTrialExpired = isTierExpired(tierInfo);
 
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
 

@@ -127,6 +127,11 @@
 - Constraints: 10MB max per file, 10 files per request, MIME type allowlist (images, PDFs, Office docs, text/csv). Server-side enforcement in confirm routes reads actual storage metadata (not client-claimed values).
 - Reply attachments supported end-to-end (widget screenshot, file upload → API → storage → display).
 
+### Access & Role Helpers (centralised gates)
+- **Subscription/trial predicate** centralised in `src/lib/tier-config.ts` as `hasActiveAccess(profile)` (plus `isSubscribed`, `isTrialActive`, `isTrialExpired`). Re-exported from `tier-helpers.ts` for ergonomics. Predicates live in `tier-config.ts` because it has no server-only imports — safe for both client and server components. Replaces three duplicated implementations in `widget-helpers.ts` (widget gate), `supabase/proxy.ts` (paywall), and `tier-helpers.ts` (tier resolution), and three `isTrialExpired` inline derivations in `app-sidebar.tsx`, `dashboard/layout.tsx`, `subscribe/page.tsx`.
+- **Workspace role helpers** in `src/lib/role-helpers.ts`: `isWorkspaceOwner(supabase, userId, workspaceId)` for async DB lookups (API routes, server actions) and pure derivations `isOwnerInMembers(members, userId)` / `getRoleFromMembers(members, userId)` for already-fetched members lists (server components). Replaces scattered `membership.role !== 'owner'` checks in `api/workspaces/invites/route.ts` (x2) and `.some(m => m.role === 'owner')` in `settings/page.tsx` and `settings/users/page.tsx`.
+- Rationale: role and billing gates are the highest-risk cross-cutting concerns in the app. Centralising them removes drift between sites and makes the widget gate / paywall / UI all respond to a single logic change. New code must route through these helpers — no more inline role/subscription checks.
+
 ### Multi-Tier Pricing
 - Three tiers: Starter ($29/mo), Pro ($49/mo), Business ($149/mo) with yearly billing (20% off).
 - Tier config single source of truth: `src/lib/tier-config.ts` (limits, prices, Stripe price/product IDs from env vars).
