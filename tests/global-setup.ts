@@ -41,6 +41,9 @@ async function createAuthSession(email: string, storageFile: string): Promise<vo
 }
 
 export default async function globalSetup(): Promise<void> {
+    // Disable email sending for the duration of the test suite (checked in src/lib/resend.ts).
+    fs.writeFileSync(path.join(process.cwd(), '.playwright-running'), '');
+
     // 1. Seed the database with all test data
     console.log('[global-setup] Seeding test data...');
     const seed: SeedResult = await seedTestData();
