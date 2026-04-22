@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { UserManagement } from "@/components/user-management";
+import { isOwnerInMembers } from "@/lib/role-helpers";
 
 export default async function UserSettingsPage() {
     const supabase = await createClient();
@@ -63,8 +64,7 @@ export default async function UserSettingsPage() {
         profiles: profiles?.find(p => p.id === m.user_id)
     })) || [];
 
-    // Determine if the current user is an owner of this workspace
-    const isOwner = members?.some(m => m.user_id === user?.id && m.role === 'owner') || false;
+    const isOwner = isOwnerInMembers(members, user?.id);
 
     // Fetch all invites for this workspace using admin client
     // so that members (not just owners) can see client invites

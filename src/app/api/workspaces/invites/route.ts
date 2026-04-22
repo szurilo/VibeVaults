@@ -13,6 +13,7 @@
  */
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isWorkspaceOwner } from "@/lib/role-helpers";
 import { NextResponse } from "next/server";
 import { sendWorkspaceInviteNotification, sendClientInviteNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
@@ -37,15 +38,7 @@ export async function POST(req: Request) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        // Verify user is owner of this workspace
-        const { data: membership } = await supabase
-            .from('workspace_members')
-            .select('role')
-            .eq('workspace_id', workspaceId)
-            .eq('user_id', user.id)
-            .single();
-
-        if (!membership || membership.role !== 'owner') {
+        if (!(await isWorkspaceOwner(supabase, user.id, workspaceId))) {
             return new NextResponse("Forbidden: Only owners can invite members", { status: 403 });
         }
 
@@ -250,15 +243,7 @@ export async function DELETE(req: Request) {
             return new NextResponse("Invite not found", { status: 404 });
         }
 
-        // Verify user is owner
-        const { data: membership } = await supabase
-            .from('workspace_members')
-            .select('role')
-            .eq('workspace_id', invite.workspace_id)
-            .eq('user_id', user.id)
-            .single();
-
-        if (!membership || membership.role !== 'owner') {
+        if (!(await isWorkspaceOwner(supabase, user.id, invite.workspace_id))) {
             return new NextResponse("Forbidden", { status: 403 });
         }
 

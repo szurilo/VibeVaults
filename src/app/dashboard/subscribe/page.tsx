@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { PricingCards } from '@/components/landing/pricing-cards';
-import { getUserTier } from '@/lib/tier-helpers';
+import { getUserTier, isTrialExpired as isTierExpired } from '@/lib/tier-helpers';
 import { STRIPE_PRICES } from '@/lib/tier-config';
 
 export default async function SubscribePage() {
@@ -34,7 +34,7 @@ export default async function SubscribePage() {
         .single();
 
     // Determine page context
-    const isTrialExpired = !tierInfo.isTrialing && !tierInfo.tier;
+    const isTrialExpired = isTierExpired(tierInfo);
     const isTrialActive = tierInfo.isTrialing;
     const isSubscribed = !!tierInfo.tier;
 

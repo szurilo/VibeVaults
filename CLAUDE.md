@@ -73,6 +73,11 @@ tests/              # Playwright E2E tests
 - `acceptInvite()` in `src/actions/invites.ts` gates membership creation on email match. Uses admin client because the invitee has no RLS access to `workspace_invites` yet. Duplicate membership (`23505`) is treated as success.
 - The invite ID (UUID v4) doubles as the token — unguessable and the email-match check on accept prevents hijacking.
 
+### Access & Role Helpers (single source of truth)
+- **Subscription/trial gate**: use `hasActiveAccess(profile)` from `src/lib/tier-config.ts` (re-exported from `tier-helpers.ts`). Do NOT re-derive `isSubscribed || isTrialActive` inline — every new gate must route through this helper. `isTrialExpired(tierInfo)` is the canonical "trial ran out" check.
+- **Workspace role checks**: use `src/lib/role-helpers.ts` — `isWorkspaceOwner(supabase, userId, workspaceId)` for async lookups (API routes, server actions) and `isOwnerInMembers(members, userId)` for pure derivations against an already-fetched members list (server components). No more inline `membership.role !== 'owner'` or `.some(m => m.role === 'owner')`.
+- Why: these gates are cross-cutting concerns. Duplicated checks drift and produce security/revenue bugs; centralising means one fix = all sites updated.
+
 ### RLS Security Pattern
 - Use `SECURITY DEFINER` helper functions to avoid infinite recursion (42P17):
   - `get_user_workspaces()` — workspace IDs for current user

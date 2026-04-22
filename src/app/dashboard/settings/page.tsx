@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { WorkspaceSettingsCard } from "@/components/workspace-settings-card";
 import { DeleteWorkspaceCard } from "@/components/delete-workspace-card";
 import { Highlight } from "@/components/highlight";
+import { isOwnerInMembers } from "@/lib/role-helpers";
 
 export default async function WorkspaceSettingsPage() {
     const supabase = await createClient();
@@ -50,8 +51,7 @@ export default async function WorkspaceSettingsPage() {
         .eq('workspace_id', selectedWorkspaceId)
         .order('created_at', { ascending: true });
 
-    // Determine if the current user is an owner of this workspace
-    const isOwner = workspaceMembers?.some(m => m.user_id === user?.id && m.role === 'owner') || false;
+    const isOwner = isOwnerInMembers(workspaceMembers, user?.id);
 
     return (
         <div>

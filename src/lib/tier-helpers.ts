@@ -9,7 +9,9 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getTierLimits, type TierSlug, type TierLimits } from './tier-config';
+import { getTierLimits, isSubscribed, isTrialActive, type TierSlug, type TierLimits } from './tier-config';
+
+export { hasActiveAccess, isTrialExpired, isSubscribed, isTrialActive } from './tier-config';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,9 +44,7 @@ export async function getUserTier(userId: string): Promise<TierInfo> {
         .single();
 
     const tier = (profile?.subscription_tier as TierSlug | null) ?? null;
-    const isSubscribed = profile?.subscription_status === 'active';
-    const isTrialing = !isSubscribed && !!profile?.trial_ends_at &&
-        new Date(profile.trial_ends_at) > new Date();
+    const isTrialing = !isSubscribed(profile) && isTrialActive(profile);
 
     // During trial, effective tier is Pro regardless of subscription_tier value
     const effectiveTier = isTrialing ? 'pro' : tier;

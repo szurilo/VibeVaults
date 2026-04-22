@@ -29,7 +29,8 @@
       "Bash(file \"c:/Joco/VibeVaults/public/screenshots/\"*.png)",
       "Bash(echo \"EXIT=$?\")",
       "Bash(npx eslint *)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "WebFetch(domain:api.github.com)"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"
