@@ -30,7 +30,8 @@
       "Bash(echo \"EXIT=$?\")",
       "Bash(npx eslint *)",
       "Bash(echo \"exit: $?\")",
-      "WebFetch(domain:api.github.com)"
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:resend.com)"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"

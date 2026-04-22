@@ -50,11 +50,22 @@ export async function DELETE() {
             }
         }
 
-        // Delete email_preferences (keyed by email, not user_id, so no FK cascade)
-        await adminAuthClient
-            .from("email_preferences")
-            .delete()
-            .eq("email", user.email);
+        // Delete email_preferences and email_digest_queue (keyed by email, not user_id, so no FK cascade)
+        await Promise.all([
+            adminAuthClient
+                .from("email_preferences")
+                .delete()
+                .eq("email", user.email),
+            adminAuthClient
+                .from("email_digest_queue")
+                .delete()
+                .eq("recipient_email", user.email),
+            // Pending workspace invites addressed to this email are no longer redeemable.
+            adminAuthClient
+                .from("workspace_invites")
+                .delete()
+                .eq("email", user.email),
+        ]);
 
         // Clean up storage files for owned workspaces before cascade deletes DB records
         const { data: ownedWorkspaces } = await adminAuthClient

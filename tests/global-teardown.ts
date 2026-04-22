@@ -7,10 +7,17 @@
  * - utils/supabase-admin.ts (admin client + cleanup helper)
  */
 
+import fs from 'fs';
+import path from 'path';
 import { cleanupTestUsers } from './utils/supabase-admin';
 
 export default async function globalTeardown(): Promise<void> {
     console.log('[global-teardown] Cleaning up E2E test users...');
     await cleanupTestUsers('e2e-');
+
+    // Re-enable email sending now that the suite is done.
+    const flag = path.join(process.cwd(), '.playwright-running');
+    if (fs.existsSync(flag)) fs.unlinkSync(flag);
+
     console.log('[global-teardown] Done.');
 }

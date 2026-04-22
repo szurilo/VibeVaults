@@ -49,3 +49,4 @@ node_modules/
 /playwright/.auth/
 /tests/.auth/
 /tests/widget-test.html
+/.playwright-running
