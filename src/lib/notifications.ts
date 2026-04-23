@@ -275,6 +275,10 @@ export async function sendProjectDeletedNotification({
     }
 }
 
+function replyText(content: string) {
+    return content.trim() || '(attached image)';
+}
+
 interface SendReplyEmailParams {
     to: string;
     projectName: string;
@@ -309,7 +313,7 @@ export async function sendReplyNotification({
 
                         <div style="background-color: #f0f9ff; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #e0f2fe;">
                             <p style="margin: 0; font-weight: 600; color: #0369a1; font-size: 14px; margin-bottom: 8px;">Says:</p>
-                            <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${esc(replyContent)}"</p>
+                            <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${esc(replyText(replyContent))}"</p>
                         </div>
 
                         <p style="font-size: 14px; color: #718096; margin-bottom: 8px;">Your original feedback:</p>
@@ -367,7 +371,7 @@ export async function sendAgencyReplyNotification({
 
                         <div style="background-color: #f0f9ff; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #e0f2fe;">
                             <p style="margin: 0; font-weight: 600; color: #0369a1; font-size: 14px; margin-bottom: 8px;">${esc(sender)} Says:</p>
-                            <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${esc(replyContent)}"</p>
+                            <p style="margin: 0; color: #0369a1; line-height: 1.6;">"${esc(replyText(replyContent))}"</p>
                         </div>
 
                         <div style="margin-top: 32px;">
@@ -805,7 +809,7 @@ export async function sendReplyDigestEmail({
     const itemsHtml = items.slice(0, 10).map(item => `
         <div style="padding: 12px 16px; border-left: 3px solid #0369a1; margin-bottom: 12px; background: #f0f9ff; border-radius: 0 8px 8px 0;">
             <p style="margin: 0 0 4px; font-size: 13px; color: #718096;">${esc(item.projectName)} &mdash; ${esc(item.sender)}</p>
-            <p style="margin: 0; font-size: 15px; color: #0369a1; line-height: 1.5;">"${esc(item.replyContent.slice(0, 200))}${item.replyContent.length > 200 ? '…' : ''}"</p>
+            <p style="margin: 0; font-size: 15px; color: #0369a1; line-height: 1.5;">"${esc(replyText(item.replyContent).slice(0, 200))}${item.replyContent.trim().length > 200 ? '…' : ''}"</p>
             ${item.feedbackContentPreview ? `<p style="margin: 6px 0 0; font-size: 13px; color: #718096; font-style: italic;">Re: "${esc(item.feedbackContentPreview.slice(0, 100))}${item.feedbackContentPreview.length > 100 ? '…' : ''}"</p>` : ''}
             ${item.feedbackId ? `<a href="${emailRedirectUrl({ page: 'feedback', workspaceId: item.workspaceId, projectId: item.projectId, feedbackId: item.feedbackId })}" style="display: inline-block; margin-top: 8px; font-size: 13px; color: #0369a1; text-decoration: none; font-weight: 600;">View &rarr;</a>` : ''}
         </div>
