@@ -257,9 +257,33 @@ test.describe('Dashboard paywall × role', () => {
 test.describe('Invite endpoint × role', () => {
     // Keep the owner in a healthy subscribed state so the paywall never
     // becomes the reason a request fails — we're testing role, not billing.
+    let originalTrialEndsAt: string | null = null;
+    let originalStatus: string | null = null;
+    let originalTier: string | null = null;
+
     test.beforeAll(async () => {
         const seed = getSeedResult();
+        const { data } = await supabaseAdmin
+            .from('profiles')
+            .select('trial_ends_at, subscription_status, subscription_tier')
+            .eq('id', seed.ownerId)
+            .single();
+        originalTrialEndsAt = data?.trial_ends_at ?? null;
+        originalStatus = data?.subscription_status ?? null;
+        originalTier = data?.subscription_tier ?? null;
         await setOwnerBillingState(seed.ownerId, 'subscribed-pro');
+    });
+
+    test.afterAll(async () => {
+        const seed = getSeedResult();
+        await supabaseAdmin
+            .from('profiles')
+            .update({
+                trial_ends_at: originalTrialEndsAt,
+                subscription_status: originalStatus,
+                subscription_tier: originalTier,
+            })
+            .eq('id', seed.ownerId);
     });
 
     async function postInvite(request: APIRequestContext, workspaceId: string, email: string) {

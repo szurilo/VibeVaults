@@ -13,7 +13,7 @@
 - **Proxy**: `src/proxy.ts` (NOT `middleware.ts` — Next.js 16+ paradigm)
 - **Analytics**: Vercel Analytics + Speed Insights + PostHog (EU region `eu.i.posthog.com`)
 - **Error tracking**: PostHog — client (`PostHogProvider`, `capture_exceptions: true`), server (`instrumentation.ts` `onRequestError`), React boundary (`src/app/global-error.tsx`), widget (`public/widget.js` → `/api/widget/errors` → `widget_errors` table)
-- **Tests**: Playwright E2E (`tests/`) — 45 tests across `auth-roundtrip`, `dashboard`, `feedback-flow`, `stripe-checkout`, `trial-expiration` with seed fixtures in `tests/fixtures/`
+- **Tests**: Playwright E2E (`tests/`) — Tests across `access-matrix`, `account-deletion-safety`, `auth-roundtrip`, `dashboard`, `feedback-flow`, `member-departure`, `stripe-checkout`, `trial-expiration` with seed fixtures in `tests/fixtures/`. **Zero retries** on CI and local — a flaky test is treated as a real bug, not noise to paper over. Any describe block that mutates shared owner state (billing, workspace membership) must save it in `beforeAll` and restore it in `afterAll`; missing restoration pollutes every subsequent test file.
 
 ## Critical Rules
 1. **Never mutate production DB** (Supabase Cloud / Stripe) without explicit permission. Migrations deploy via GitHub Actions.

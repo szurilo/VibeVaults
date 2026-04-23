@@ -16,8 +16,8 @@ export default defineConfig({
   fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  /* Zero retries — surface flakes immediately instead of masking them. */
+  retries: 0,
   /* Single worker — tests mutate shared DB state (trial, subscription, etc.) */
   workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
