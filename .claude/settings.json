@@ -31,7 +31,13 @@
       "Bash(npx eslint *)",
       "Bash(echo \"exit: $?\")",
       "WebFetch(domain:api.github.com)",
-      "WebFetch(domain:resend.com)"
+      "WebFetch(domain:resend.com)",
+      "Bash(node -e ' *)",
+      "Read(//tmp/**)",
+      "Bash(unzip -l /tmp/report.zip)",
+      "Bash(unzip -l report.zip)",
+      "Bash(unzip -o report.zip -d report_extracted)",
+      "Bash(node -e \" const fs=require\\('fs'\\); fs.rmSync\\('report_extracted',{recursive:true,force:true}\\); const html=fs.readFileSync\\('playwright-report/index.html','utf8'\\); const m=html.match\\(/data:application\\\\/[^\\\\\"']+;base64,\\([A-Za-z0-9+/=]+\\)/\\); fs.writeFileSync\\('report.zip',Buffer.from\\(m[1],'base64'\\)\\); \" unzip -o report.zip -d report_extracted node -e \" const fs=require\\('fs'\\); for\\(const f of fs.readdirSync\\('report_extracted'\\).filter\\(n=>n!=='report.json'\\)\\){ const d=JSON.parse\\(fs.readFileSync\\('report_extracted/'+f,'utf8'\\)\\); for\\(const t of d.tests||[]\\){ if\\(t.outcome==='unexpected'\\){ console.log\\('=== FAIL ===', d.fileName, '>', t.title, '['+t.projectName+']'\\); for\\(const r of t.results||[]\\){ for\\(const e of r.errors||[]\\){ console.log\\(\\(e.message||''\\).replace\\(/\\\\x1b\\\\[[0-9;]*m/g,''\\)\\); console.log\\('---'\\); } } } } } \")"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"
