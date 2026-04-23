@@ -18,7 +18,12 @@ const supabaseAdmin = createClient(
 );
 
 export async function enforceTierLimitsOnChange(tier: TierSlug | null, customerId: string) {
-    const limits = getTierLimits(tier);
+    // Within this downgrade-enforcement path, `null` means "cancelled" (fired by
+    // customer.subscription.deleted), not "trialing". Resolve to Starter caps so
+    // paid features (sharing, realtime emails) are actually revoked. Elsewhere
+    // `getTierLimits(null)` still defaults to Pro for trial users.
+    const effectiveTier: TierSlug = tier ?? 'starter';
+    const limits = getTierLimits(effectiveTier);
 
     const { data: profile } = await supabaseAdmin
         .from('profiles')

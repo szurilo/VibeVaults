@@ -3,7 +3,22 @@ import { FeedbackCard } from '@/components/feedback-card'
 import Link from 'next/link'
 import { Clock, ExternalLink } from 'lucide-react'
 import { getWorkspaceOwnerTier } from '@/lib/tier-helpers'
+import { hasActiveAccess } from '@/lib/tier-config'
 import { fetchSenderAvatars } from '@/lib/feedback-utils'
+
+function NotFoundView() {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+            <div className="text-center bg-white p-8 rounded-lg shadow-sm border max-w-md w-full">
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+                <p className="text-gray-600 mb-8">Project not found or sharing is disabled.</p>
+                <Link href="/" className="inline-flex items-center justify-center px-6 py-3 rounded-lg font-medium bg-primary text-white hover:bg-primary/90 transition-colors w-full">
+                    Go to VibeVaults
+                </Link>
+            </div>
+        </div>
+    )
+}
 
 // Define Feedback type for clarity
 type Feedback = {
@@ -27,33 +42,25 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
 
     // Security check: must exist AND be enabled
     if (!project || !project.is_sharing_enabled) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-                <div className="text-center bg-white p-8 rounded-lg shadow-sm border max-w-md w-full">
-                    <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-                    <p className="text-gray-600 mb-8">Project not found or sharing is disabled.</p>
-                    <Link href="/" className="inline-flex items-center justify-center px-6 py-3 rounded-lg font-medium bg-primary text-white hover:bg-primary/90 transition-colors w-full">
-                        Go to VibeVaults
-                    </Link>
-                </div>
-            </div>
-        )
+        return <NotFoundView />
     }
 
     // Tier check: owner must be on a plan that allows public dashboard
-    const { effectiveLimits } = await getWorkspaceOwnerTier(project.workspace_id)
+    const { effectiveLimits, ownerId } = await getWorkspaceOwnerTier(project.workspace_id)
     if (!effectiveLimits.publicDashboard) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-                <div className="text-center bg-white p-8 rounded-lg shadow-sm border max-w-md w-full">
-                    <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-                    <p className="text-gray-600 mb-8">Project not found or sharing is disabled.</p>
-                    <Link href="/" className="inline-flex items-center justify-center px-6 py-3 rounded-lg font-medium bg-primary text-white hover:bg-primary/90 transition-colors w-full">
-                        Go to VibeVaults
-                    </Link>
-                </div>
-            </div>
-        )
+        return <NotFoundView />
+    }
+
+    // Live-access check: a cancelled owner must not keep serving public boards
+    // even if is_sharing_enabled is still true (webhook miss, stale row, manual
+    // DB edit). Belt-and-suspenders on top of enforceTierLimitsOnChange.
+    const { data: ownerProfile } = await supabase
+        .from('profiles')
+        .select('subscription_status, trial_ends_at')
+        .eq('id', ownerId)
+        .single()
+    if (!hasActiveAccess(ownerProfile)) {
+        return <NotFoundView />
     }
 
     // 2. Fetch Feedback (if project valid)
