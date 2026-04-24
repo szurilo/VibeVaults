@@ -55,20 +55,24 @@ export async function POST(req: Request) {
             return new NextResponse("You already have access to this workspace", { status: 400 });
         }
 
-        // Require at least one project with a website_url before inviting anyone
-        const adminCheck = createAdminClient();
-        const { data: projectsWithUrl } = await adminCheck
-            .from('projects')
-            .select('id')
-            .eq('workspace_id', workspaceId)
-            .not('website_url', 'is', null)
-            .limit(1);
+        // Client invites email a list of project website URLs to visit, so we
+        // require at least one project with a website_url. Members get
+        // workspace-level dashboard access and don't need a project to exist.
+        if (role === 'client') {
+            const adminCheck = createAdminClient();
+            const { data: projectsWithUrl } = await adminCheck
+                .from('projects')
+                .select('id')
+                .eq('workspace_id', workspaceId)
+                .not('website_url', 'is', null)
+                .limit(1);
 
-        if (!projectsWithUrl || projectsWithUrl.length === 0) {
-            return new NextResponse(
-                "Please create a project with a website URL before inviting people",
-                { status: 400 }
-            );
+            if (!projectsWithUrl || projectsWithUrl.length === 0) {
+                return new NextResponse(
+                    "Please create a project with a website URL before inviting a client",
+                    { status: 400 }
+                );
+            }
         }
 
         // Check if an invite already exists for this email in this workspace

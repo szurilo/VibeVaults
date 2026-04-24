@@ -218,7 +218,7 @@ export default async function DashboardLayout({
                     projects={projects || []}
                     selectedProjectId={selectedProjectId}
                     user={user}
-                    tierInfo={{ tier: tierInfo.tier, isTrialing: tierInfo.isTrialing }}
+                    tierInfo={{ tier: tierInfo.tier, isTrialing: tierInfo.isTrialing, trialStarted: tierInfo.trialStarted }}
                 />
                 <main className="flex-1 overflow-y-auto bg-gray-50 flex flex-col">
                     <div className="p-4 bg-white border-b border-gray-200 md:hidden flex items-center gap-2">

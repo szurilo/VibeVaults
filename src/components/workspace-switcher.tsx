@@ -31,11 +31,13 @@ export default function WorkspaceSwitcher({
     selectedWorkspaceId,
     user,
     isTrialExpired = false,
+    trialStarted = false,
 }: {
     workspaces: Workspace[],
     selectedWorkspaceId?: string,
     user: User,
     isTrialExpired?: boolean,
+    trialStarted?: boolean,
 }) {
     const router = useRouter();
     const [showNewWorkspaceDialog, setShowNewWorkspaceDialog] = useState(false);
@@ -237,7 +239,7 @@ export default function WorkspaceSwitcher({
                 <DialogHeader>
                     <DialogTitle>Create Workspace</DialogTitle>
                 </DialogHeader>
-                {!hasOwnWorkspace && (
+                {!hasOwnWorkspace && !trialStarted && (
                     <div className="bg-blue-50 border border-blue-100/50 text-blue-800 p-4 rounded-md text-sm font-medium">
                         By creating your own workspace you are subscribing to VibeVaults and will start your 14 days trial.
                     </div>
