@@ -54,7 +54,7 @@ export function AppSidebar({
     projects: Project[]
     selectedProjectId?: string
     user: User
-    tierInfo?: { tier: TierSlug | null; isTrialing: boolean }
+    tierInfo?: { tier: TierSlug | null; isTrialing: boolean; trialStarted: boolean }
 }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -68,7 +68,6 @@ export function AppSidebar({
     const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
     const activeProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
     const isOwner = activeWorkspace?.owner_id === user.id;
-    const ownsAnyWorkspace = workspaces?.some(w => w.owner_id === user.id) ?? false;
     // Paywall state is the user's own trial/sub status. Only gates features
     // when the active workspace is one they own — invited workspaces are
     // gated by the inviting owner's subscription, not this user's.
@@ -82,7 +81,7 @@ export function AppSidebar({
         ? 'Trial'
         : tierInfo?.tier
             ? tierInfo.tier.charAt(0).toUpperCase() + tierInfo.tier.slice(1)
-            : ownsAnyWorkspace ? 'Expired' : null;
+            : tierInfo?.trialStarted ? 'Expired' : null;
 
     return (
         <Sidebar>
@@ -113,6 +112,7 @@ export function AppSidebar({
                             selectedWorkspaceId={selectedWorkspaceId}
                             user={user}
                             isTrialExpired={isTrialExpired}
+                            trialStarted={!!tierInfo?.trialStarted}
                         />
                     </div>
                     <SidebarMenu className={lockSidebar ? "pointer-events-none opacity-50" : ""}>
@@ -192,7 +192,7 @@ export function AppSidebar({
             </SidebarContent>
 
             <SidebarFooter className="bg-white border-t border-gray-100 p-4">
-                {tierLabel && ownsAnyWorkspace && (
+                {tierLabel && (
                     <div className="flex items-center justify-between px-2 pb-3">
                         <div className="flex items-center gap-1.5">
                             <Crown className={`w-3.5 h-3.5 ${isTrialExpired ? "text-red-500" : "text-amber-500"}`} />

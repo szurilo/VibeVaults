@@ -20,6 +20,7 @@ export { hasActiveAccess, isTrialExpired, isSubscribed, isTrialActive } from './
 export interface TierInfo {
     tier: TierSlug | null;
     isTrialing: boolean;
+    trialStarted: boolean;
     effectiveLimits: TierLimits;
 }
 
@@ -45,6 +46,7 @@ export async function getUserTier(userId: string): Promise<TierInfo> {
 
     const tier = (profile?.subscription_tier as TierSlug | null) ?? null;
     const isTrialing = !isSubscribed(profile) && isTrialActive(profile);
+    const trialStarted = !!profile?.trial_ends_at;
 
     // During trial, effective tier is Pro regardless of subscription_tier value
     const effectiveTier = isTrialing ? 'pro' : tier;
@@ -52,6 +54,7 @@ export async function getUserTier(userId: string): Promise<TierInfo> {
     return {
         tier,
         isTrialing,
+        trialStarted,
         effectiveLimits: getTierLimits(effectiveTier),
     };
 }

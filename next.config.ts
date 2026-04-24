@@ -18,6 +18,14 @@ const nextConfig: NextConfig = {
     ];
   },
   skipTrailingSlashRedirect: true,
+  // Stable Server Action encryption is configured via the
+  // NEXT_SERVER_ACTIONS_ENCRYPTION_KEY env var (read automatically by Next at
+  // build time). Generate with: openssl rand -base64 32 — set it in Vercel
+  // Project Settings → Environment Variables for Production.
+  // Vercel Skew Protection (separately enabled in Vercel Project Settings →
+  // Advanced) routes old clients back to their original deployment so old
+  // Server Action IDs still resolve — prevents "Failed to find Server Action"
+  // 404s during the deploy-overlap window.
 };
 
 export default nextConfig;
