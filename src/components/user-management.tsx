@@ -223,24 +223,24 @@ export function UserManagement({
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {members.map((member) => (
-                            <div key={member.user_id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50/50">
-                                <div className="flex items-center gap-4">
-                                    <Avatar>
+                            <div key={member.user_id} className="flex flex-col gap-3 p-4 border rounded-lg bg-gray-50/50 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-4 min-w-0">
+                                    <Avatar className="shrink-0">
                                         <AvatarImage src={member.profiles?.avatar_url} />
                                         <AvatarFallback>
                                             {(member.profiles?.full_name || member.profiles?.email || "?").charAt(0).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
-                                    <div>
-                                        <p className="font-medium text-sm">
+                                    <div className="min-w-0">
+                                        <p className="font-medium text-sm truncate">
                                             {member.profiles?.full_name || (member.profiles?.email ? member.profiles.email.split('@')[0] : "Unknown User")}
                                         </p>
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground truncate">
                                             {member.profiles?.email}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4 shrink-0 self-end sm:self-auto">
                                     <Badge variant={member.role === 'owner' ? 'default' : 'secondary'}>
                                         {member.role}
                                     </Badge>
@@ -316,23 +316,23 @@ export function UserManagement({
 
                         {/* Render Client Invites as whitelisted users here */}
                         {clientInvites.map((client) => (
-                            <div key={client.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50/50">
-                                <div className="flex items-center gap-4">
-                                    <Avatar>
+                            <div key={client.id} className="flex flex-col gap-3 p-4 border rounded-lg bg-gray-50/50 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-4 min-w-0">
+                                    <Avatar className="shrink-0">
                                         <AvatarFallback>
                                             {client.email.charAt(0).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
-                                    <div>
-                                        <p className="font-medium text-sm">
+                                    <div className="min-w-0">
+                                        <p className="font-medium text-sm truncate">
                                             {client.email.split('@')[0]}
                                         </p>
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground truncate">
                                             {client.email}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4 shrink-0 self-end sm:self-auto">
                                     <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                                         Client
                                     </Badge>
@@ -385,14 +385,14 @@ export function UserManagement({
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {pendingMembers.map((invite) => (
-                                <div key={invite.id} className="flex items-center justify-between p-4 border border-dashed rounded-lg">
-                                    <div className="flex flex-col">
-                                        <span className="font-medium text-sm">{invite.email}</span>
+                                <div key={invite.id} className="flex flex-col gap-3 p-4 border border-dashed rounded-lg sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="font-medium text-sm truncate">{invite.email}</span>
                                         <span className="text-xs text-muted-foreground">
                                             Invited {formatRelativeTime(invite.created_at)}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                                         <Badge variant="outline">Pending</Badge>
                                         {isOwner && (
                                             <AlertDialog>

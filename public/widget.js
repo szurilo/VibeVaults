@@ -392,8 +392,9 @@
     .message.other { background: #f3f4f6; color: #374151; border-top-left-radius: 0; border: 1px solid rgba(229, 231, 235, 0.5); }
     .message.self { background: #209CEE; color: white; border-top-right-radius: 0; }
     .msg-meta { font-size: 10px; color: #9ca3af; padding: 0 4px; display: flex; gap: 8px; align-items: center; }
-    .chat-input { display: flex; gap: 8px; border-top: 1px solid #f3f4f6; padding: 12px 20px; }
-    .chat-input input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
+    .chat-input { display: flex; gap: 8px; border-top: 1px solid #f3f4f6; padding: 12px 20px; align-items: center; }
+    .chat-input input { flex: 1 1 0; min-width: 0; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
+    .chat-input > button { flex-shrink: 0; }
     .chat-no-replies { padding: 30px 20px; text-align: center; color: #9ca3af; font-size: 12px; }
 
     .btn { background: #209CEE; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; font-family: inherit; }
