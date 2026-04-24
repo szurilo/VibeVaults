@@ -48,50 +48,86 @@ export default async function DashboardLayout({
     // otherwise the sidebar renders "No Workspace" until the user refreshes.
     let workspaces = initialWorkspaces;
 
-    // Auto-accept pending member workspace invites for this email.
-    let autoSelectedWorkspaceId: string | undefined;
-    if (user.email) {
-        const adminSupabase = createAdminClient();
-        const { data: myInvites } = await adminSupabase
+    // Stage 2: three independent queries that all only need user.id / user.email.
+    // Running them in parallel instead of sequentially saves ~2 round-trips of
+    // EU↔EU latency on every dashboard navigation. Each has its own local scope
+    // so an error in one (e.g. welcome claim) doesn't block the others.
+    const adminSupabase = createAdminClient();
+
+    const invitesPromise = user.email
+        ? adminSupabase
             .from("workspace_invites")
             .select("*")
             .eq("email", user.email)
-            .neq("role", "client");
+            .neq("role", "client")
+        : Promise.resolve({ data: null as Array<{ id: string; workspace_id: string; role: string }> | null });
 
-        if (myInvites && myInvites.length > 0) {
-            for (const invite of myInvites) {
-                // Check if already a member just in case
-                const { data: existing } = await adminSupabase
+    const tierPromise = getUserTier(user.id);
+
+    // Welcome email: atomic claim + fire-and-forget send. Uses `initialWorkspaces`
+    // because ownership is unchanged by invite auto-accept (invites add memberships,
+    // not owned workspaces). `.catch()` swallows errors to keep this non-blocking
+    // for dashboard render — a failed welcome email must never break the UI.
+    const welcomeClaimPromise = (async () => {
+        const ownsAnyWorkspace = initialWorkspaces?.some(w => w.owner_id === user.id) ?? false;
+        if (!ownsAnyWorkspace) return;
+        const { data: claimed } = await supabase
+            .from("profiles")
+            .update({ welcome_email_sent: true })
+            .eq("id", user.id)
+            .eq("welcome_email_sent", false)
+            .select("id");
+        if (claimed && claimed.length > 0) {
+            const email = user.email || 'friend';
+            const nameStr = email.split('@')[0];
+            const formattedName = nameStr.charAt(0).toUpperCase() + nameStr.slice(1);
+            sendWelcomeNotification({ to: email, name: formattedName }).catch(e =>
+                console.error('Failed to send welcome email:', e)
+            );
+        }
+    })().catch(e => console.error('Welcome claim failed:', e));
+
+    const [{ data: myInvites }, tierInfo] = await Promise.all([
+        invitesPromise,
+        tierPromise,
+        welcomeClaimPromise,
+    ]);
+
+    // Auto-accept pending member workspace invites for this email.
+    let autoSelectedWorkspaceId: string | undefined;
+    if (myInvites && myInvites.length > 0) {
+        for (const invite of myInvites) {
+            // Check if already a member just in case
+            const { data: existing } = await adminSupabase
+                .from("workspace_members")
+                .select("role")
+                .eq("workspace_id", invite.workspace_id)
+                .eq("user_id", user.id)
+                .single();
+
+            if (!existing) {
+                const { error: insertError } = await adminSupabase
                     .from("workspace_members")
-                    .select("role")
-                    .eq("workspace_id", invite.workspace_id)
-                    .eq("user_id", user.id)
-                    .single();
+                    .insert({
+                        workspace_id: invite.workspace_id,
+                        user_id: user.id,
+                        role: invite.role
+                    });
 
-                if (!existing) {
-                    const { error: insertError } = await adminSupabase
-                        .from("workspace_members")
-                        .insert({
-                            workspace_id: invite.workspace_id,
-                            user_id: user.id,
-                            role: invite.role
-                        });
-
-                    if (insertError) {
-                        console.error("Failed to accept invite:", insertError);
-                        continue; // Don't delete the invite if we couldn't add the member
-                    }
+                if (insertError) {
+                    console.error("Failed to accept invite:", insertError);
+                    continue; // Don't delete the invite if we couldn't add the member
                 }
-
-                // Track this workspace ID to auto-select it later
-                autoSelectedWorkspaceId = invite.workspace_id;
-
-                // Delete invite only after successful member insert (or if already a member)
-                await adminSupabase
-                    .from("workspace_invites")
-                    .delete()
-                    .eq("id", invite.id);
             }
+
+            // Track this workspace ID to auto-select it later
+            autoSelectedWorkspaceId = invite.workspace_id;
+
+            // Delete invite only after successful member insert (or if already a member)
+            await adminSupabase
+                .from("workspace_invites")
+                .delete()
+                .eq("id", invite.id);
         }
     }
 
@@ -103,7 +139,6 @@ export default async function DashboardLayout({
     // client sends a different Authorization header, which changes the memo key
     // and forces a real round-trip. RLS is not the issue here — memoization is.
     if (autoSelectedWorkspaceId) {
-        const adminSupabase = createAdminClient();
         const { data: memberships } = await adminSupabase
             .from("workspace_members")
             .select("workspace_id")
@@ -120,32 +155,6 @@ export default async function DashboardLayout({
         }
     }
 
-    // Send welcome email once per user, on first dashboard visit after they own
-    // a workspace. Covers both the DB-trigger auto-create path and the manual
-    // createWorkspaceAction path. Atomic update (eq welcome_email_sent=false)
-    // guards against races from concurrent requests.
-    const ownsAnyWorkspace = workspaces?.some(w => w.owner_id === user.id) ?? false;
-    if (ownsAnyWorkspace) {
-        const { data: claimed } = await supabase
-            .from("profiles")
-            .update({ welcome_email_sent: true })
-            .eq("id", user.id)
-            .eq("welcome_email_sent", false)
-            .select("id");
-
-        if (claimed && claimed.length > 0) {
-            const email = user.email || 'friend';
-            const nameStr = email.split('@')[0];
-            const formattedName = nameStr.charAt(0).toUpperCase() + nameStr.slice(1);
-            sendWelcomeNotification({ to: email, name: formattedName }).catch(e =>
-                console.error('Failed to send welcome email:', e)
-            );
-        }
-    }
-
-    // Fetch tier info early — needed both for the sidebar and for picking a
-    // sensible default workspace when the user's trial has expired.
-    const tierInfo = await getUserTier(user.id);
     const isTrialExpired = isTierExpired(tierInfo);
 
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;

@@ -226,7 +226,7 @@ export function AppSidebar({
                             </div>
                         </SidebarMenuButton>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" side="right" sideOffset={8}>
+                    <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56" align="end" side="top" sideOffset={8}>
                         <DropdownMenuLabel className="font-normal flex flex-col items-start gap-1 p-2">
                             <span className="truncate font-medium w-full">
                                 {user.user_metadata?.full_name || user.email?.split('@')[0]}
