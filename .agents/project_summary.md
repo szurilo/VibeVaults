@@ -27,6 +27,17 @@
 - **Consistent UI**: Shadcn cards should look the same unless told otherwise. All dialogs use the same AlertDialog design. All emails share consistent styling.
 - **Form Validation**: Use standard React state for form validations (no form libraries).
 
+### Shipping Safety (urgent-fix checklist)
+Vercel deploys are atomic and zero-downtime, so shipping while users are active is generally safe. Before pushing, confirm the change isn't one of the risky categories below:
+
+- **DB migrations** — the only category that can actively break live traffic. Use expand/contract: add column → deploy code that writes both shapes → backfill → deploy code that reads new → drop old. Never couple a destructive migration (drop/rename/NOT NULL without default) to a single deploy. Migrations run via GitHub Actions `deploy-migrations.yml`.
+- **Widget API contract (`/api/widget/*`)** — treat as a public append-only API. Old `public/widget.js` copies are cached in end-users' browsers on customer websites and will keep calling the old shape for hours/days. Add fields, never remove/rename. Breaking changes need a versioned path (`/api/widget/v2/...`), not mutation of the existing one.
+- **Server action signatures** — Next.js hashes server-action IDs; a dashboard tab opened before the deploy can 500 on click. Self-heals on refresh. Acceptable for non-urgent changes, avoid during peak if the affected action is hot.
+- **Stripe webhook / cron endpoints** — safe to deploy mid-run; Stripe retries, and `email_digest_queue.sent_at` makes the digest cron idempotent.
+- **SSE (`/api/widget/stream`)** — active chats reconnect onto the new build. Safe unless you changed the stream contract.
+
+**For an urgent customer fix**: if the change is scoped to a single dashboard route, component, or server-side bug fix with no schema or widget-API touch, ship it. If it touches `supabase/migrations/` or `/api/widget/*`, stop and plan the two-step.
+
 ## 4. Current Direction & Recent Epics
 
 ### Workspace Architecture (Multi-Owned, Multi-Joined)

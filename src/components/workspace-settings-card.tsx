@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useUnsavedChangesWarning } from '@/hooks/use-unsaved-changes-warning';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -125,12 +126,7 @@ export function WorkspaceSettingsCard({ workspace }: WorkspaceSettingsCardProps)
     const hasChanged = name !== workspace.name || logoUrl !== (workspace.brand_logo_url || null);
     const isSaveDisabled = loading || isUploading || !name.trim() || !hasChanged;
 
-    useEffect(() => {
-        if (!hasChanged) return;
-        const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-        window.addEventListener('beforeunload', handler);
-        return () => window.removeEventListener('beforeunload', handler);
-    }, [hasChanged]);
+    useUnsavedChangesWarning(hasChanged);
 
     return (
         <Card className="shadow-sm border-gray-200">
