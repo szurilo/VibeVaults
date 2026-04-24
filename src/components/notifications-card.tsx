@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { updateAgencyPreferencesAction, updateEmailFrequencyAction } from '@/actions/preferences';
+import { useUnsavedChangesWarning } from '@/hooks/use-unsaved-changes-warning';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -41,12 +42,7 @@ export function NotificationsCard({ initialPreferences, canUseRealtime = false }
         (initialPreferences.notify_project_deleted !== false) !== notifyProjectDeleted ||
         (canUseRealtime && (initialPreferences.email_frequency || 'digest') !== emailFrequency);
 
-    useEffect(() => {
-        if (!hasChanged) return;
-        const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-        window.addEventListener('beforeunload', handler);
-        return () => window.removeEventListener('beforeunload', handler);
-    }, [hasChanged]);
+    useUnsavedChangesWarning(hasChanged);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();

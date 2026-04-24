@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useUnsavedChangesWarning } from '@/hooks/use-unsaved-changes-warning';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,12 +41,7 @@ export function EditProjectCard({ project }: EditProjectCardProps) {
 
     const hasChanged = name !== project.name || websiteUrl !== (project.website_url || '');
 
-    useEffect(() => {
-        if (!hasChanged) return;
-        const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-        window.addEventListener('beforeunload', handler);
-        return () => window.removeEventListener('beforeunload', handler);
-    }, [hasChanged]);
+    useUnsavedChangesWarning(hasChanged);
 
     const handleUpdateName = async (e: React.FormEvent) => {
         e.preventDefault();
