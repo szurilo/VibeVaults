@@ -24,25 +24,16 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
     capture_exceptions: true,
   })
 
-  // Without Vercel Skew Protection (Pro plan), old clients can't be routed
-  // back to their original deployment, so post-deploy Server Action 404s are
-  // unavoidable. Mitigate by (a) proactively detecting deployment changes via
-  // the `x-vercel-id` response header and prompting reload before the user
-  // hits a dead action, and (b) reporting any actual Server Action failures
-  // to PostHog (capture_exceptions misses them — the rejected fetch is
-  // swallowed by React's action dispatcher) and offering a recovery toast.
+  // Server Action failures (e.g. "Failed to find Server Action <id>" after a
+  // deploy invalidates old action IDs) don't throw on the client — React's
+  // action dispatcher swallows the rejected fetch, so capture_exceptions
+  // never sees them. Intercept fetch to spot Server Action requests (they
+  // carry a Next-Action header) that respond with an error, forward them to
+  // PostHog, and on 404 prompt the user to reload.
   const windowWithPatch = window as Window & { __vvServerActionPatched?: boolean }
   if (!windowWithPatch.__vvServerActionPatched) {
     windowWithPatch.__vvServerActionPatched = true
-    const bundleDeploymentId = process.env.NEXT_PUBLIC_VERCEL_DEPLOYMENT_ID ?? null
-    let staleDeploymentNotified = false
-    const promptReload = (description: string) => {
-      toast('App update available', {
-        description,
-        duration: Infinity,
-        action: { label: 'Reload', onClick: () => window.location.reload() },
-      })
-    }
+    let reloadPrompted = false
     const originalFetch = window.fetch
     window.fetch = async (...args) => {
       const response = await originalFetch(...args)
@@ -50,17 +41,6 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
         const [input, init] = args
         const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined))
         const actionId = headers.get('next-action')
-
-        // Vercel's x-vercel-id encodes the deployment as the suffix after `::`.
-        if (bundleDeploymentId && !staleDeploymentNotified) {
-          const vercelId = response.headers.get('x-vercel-id')
-          const responseDeploymentId = vercelId?.split('::').pop() ?? null
-          if (responseDeploymentId && responseDeploymentId !== bundleDeploymentId) {
-            staleDeploymentNotified = true
-            promptReload('A newer version was just deployed. Reload to avoid errors.')
-          }
-        }
-
         if (actionId && !response.ok) {
           const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
           posthog.captureException(
@@ -70,12 +50,15 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
               actionId,
               status: response.status,
               url,
-              deploymentId: bundleDeploymentId,
             }
           )
-          if (response.status === 404 && !staleDeploymentNotified) {
-            staleDeploymentNotified = true
-            promptReload('The app was just updated and that action is no longer available. Reload to continue.')
+          if (response.status === 404 && !reloadPrompted) {
+            reloadPrompted = true
+            toast('App update available', {
+              description: 'The app was just updated and that action is no longer available. Reload to continue.',
+              duration: Infinity,
+              action: { label: 'Reload', onClick: () => window.location.reload() },
+            })
           }
         }
       } catch {
