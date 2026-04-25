@@ -180,6 +180,7 @@ Vercel deploys are atomic and zero-downtime, so shipping while users are active 
 ### Screenshot & Image Viewer
 - Replaced `html-to-image` with `snapDOM` for Safari compatibility.
 - Image viewers (feedback card lightbox) now have a maximize/fullscreen option.
+- **Pill-radius pre-pass (`flattenPillRadii` in `public/widget.js`)**: works around a Firefox+GPU/driver bug where snapdom's foreignObject rasterization drops the `background-color` fill of small pill-shaped elements (`border-radius >= min-dimension/2`, e.g. Tailwind's `rounded-full` → `9999px`) but still paints their box-shadow, leaving a ghost silhouette. The pre-pass walks the DOM before `snapdom.toCanvas`, finds qualifying elements with a non-transparent background, replaces their inline `border-radius` with an exact pixel value, and inlines the computed `background-color` and `color`. Restored in a `.finally()` so the live page is untouched after capture. Triggered only by users running Firefox with hardware acceleration on (the default) on certain GPU/driver combos — the bug doesn't reproduce in Troubleshoot Mode (which disables HW accel) or with `gfx.webrender.software=true`. Customer-side workaround isn't viable since we can't ask paying users to disable HW accel; fix lives in the capture path. Excludes `#vibe-vaults-widget-host` so the widget UI itself isn't mutated.
 
 ### Unsaved Changes Warnings
 - `WorkspaceSettingsCard` and `EditProjectCard` warn users before navigating away with unsaved changes via `beforeunload` event.

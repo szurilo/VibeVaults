@@ -1142,7 +1142,49 @@
           showWidgetToast('Screenshot capture failed. Please try again.');
         };
 
+        // Pre-pass for a Firefox+GPU bug: with hardware acceleration on, some
+        // driver/GPU combos drop the background-color fill of small pill-shaped
+        // elements (border-radius >= min-dimension/2, e.g. Tailwind's `rounded-full`
+        // which emits 9999px) when snapdom rasterizes its foreignObject. The shadow
+        // still paints, leaving a ghost silhouette. Flattening the radius to an
+        // exact pixel value avoids the buggy path; also inline the computed
+        // background-color / color so the SVG doesn't depend on cascade resolution
+        // inside foreignObject. Restored in finally() to leave the live page intact.
+        const flattenPillRadii = () => {
+          const restorations = [];
+          const nodes = document.body.querySelectorAll('*');
+          for (const el of nodes) {
+            if (el.closest('#vibe-vaults-widget-host')) continue;
+            const cs = getComputedStyle(el);
+            const radius = parseFloat(cs.borderTopLeftRadius);
+            if (!radius || radius < 1) continue;
+            const rect = el.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) continue;
+            const minDim = Math.min(rect.width, rect.height);
+            if (radius < minDim / 2) continue;
+            const bg = cs.backgroundColor;
+            if (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') continue;
+            restorations.push({
+              el,
+              borderRadius: el.style.borderRadius,
+              backgroundColor: el.style.backgroundColor,
+              color: el.style.color,
+            });
+            el.style.borderRadius = (minDim / 2) + 'px';
+            el.style.backgroundColor = bg;
+            el.style.color = cs.color;
+          }
+          return () => {
+            for (const r of restorations) {
+              r.el.style.borderRadius = r.borderRadius;
+              r.el.style.backgroundColor = r.backgroundColor;
+              r.el.style.color = r.color;
+            }
+          };
+        };
+
         const runCapture = () => {
+          const restorePills = flattenPillRadii();
           window.snapdom.toCanvas(document.body, captureOptions).then((fullCanvas) => {
             // Crop to visible viewport
             const dpr = fullCanvas.width / document.body.scrollWidth;
@@ -1169,7 +1211,7 @@
             }
 
             finishCapture(cropped.toDataURL('image/jpeg', 0.6));
-          }).catch(onCaptureError);
+          }).catch(onCaptureError).finally(restorePills);
         };
 
         // Pinned to v2.5.0 — v2.6.0+ introduced a regression that renders

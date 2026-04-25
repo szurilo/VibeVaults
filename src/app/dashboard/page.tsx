@@ -69,18 +69,14 @@ export default async function DashboardPage() {
     const hasOnboarded = (profile?.has_onboarded ?? false)
         || requiredStepIds.every(id => completedSteps.includes(id));
 
-    // RLS policies ensure we only count feedback for the user's projects
-    // But we filter by project_id if one is selected
-    let query = supabase
-        .from('feedbacks')
-        .select('*', { count: 'exact', head: true });
-
+    let totalFeedback = 0;
     if (currentProject) {
-        query = query.eq('project_id', currentProject.id);
+        const { count } = await supabase
+            .from('feedbacks')
+            .select('*', { count: 'exact', head: true })
+            .eq('project_id', currentProject.id);
+        totalFeedback = count || 0;
     }
-
-    const { count } = await query;
-    const totalFeedback = count || 0;
 
     return (
         <div>
