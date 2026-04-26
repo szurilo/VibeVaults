@@ -106,6 +106,8 @@ tests/              # Playwright E2E tests
 ### Observability & Error Tracking
 - **PostHog** for product analytics + error capture. Client-side exceptions auto-captured via `PostHogProvider` (`capture_exceptions: true`). Server-side errors captured via `instrumentation.ts` `onRequestError` hook using `posthog-node`. React render errors caught by `src/app/global-error.tsx`.
 - **Widget error reporter** (`public/widget.js`): captures `window.error` (filtered to `widget.js` frames) and `unhandledrejection`. Posts to `/api/widget/errors` via `navigator.sendBeacon` (fetch fallback). Per-session deduplication so one bug doesn't flood the table. Stored in `widget_errors` table.
+- **Widget screenshot telemetry** (`/api/widget/screenshot-event`): every screenshot capture (success or failure) sends a beacon with browser, UA, GPU vendor/renderer (via `WEBGL_debug_renderer_info`), DPR, viewport, and duration. Forwarded to PostHog server-side as `widget_screenshot_capture` event. Purpose: size the impact of the known Firefox+GPU foreignObject rasterization bug (see below) so we can decide whether the canvas-substitute workaround is worth its quality tradeoff.
+- **Known browser bug — Firefox foreignObject rasterization**: snapdom serializes the DOM into an SVG `<foreignObject>` and rasterizes it via `<img>`+canvas. On certain Firefox + GPU/driver combos with hardware acceleration enabled, Firefox's accelerated foreignObject paint **drops `background-color` fills on small pill-shaped elements** (`rounded-full` with non-transparent bg + box-shadow), leaving a ghost silhouette where the box-shadow rendered but the fill and inner text didn't. Confirmed via raw-SVG diagnostic that snapdom serializes correct markup; the bug is purely in Firefox's GPU rasterization step. **End-user workaround**: disable Firefox HW acceleration (`about:preferences` → Performance → uncheck "Use hardware acceleration"). **Code workaround**: not currently shipped — a canvas-substitute pre-pass would degrade screenshot fidelity for 100% of users to fix it for an unknown small minority. Decision deferred until telemetry sizes the problem. Affects all foreignObject-based libraries (`html-to-image`, `dom-to-image`, `modern-screenshot`); only `html2canvas`-family libraries sidestep it but at significant fidelity cost on modern CSS.
 - **Admin signup alerts**: DB trigger `notify_admin_on_new_signup` fires via pg_net to `/api/notifications/new-signup` (secret-guarded via `SIGNUP_NOTIFY_SECRET`), which emails `ADMIN_EMAIL` via Resend.
 
 ### Notification System
@@ -158,6 +160,7 @@ tests/              # Playwright E2E tests
 | `/api/auth/turnstile` | POST | Turnstile verification |
 | `/api/cron/digest` | GET | Processes queued digest emails (Supabase pg_cron, every 15 min) |
 | `/api/widget/errors` | POST | Receives widget-side error reports, writes to `widget_errors` (rate-limited) |
+| `/api/widget/screenshot-event` | POST | Receives screenshot-capture telemetry beacons → PostHog `widget_screenshot_capture` event (browser, GPU, DPR, viewport, duration) |
 | `/api/notifications/new-signup` | POST | Admin signup alert (secret-guarded, called by DB trigger via pg_net) |
 
 ## Proxy Redirects (`src/lib/supabase/proxy.ts`)

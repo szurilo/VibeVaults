@@ -20,6 +20,7 @@
     const API_UPLOAD_CONFIRM = `${origin}/api/widget/upload/confirm`;
     const API_VERIFY = `${origin}/api/widget/verify-email`;
     const API_ERRORS = `${origin}/api/widget/errors`;
+    const API_SCREENSHOT_EVENT = `${origin}/api/widget/screenshot-event`;
 
     const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
@@ -1135,56 +1136,62 @@
           localFonts: true
         };
 
+        // Telemetry: emits a beacon with browser + GPU info on every screenshot
+        // attempt so we can size the impact of the known Firefox+GPU foreignObject
+        // rasterization bug. Best-effort, never blocks capture, never throws.
+        const captureStartedAt = Date.now();
+        const sendCaptureTelemetry = (outcome) => {
+          try {
+            if (!apiKey) return;
+            const ua = navigator.userAgent || '';
+            const browser = /Firefox\//.test(ua) ? 'firefox'
+              : /Edg\//.test(ua) ? 'edge'
+              : /Chrome\//.test(ua) ? 'chrome'
+              : /Safari\//.test(ua) ? 'safari'
+              : 'other';
+            let gpuVendor = null;
+            let gpuRenderer = null;
+            try {
+              const probe = document.createElement('canvas');
+              const gl = probe.getContext('webgl') || probe.getContext('experimental-webgl');
+              if (gl) {
+                const ext = gl.getExtension('WEBGL_debug_renderer_info');
+                if (ext) {
+                  gpuVendor = gl.getParameter(ext.UNMASKED_VENDOR_WEBGL);
+                  gpuRenderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+                }
+              }
+            } catch (_) { /* WEBGL_debug_renderer_info is restricted in some browsers */ }
+            const payload = JSON.stringify({
+              apiKey,
+              outcome,
+              browser,
+              userAgent: ua,
+              url: location.href,
+              gpuVendor,
+              gpuRenderer,
+              devicePixelRatio: window.devicePixelRatio,
+              viewportWidth: window.innerWidth,
+              viewportHeight: window.innerHeight,
+              durationMs: Date.now() - captureStartedAt,
+            });
+            if (navigator.sendBeacon) {
+              navigator.sendBeacon(API_SCREENSHOT_EVENT, new Blob([payload], { type: 'application/json' }));
+            } else {
+              fetch(API_SCREENSHOT_EVENT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {});
+            }
+          } catch (_) { /* never break capture for telemetry */ }
+        };
+
         const onCaptureError = () => {
           removeCaptureShimmer();
           cleanup();
           if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
           showWidgetToast('Screenshot capture failed. Please try again.');
-        };
-
-        // Pre-pass for a Firefox+GPU bug: with hardware acceleration on, some
-        // driver/GPU combos drop the background-color fill of small pill-shaped
-        // elements (border-radius >= min-dimension/2, e.g. Tailwind's `rounded-full`
-        // which emits 9999px) when snapdom rasterizes its foreignObject. The shadow
-        // still paints, leaving a ghost silhouette. Flattening the radius to an
-        // exact pixel value avoids the buggy path; also inline the computed
-        // background-color / color so the SVG doesn't depend on cascade resolution
-        // inside foreignObject. Restored in finally() to leave the live page intact.
-        const flattenPillRadii = () => {
-          const restorations = [];
-          const nodes = document.body.querySelectorAll('*');
-          for (const el of nodes) {
-            if (el.closest('#vibe-vaults-widget-host')) continue;
-            const cs = getComputedStyle(el);
-            const radius = parseFloat(cs.borderTopLeftRadius);
-            if (!radius || radius < 1) continue;
-            const rect = el.getBoundingClientRect();
-            if (rect.width === 0 || rect.height === 0) continue;
-            const minDim = Math.min(rect.width, rect.height);
-            if (radius < minDim / 2) continue;
-            const bg = cs.backgroundColor;
-            if (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') continue;
-            restorations.push({
-              el,
-              borderRadius: el.style.borderRadius,
-              backgroundColor: el.style.backgroundColor,
-              color: el.style.color,
-            });
-            el.style.borderRadius = (minDim / 2) + 'px';
-            el.style.backgroundColor = bg;
-            el.style.color = cs.color;
-          }
-          return () => {
-            for (const r of restorations) {
-              r.el.style.borderRadius = r.borderRadius;
-              r.el.style.backgroundColor = r.backgroundColor;
-              r.el.style.color = r.color;
-            }
-          };
+          sendCaptureTelemetry('error');
         };
 
         const runCapture = () => {
-          const restorePills = flattenPillRadii();
           window.snapdom.toCanvas(document.body, captureOptions).then((fullCanvas) => {
             // Crop to visible viewport
             const dpr = fullCanvas.width / document.body.scrollWidth;
@@ -1211,7 +1218,8 @@
             }
 
             finishCapture(cropped.toDataURL('image/jpeg', 0.6));
-          }).catch(onCaptureError).finally(restorePills);
+            sendCaptureTelemetry('success');
+          }).catch(onCaptureError);
         };
 
         // Pinned to v2.5.0 — v2.6.0+ introduced a regression that renders
