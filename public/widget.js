@@ -648,7 +648,7 @@
 
     const renderFeedbacksList = (feedbacks) => {
       const listEl = wrapper.querySelector('#vv-feedbacks-list');
-      listEl.innerHTML = feedbacks.map(f => `
+      const html = feedbacks.map(f => `
       <div class="feedback-item" data-id="${f.id}">
         <div class="feedback-item-header">
           <span class="feedback-status ${getStatusClass(f.status)}">${f.status || 'open'}</span>
@@ -662,9 +662,12 @@
       </div>
     `).join('');
 
-      listEl.querySelectorAll('.feedback-item').forEach(item => {
-        item.onclick = () => openFeedbackDetail(item.dataset.id);
-      });
+      if (listEl.innerHTML !== html) {
+        listEl.innerHTML = html;
+        listEl.querySelectorAll('.feedback-item').forEach(item => {
+          item.onclick = () => openFeedbackDetail(item.dataset.id);
+        });
+      }
     };
 
     // --- Feedback detail / conversation ---
@@ -815,10 +818,14 @@
         const data = await res.json();
         const chatEl = wrapper.querySelector('#vv-chat');
         if (data.replies && data.replies.length > 0) {
-          chatEl.innerHTML = data.replies.map(renderReplyBubble).join('');
-          chatEl.scrollTop = chatEl.scrollHeight;
+          const html = data.replies.map(renderReplyBubble).join('');
+          if (chatEl.innerHTML !== html) {
+            chatEl.innerHTML = html;
+            chatEl.scrollTop = chatEl.scrollHeight;
+          }
         } else {
-          chatEl.innerHTML = '<div class="chat-no-replies">No replies yet. Start the conversation!</div>';
+          const emptyHtml = '<div class="chat-no-replies">No replies yet. Start the conversation!</div>';
+          if (chatEl.innerHTML !== emptyHtml) chatEl.innerHTML = emptyHtml;
         }
       } catch (e) {
         console.error('[VibeVaults] Failed to fetch replies:', e);
@@ -1222,14 +1229,9 @@
           }).catch(onCaptureError);
         };
 
-        // Pinned to v2.5.0 — v2.6.0+ introduced a regression that renders
-        // phantom whitespace inside words on flex-laid-out text (e.g. "R ole"
-        // instead of "Role"). See snapdom commit "fix(capture): normalize
-        // foreignObject defaults for flex layout (#351) and whitespace (#349)".
-        // Revisit once upstream fixes the regression.
         if (!window.snapdom) {
           const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/@zumer/snapdom@2.5.0/dist/snapdom.js';
+          script.src = 'https://cdn.jsdelivr.net/npm/@zumer/snapdom@2.9.0/dist/snapdom.js';
           script.onload = runCapture;
           script.onerror = onCaptureError;
           document.head.appendChild(script);
