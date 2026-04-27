@@ -20,7 +20,6 @@
 - **Next.js 16 Paradigm**: The traditional `middleware.ts` is explicitly replaced by `src/proxy.ts`. Same architectural shift applies to Supabase middleware integrations.
 - **Database Safety**: Under NO circumstances should the production DB (Supabase cloud) be mutated, updated, or manipulated without explicit permission. Changes to production DB schema are managed via migration files and deployed by GitHub Actions. Local dev data running on Docker Desktop also requires permission before destructive actions.
 - **Monetization Constraint**: VibeVaults is exclusively a paid platform with a 14-day trial. No free tier. Be aware of this when changing auth/onboarding flows.
-- **No Legacy Data Handling**: There are no paying users in the live database yet, so no need for backfilling, fallback handling, or legacy data migration.
 - **Aesthetics Required**: Emphasize dynamic and polished designs. Never construct "minimal viable" aesthetics, generic buttons, or standard themes. Build premium, vibrant, well-lit components with robust visual hierarchy.
 - **Information Retrieval**: Always proactively leverage Context7 MCP to double-check API documentation, setup flows, or code configurations — no user prompting needed.
 - **File Documentation**: For complex files (e.g., `feedback-card.tsx`, `layout.tsx`), maintain a brief comment block at the top explaining their "Main Responsibility" and "Sensitive Dependencies".
