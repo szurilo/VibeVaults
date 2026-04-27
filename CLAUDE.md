@@ -20,15 +20,14 @@
 2. **Never delete local Supabase data** without permission.
 3. **Always write a short plan before coding**, ask clarifying questions when needed.
 4. **No free tier** — always paid, 14-day trial only.
-5. **No legacy data handling** needed — no paying users yet.
-6. **Premium aesthetics required** — never "minimal viable". Polished, vibrant, well-lit UI.
-7. **Shadcn cards** should look consistent. All dialogs use the same `AlertDialog` design.
-8. **All emails** share the same styling template.
-9. **Form validation** via standard React state — no form libraries.
-10. **Add comment blocks** at top of complex files: "Main Responsibility" + "Sensitive Dependencies".
-11. **Use Context7 MCP** proactively for library/API docs without user asking.
-12. **Default terminal**: PowerShell (but Claude Code runs bash).
-13. **Next.js 16**: `middleware.ts` → `src/proxy.ts`, Supabase middleware → `src/lib/supabase/proxy.ts`.
+5. **Premium aesthetics required** — never "minimal viable". Polished, vibrant, well-lit UI.
+6. **Shadcn cards** should look consistent. All dialogs use the same `AlertDialog` design.
+7. **All emails** share the same styling template.
+8. **Form validation** via standard React state — no form libraries.
+9. **Add comment blocks** at top of complex files: "Main Responsibility" + "Sensitive Dependencies".
+10. **Use Context7 MCP** proactively for library/API docs without user asking.
+11. **Default terminal**: PowerShell (but Claude Code runs bash).
+12. **Next.js 16**: `middleware.ts` → `src/proxy.ts`, Supabase middleware → `src/lib/supabase/proxy.ts`.
 
 ## File Structure
 ```
