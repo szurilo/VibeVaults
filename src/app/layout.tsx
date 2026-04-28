@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { CookieConsent } from "@/components/CookieConsent";
+import { requiresConsent } from "@/lib/consent";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -92,17 +95,22 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const requestHeaders = await headers();
+  const country = requestHeaders.get("x-vercel-ip-country");
+  const requireConsent = requiresConsent(country);
+
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} font-sans`} suppressHydrationWarning>
       <body className={`${geistSans.className} antialiased`}>
         <PostHogProvider>
           {children}
         </PostHogProvider>
+        <CookieConsent requireConsent={requireConsent} />
         <Analytics />
         <SpeedInsights />
         <script src="/widget.js" data-key="e3917e214418009aea8b7a2712cb0059" async></script>

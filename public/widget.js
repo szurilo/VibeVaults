@@ -536,6 +536,7 @@
           <p>Enter your email to get started</p>
           <input type="email" class="email-prompt-input" id="vv-email-input" placeholder="you@example.com" />
           <button class="btn" id="vv-email-verify">Continue</button>
+          <p style="font-size:11px;color:#9ca3af;margin:14px 0 0;line-height:1.5">By continuing, your message and email are shared with the site owner via VibeVaults. See our <a href="https://vibe-vaults.com/privacy-policy" target="_blank" rel="noopener" style="color:#6366f1;text-decoration:underline">Privacy Policy</a>.</p>
         </div>
         <div class="success-view" id="vv-success">
           <div style="width:40px;height:40px;background:#ecfdf5;color:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>

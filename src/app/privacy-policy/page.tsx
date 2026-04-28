@@ -1,5 +1,6 @@
 
 import Link from "next/link";
+import { CookiePreferencesLink } from "@/components/CookiePreferencesLink";
 
 export default function PrivacyPolicy() {
     return (
@@ -15,7 +16,7 @@ export default function PrivacyPolicy() {
             <main className="max-w-3xl mx-auto px-8 py-12">
                 <h1 className="text-4xl font-extrabold mb-4 text-gray-900">Privacy Policy</h1>
                 <p className="text-gray-500 mb-8">
-                    <strong>Last updated:</strong> April 2, 2026
+                    <strong>Last updated:</strong> April 28, 2026
                 </p>
 
                 <div className="prose prose-gray max-w-none">
@@ -68,10 +69,14 @@ export default function PrivacyPolicy() {
                     <p className="mb-4">When feedback is submitted via a widget, we may collect:</p>
                     <ul className="list-disc pl-6 mb-4 space-y-2">
                         <li>Feedback content submitted voluntarily</li>
+                        <li>Email address (provided by the end user to receive replies)</li>
                         <li>Technical metadata such as IP address and user agent (for security and abuse prevention)</li>
                     </ul>
-                    <p className="mb-6">
+                    <p className="mb-4">
                         We do not require end users to create accounts.
+                    </p>
+                    <p className="mb-6">
+                        IP addresses collected for rate-limiting and abuse prevention are retained for up to 30 days, then purged or anonymized.
                     </p>
 
                     <hr className="my-8 border-gray-100" />
@@ -132,10 +137,13 @@ export default function PrivacyPolicy() {
                     <h2 className="text-2xl font-bold mb-4 text-gray-900">8. Cookies and Analytics</h2>
                     <p className="mb-4">We use cookies and similar technologies for:</p>
                     <ul className="list-disc pl-6 mb-4 space-y-2">
-                        <li><strong>Essential cookies</strong> – authentication sessions and workspace/project preferences</li>
-                        <li><strong>Analytics</strong> – PostHog collects anonymized usage data, including page views and session replays, to help us improve the Service</li>
-                        <li><strong>Anti-bot verification</strong> – Cloudflare Turnstile may set cookies to verify human users during authentication</li>
+                        <li><strong>Essential cookies</strong> – authentication sessions and workspace/project preferences. These are required for the Service to function and do not require consent.</li>
+                        <li><strong>Analytics (consent-based)</strong> – PostHog (EU-hosted) collects usage data, including page views, session replays, and error tracking, to help us improve the Service. These are loaded <strong>only after you accept</strong> via the cookie banner. Form inputs are masked by default in session replays.</li>
+                        <li><strong>Anti-bot verification</strong> – Cloudflare Turnstile may set cookies to verify human users during authentication. This is essential to prevent abuse.</li>
                     </ul>
+                    <p className="mb-4">
+                        Visitors from the EU, EEA, UK, and Switzerland see a consent banner on first visit. You can change your choices at any time via the &ldquo;Cookie preferences&rdquo; link in the footer.
+                    </p>
                     <p className="mb-6">
                         We do not use cookies for advertising or third-party tracking.
                     </p>
@@ -175,7 +183,37 @@ export default function PrivacyPolicy() {
 
                     <hr className="my-8 border-gray-100" />
 
-                    <h2 className="text-2xl font-bold mb-4 text-gray-900">12. Changes to This Policy</h2>
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">12. Children</h2>
+                    <p className="mb-6">
+                        The Service is not intended for children. You must be at least 16 years old to create an account or submit feedback. If we learn that we have collected personal data from a child under 16 without parental consent, we will delete it.
+                    </p>
+
+                    <hr className="my-8 border-gray-100" />
+
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">13. Data Breach Notification</h2>
+                    <p className="mb-6">
+                        In the event of a personal data breach likely to result in a risk to the rights and freedoms of affected individuals, we will notify the relevant supervisory authority within 72 hours of becoming aware of the breach, in accordance with GDPR Article 33. Where the breach is likely to result in a high risk, we will also notify affected users without undue delay.
+                    </p>
+
+                    <hr className="my-8 border-gray-100" />
+
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">14. California Residents (CCPA / CPRA)</h2>
+                    <p className="mb-4">
+                        If you are a California resident, you have additional rights under the California Consumer Privacy Act (CCPA) as amended by the CPRA:
+                    </p>
+                    <ul className="list-disc pl-6 mb-4 space-y-2">
+                        <li>Right to know what personal information we collect and how we use it</li>
+                        <li>Right to delete your personal information</li>
+                        <li>Right to correct inaccurate personal information</li>
+                        <li>Right to non-discrimination for exercising your rights</li>
+                    </ul>
+                    <p className="mb-6">
+                        <strong>We do not sell or share your personal information</strong> for cross-context behavioral advertising, and we do not use it for targeted advertising. To exercise your rights, contact us at the email address below.
+                    </p>
+
+                    <hr className="my-8 border-gray-100" />
+
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">15. Changes to This Policy</h2>
                     <p className="mb-4">We may update this Privacy Policy from time to time.</p>
                     <p className="mb-6">
                         Changes will be posted on this page with an updated &#8220;Last updated&#8221; date.
@@ -183,7 +221,7 @@ export default function PrivacyPolicy() {
 
                     <hr className="my-8 border-gray-100" />
 
-                    <h2 className="text-2xl font-bold mb-4 text-gray-900">13. Contact</h2>
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">16. Contact</h2>
                     <p className="mb-4">
                         If you have questions about this Privacy Policy or data protection matters, contact:
                     </p>
@@ -194,8 +232,10 @@ export default function PrivacyPolicy() {
             </main>
 
             <footer className="py-8 w-full border-t border-gray-100 bg-gray-50 mt-12">
-                <div className="max-w-3xl mx-auto px-8 text-center text-sm text-gray-500">
-                    © {new Date().getFullYear()} VibeVaults. All rights reserved.
+                <div className="max-w-3xl mx-auto px-8 flex flex-col sm:flex-row justify-center items-center gap-3 text-sm text-gray-500">
+                    <span>© {new Date().getFullYear()} VibeVaults. All rights reserved.</span>
+                    <span className="hidden sm:inline">·</span>
+                    <CookiePreferencesLink />
                 </div>
             </footer>
         </div>

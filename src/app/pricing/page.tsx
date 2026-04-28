@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Check, X } from 'lucide-react';
 import { PricingCards } from '@/components/landing/pricing-cards';
+import { CookiePreferencesLink } from '@/components/CookiePreferencesLink';
 import { FEATURE_COMPARISON } from '@/lib/tier-config';
 
 export const metadata = {
@@ -150,6 +151,7 @@ export default function PricingPage() {
                         <Link href="/privacy-policy" className="hover:text-primary transition-colors">
                             Privacy Policy
                         </Link>
+                        <CookiePreferencesLink />
                     </div>
                 </div>
             </footer>
