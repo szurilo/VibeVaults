@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CookiePreferencesLink } from "@/components/CookiePreferencesLink";
 import { ProductDemo } from "@/components/landing/product-demo";
 import { ROICalculator } from "@/components/landing/roi-calculator";
 import { BentoFeatures } from "@/components/landing/bento-features";
@@ -145,6 +146,7 @@ export default function Home() {
             <Link href="/privacy-policy" className="hover:text-primary transition-colors">
               Privacy Policy
             </Link>
+            <CookiePreferencesLink />
           </div>
         </div>
       </footer>

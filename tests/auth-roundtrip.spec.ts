@@ -11,9 +11,10 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { generateMagicLink } from './utils/supabase-admin';
+import { AUTH_FILES } from './fixtures/test-data';
 
 // This test creates its own user — start with no session.
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({ storageState: AUTH_FILES.empty });
 
 const freshEmail = `e2e-auth-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
 

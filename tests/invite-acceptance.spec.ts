@@ -86,7 +86,7 @@ test.afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Invite acceptance — guest', () => {
-    test.use({ storageState: { cookies: [], origins: [] } });
+    test.use({ storageState: AUTH_FILES.empty });
 
     test('unknown token renders "Invite not found"', async ({ page }) => {
         // Random UUID that does not exist in workspace_invites.
@@ -126,7 +126,7 @@ test.describe('Invite acceptance — guest', () => {
 
 test.describe('Invite acceptance — matching email auto-accepts', () => {
     // Uses its own per-test storage state (created dynamically below).
-    test.use({ storageState: { cookies: [], origins: [] } });
+    test.use({ storageState: AUTH_FILES.empty });
 
     test('auto-accepts and creates membership row', async ({ page }) => {
         const seed = getSeedResult();

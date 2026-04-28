@@ -29,9 +29,10 @@
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin } from './utils/supabase-admin';
 import { getSeedResult } from './utils/seed-result';
+import { AUTH_FILES } from './fixtures/test-data';
 
 test.describe.configure({ mode: 'serial' });
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({ storageState: AUTH_FILES.empty });
 
 const BASE = 'http://127.0.0.1:3000';
 

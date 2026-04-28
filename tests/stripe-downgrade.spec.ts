@@ -34,7 +34,7 @@ test.describe.configure({ mode: 'serial' });
 
 test.describe('POST /api/stripe/portal', () => {
     test('unauthenticated request → 401', async ({ browser }) => {
-        const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+        const ctx = await browser.newContext({ storageState: AUTH_FILES.empty });
         const response = await ctx.request.post('/api/stripe/portal');
         expect(response.status()).toBe(401);
         await ctx.close();

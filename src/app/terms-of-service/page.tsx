@@ -1,5 +1,6 @@
 
 import Link from "next/link";
+import { CookiePreferencesLink } from "@/components/CookiePreferencesLink";
 
 export default function TermsOfService() {
     return (
@@ -170,8 +171,10 @@ export default function TermsOfService() {
             </main>
 
             <footer className="py-8 w-full border-t border-gray-100 bg-gray-50 mt-12">
-                <div className="max-w-3xl mx-auto px-8 text-center text-sm text-gray-500">
-                    © {new Date().getFullYear()} VibeVaults. All rights reserved.
+                <div className="max-w-3xl mx-auto px-8 flex flex-col sm:flex-row justify-center items-center gap-3 text-sm text-gray-500">
+                    <span>© {new Date().getFullYear()} VibeVaults. All rights reserved.</span>
+                    <span className="hidden sm:inline">·</span>
+                    <CookiePreferencesLink />
                 </div>
             </footer>
         </div>

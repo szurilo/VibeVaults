@@ -1,10 +1,12 @@
 /**
- * Main Responsibility: Initializes PostHog client-side analytics and error tracking.
- * Only loads in production to avoid polluting dev data.
+ * Main Responsibility: Initializes PostHog client-side analytics and error tracking,
+ * gated on user consent (GDPR / ePrivacy). Starts opted-out; opts in only after the
+ * user accepts analytics in the consent banner.
  *
  * Sensitive Dependencies:
  * - posthog-js for client-side analytics, session replays, and error tracking.
  * - Must be wrapped in root layout to capture all page views and errors.
+ * - Reacts to `vv:consent-changed` events from src/lib/consent.ts.
  */
 'use client'
 
@@ -13,6 +15,7 @@ import { PostHogProvider as PHProvider, usePostHog } from 'posthog-js/react'
 import { useEffect, Suspense } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
+import { CONSENT_CHANGED_EVENT, readConsent, type ConsentState } from '@/lib/consent'
 
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
@@ -22,6 +25,20 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
     capture_pageleave: true,
     autocapture: true,
     capture_exceptions: true,
+    // GDPR / ePrivacy: don't track or record until the user explicitly accepts.
+    opt_out_capturing_by_default: true,
+    disable_session_recording: true,
+    // Belt-and-braces input masking for whenever recording does start.
+    mask_all_text: false,
+    session_recording: {
+      maskAllInputs: true,
+    },
+  })
+
+  applyConsent(readConsent())
+  window.addEventListener(CONSENT_CHANGED_EVENT, (event) => {
+    const detail = (event as CustomEvent<ConsentState | null>).detail
+    applyConsent(detail)
   })
 
   // Server Action failures (e.g. "Failed to find Server Action <id>" after a
@@ -66,6 +83,16 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
       }
       return response
     }
+  }
+}
+
+function applyConsent(state: ConsentState | null) {
+  if (state?.analytics) {
+    posthog.opt_in_capturing()
+    posthog.startSessionRecording()
+  } else {
+    posthog.opt_out_capturing()
+    posthog.stopSessionRecording()
   }
 }
 

@@ -27,6 +27,7 @@
 import { test, expect, type BrowserContext } from '@playwright/test';
 import { supabaseAdmin, generateMagicLink } from './utils/supabase-admin';
 import { getSeedResult } from './utils/seed-result';
+import { AUTH_FILES } from './fixtures/test-data';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -83,7 +84,7 @@ test.beforeAll(async ({ browser }) => {
 
     // 3. Sign the outsider into a browser context so we get real session cookies
     //    (tokens-only encoded — same cookies production uses).
-    outsiderContext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    outsiderContext = await browser.newContext({ storageState: AUTH_FILES.empty });
     const page = await outsiderContext.newPage();
     const link = await generateMagicLink(OUTSIDER_EMAIL);
     await page.goto(link);
