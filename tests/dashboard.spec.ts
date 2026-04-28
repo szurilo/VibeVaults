@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { generateMagicLink } from './utils/supabase-admin';
+import { AUTH_FILES } from './fixtures/test-data';
 
 // ---------------------------------------------------------------------------
 // Onboarding helper — only used by the fresh-user onboarding test.
@@ -17,7 +18,7 @@ async function signInFreshUser(page: Page): Promise<void> {
 // Overrides the project-level storageState to start with no session.
 // ---------------------------------------------------------------------------
 test.describe('Onboarding flow', () => {
-    test.use({ storageState: { cookies: [], origins: [] } });
+    test.use({ storageState: AUTH_FILES.empty });
 
     test('new user completes onboarding and reaches dashboard', async ({ page }) => {
         await signInFreshUser(page);

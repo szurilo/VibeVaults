@@ -12,6 +12,7 @@
 
 import { test, expect } from '@playwright/test';
 import { getSeedResult } from './utils/seed-result';
+import { AUTH_FILES } from './fixtures/test-data';
 
 // Run serially — these tests depend on each other (first creates feedback, second reads it)
 test.describe.configure({ mode: 'serial' });
@@ -21,7 +22,7 @@ test.describe.configure({ mode: 'serial' });
 // ---------------------------------------------------------------------------
 
 test.describe('Widget feedback flow (real API)', () => {
-    test.use({ storageState: { cookies: [], origins: [] } });
+    test.use({ storageState: AUTH_FILES.empty });
 
     const feedbackContent = `E2E feedback ${Date.now()}`;
 

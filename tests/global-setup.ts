@@ -20,8 +20,34 @@ import { TEST_USERS, AUTH_FILES } from './fixtures/test-data';
 /** File where seed results (IDs, API key) are persisted for test consumption. */
 export const SEED_FILE = path.join(__dirname, '.auth/seed-result.json');
 
+/** localStorage entry that suppresses the cookie consent banner. */
+const CONSENT_LOCALSTORAGE = {
+    name: 'vv_consent_v1',
+    value: JSON.stringify({ analytics: true, timestamp: Date.now(), version: 1 }),
+};
+
+/** Inject the consent localStorage entry into a saved storageState file. */
+function seedConsentInStorageState(storageFile: string): void {
+    const raw = fs.readFileSync(storageFile, 'utf-8');
+    const state = JSON.parse(raw) as {
+        cookies: unknown[];
+        origins: { origin: string; localStorage: { name: string; value: string }[] }[];
+    };
+    const targetOrigin = 'http://127.0.0.1:3000';
+    let origin = state.origins.find((o) => o.origin === targetOrigin);
+    if (!origin) {
+        origin = { origin: targetOrigin, localStorage: [] };
+        state.origins.push(origin);
+    }
+    origin.localStorage = (origin.localStorage ?? []).filter((e) => e.name !== CONSENT_LOCALSTORAGE.name);
+    origin.localStorage.push(CONSENT_LOCALSTORAGE);
+    fs.writeFileSync(storageFile, JSON.stringify(state, null, 2));
+}
+
 /**
  * Authenticate a user via magic link and save the browser session to disk.
+ * Also seeds the cookie-consent localStorage entry so the banner doesn't
+ * intercept clicks in tests using this storage state.
  */
 async function createAuthSession(email: string, storageFile: string): Promise<void> {
     const magicLink = await generateMagicLink(email);
@@ -38,6 +64,23 @@ async function createAuthSession(email: string, storageFile: string): Promise<vo
     await page.context().storageState({ path: storageFile });
 
     await browser.close();
+
+    seedConsentInStorageState(storageFile);
+}
+
+/** Write an "empty" storage state with consent pre-seeded. */
+function writeEmptyStorageWithConsent(storageFile: string): void {
+    const state = {
+        cookies: [] as unknown[],
+        origins: [
+            {
+                origin: 'http://127.0.0.1:3000',
+                localStorage: [CONSENT_LOCALSTORAGE],
+            },
+        ],
+    };
+    fs.mkdirSync(path.dirname(storageFile), { recursive: true });
+    fs.writeFileSync(storageFile, JSON.stringify(state, null, 2));
 }
 
 export default async function globalSetup(): Promise<void> {
@@ -75,6 +118,10 @@ export default async function globalSetup(): Promise<void> {
     // but we still create one for tests that need to verify client access.
     console.log('[global-setup] Creating client auth session...');
     await createAuthSession(TEST_USERS.client.email, AUTH_FILES.client);
+
+    // 4. Write an "empty" storage state with consent pre-seeded for
+    //    signed-out tests (auth-roundtrip, register flows, share pages, etc.).
+    writeEmptyStorageWithConsent(AUTH_FILES.empty);
 
     console.log('[global-setup] Done.');
 }

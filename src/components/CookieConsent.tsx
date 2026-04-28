@@ -84,7 +84,7 @@ export function CookieConsent({ requireConsent }: { requireConsent: boolean }) {
         <>
             {showBanner && (
                 <div
-                    role="dialog"
+                    role="region"
                     aria-label="Cookie consent"
                     className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4 sm:px-6 sm:pb-6 animate-in slide-in-from-bottom-4 duration-300"
                 >

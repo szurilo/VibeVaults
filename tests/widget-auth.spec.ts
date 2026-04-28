@@ -36,9 +36,10 @@
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin } from './utils/supabase-admin';
 import { getSeedResult } from './utils/seed-result';
+import { AUTH_FILES } from './fixtures/test-data';
 
 // Public endpoints — no auth cookies.
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({ storageState: AUTH_FILES.empty });
 
 // ---------------------------------------------------------------------------
 // GET /api/widget/verify-email

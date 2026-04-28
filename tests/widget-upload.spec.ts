@@ -30,11 +30,12 @@
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin } from './utils/supabase-admin';
 import { getSeedResult } from './utils/seed-result';
+import { AUTH_FILES } from './fixtures/test-data';
 
 test.describe.configure({ mode: 'serial' });
 
 // Widget endpoints are public — no auth cookies.
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({ storageState: AUTH_FILES.empty });
 
 // Minimal valid PNG (1×1 transparent pixel) — keeps the storage round-trip cheap.
 const PNG_BYTES = Buffer.from(

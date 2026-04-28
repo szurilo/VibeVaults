@@ -19,14 +19,14 @@
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin } from './utils/supabase-admin';
 import { getSeedResult } from './utils/seed-result';
-import { TEST_PROJECT } from './fixtures/test-data';
+import { TEST_PROJECT, AUTH_FILES } from './fixtures/test-data';
 import { randomUUID } from 'node:crypto';
 
 // Mutates shared state — serial.
 test.describe.configure({ mode: 'serial' });
 
 // Public page — no auth cookies at all.
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({ storageState: AUTH_FILES.empty });
 
 type Snap = {
     profile: {
