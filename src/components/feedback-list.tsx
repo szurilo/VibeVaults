@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FeedbackListCard } from '@/components/feedback-list-card';
 import { SlidersHorizontal } from 'lucide-react';
 import {
@@ -21,6 +21,23 @@ const ALL_STATUSES = [
 ];
 
 const DEFAULT_STATUSES = ['open', 'in progress', 'in review'];
+const STORAGE_KEY = 'vv:feedback-status-filter';
+
+function loadStoredStatuses(): string[] {
+    if (typeof window === 'undefined') return DEFAULT_STATUSES;
+    try {
+        const raw = window.sessionStorage.getItem(STORAGE_KEY);
+        if (!raw) return DEFAULT_STATUSES;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return DEFAULT_STATUSES;
+        const valid = parsed.filter((s): s is string =>
+            typeof s === 'string' && ALL_STATUSES.some(a => a.value === s)
+        );
+        return valid;
+    } catch {
+        return DEFAULT_STATUSES;
+    }
+}
 
 interface FeedbackListProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +47,21 @@ interface FeedbackListProps {
 
 export function FeedbackList({ feedbacks, senderAvatars = {} }: FeedbackListProps) {
     const [activeStatuses, setActiveStatuses] = useState<string[]>(DEFAULT_STATUSES);
+    const [hydrated, setHydrated] = useState(false);
+
+    useEffect(() => {
+        setActiveStatuses(loadStoredStatuses());
+        setHydrated(true);
+    }, []);
+
+    useEffect(() => {
+        if (!hydrated || typeof window === 'undefined') return;
+        try {
+            window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(activeStatuses));
+        } catch {
+            // sessionStorage unavailable (private mode quota etc.) — silently skip
+        }
+    }, [activeStatuses, hydrated]);
 
     const toggleStatus = (status: string) => {
         setActiveStatuses(prev =>
