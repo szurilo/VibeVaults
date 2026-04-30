@@ -30,7 +30,13 @@ export const FounderNote = () => {
           <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-start">
             {/* Avatar + name */}
             <div className="flex flex-col items-center text-center shrink-0">
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-white shadow-xl mb-3">
+              <a
+                href="https://www.linkedin.com/in/jozseftar/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="József's LinkedIn profile"
+                className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-white shadow-xl mb-3 transition-transform hover:scale-105"
+              >
                 <Image
                   src="/avatar.jpg"
                   alt="József — Founder of VibeVaults"
@@ -38,7 +44,7 @@ export const FounderNote = () => {
                   height={96}
                   className="w-full h-full object-cover"
                 />
-              </div>
+              </a>
               <p className="font-bold text-gray-900 text-sm">József</p>
               <p className="text-xs text-gray-500">Founder, VibeVaults</p>
             </div>
