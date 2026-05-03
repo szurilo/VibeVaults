@@ -106,6 +106,8 @@ export async function GET(request: Request) {
             ],
             mode: 'subscription',
             allow_promotion_codes: true,
+            tax_id_collection: { enabled: true },
+            customer_update: { name: 'auto', address: 'auto' },
             success_url: `${new URL(request.url).origin}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${new URL(request.url).origin}/dashboard`,
             metadata: {
