@@ -15,6 +15,13 @@ function esc(s: string): string {
 }
 
 /**
+ * Standard "lost widget access?" line included in client-facing transactional
+ * emails. Clients (and members on a new device) can use it to self-issue
+ * fresh per-device bootstrap links without touching the workspace owner.
+ */
+const RECOVERY_FOOTER_LINE = `<br><a href="${BASE_URL}/access" style="color: #718096; text-decoration: underline;">Lost widget access? Request a new link</a>`;
+
+/**
  * Build a deep-link URL that sets workspace/project cookies and redirects to the target page.
  */
 function emailRedirectUrl(params: {
@@ -29,6 +36,63 @@ function emailRedirectUrl(params: {
     if (params.projectId) url.searchParams.set('project', params.projectId);
     if (params.feedbackId) url.searchParams.set('feedback', params.feedbackId);
     return url.toString();
+}
+
+interface SendWidgetAccessRecoveryParams {
+    to: string;
+    items: { projectName: string; workspaceName: string; url: string }[];
+}
+
+/**
+ * Self-service "I lost my widget access" recovery email. The caller has
+ * already enumerated the recipient's projects and built a fresh bootstrap
+ * URL per project (raw `?vv_token=` for members, persistent `?vv_invite=`
+ * for clients). The email lists each as a clickable link.
+ *
+ * For privacy: this is only sent if at least one item exists; the recovery
+ * page itself returns a generic response either way to prevent enumeration.
+ */
+export async function sendWidgetAccessRecoveryEmail({ to, items }: SendWidgetAccessRecoveryParams) {
+    if (items.length === 0) return { data: null, error: null };
+
+    const itemsHtml = items.map(item => `
+        <div style="background-color: #f9fafb; padding: 16px 20px; border-radius: 12px; border: 1px solid #f1f5f9; margin-bottom: 12px;">
+            <p style="margin: 0 0 4px; font-size: 14px; color: #6b7280; font-weight: 500;">${esc(item.workspaceName)}</p>
+            <p style="margin: 0 0 12px; font-size: 16px; color: #1a202c; font-weight: 600;">${esc(item.projectName)}</p>
+            <a href="${item.url}" style="display: inline-block; padding: 10px 20px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Open widget on site</a>
+        </div>
+    `).join('');
+
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            to,
+            subject: 'Your widget access links',
+            html: `
+                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                        <h2 style="margin: 0 0 16px; color: #1a202c; font-size: 26px; font-weight: 700; letter-spacing: -0.02em;">Your widget access links</h2>
+                        <p style="margin-bottom: 24px; font-size: 15px; color: #4a5568;">
+                            Click a link below to activate the feedback widget on the corresponding site for this device. Each link is per-device — open it in the browser where you want the widget to appear.
+                        </p>
+                        ${itemsHtml}
+                        <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
+                                You received this because someone — possibly you — requested fresh widget access links for this email at <a href="${BASE_URL}/access" style="color: #209CEE; text-decoration: none;">${BASE_URL.replace(/^https?:\/\//, '')}/access</a>. If that wasn't you, you can ignore this email.<br><br>
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `
+        });
+
+        if (error) console.error('Failed to send widget access recovery email:', error);
+        return { data, error };
+    } catch (e) {
+        console.error('Error in sendWidgetAccessRecoveryEmail:', e);
+        return { data: null, error: e };
+    }
 }
 
 interface SendFeedbackEmailParams {
@@ -101,6 +165,7 @@ export async function sendFeedbackNotification({
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${RECOVERY_FOOTER_LINE}
                             </p>
 
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
@@ -135,6 +200,21 @@ interface SendProjectCreatedEmailParams {
     unsubscribeToken?: string;
     workspaceId?: string;
     projectId?: string;
+    /**
+     * Recipient-specific URL that activates the widget on the project's host
+     * site for this person and this device. For workspace members it's the
+     * site URL with a freshly-issued `?vv_token=` token; for clients it's
+     * the site URL with their persistent `?vv_invite=` invite ID.
+     * When omitted the widget CTA is not rendered (digest path, etc.).
+     */
+    widgetUrl?: string;
+    /**
+     * Recipient kind, controls copy and CTA:
+     *   - 'member' shows both "Go to dashboard" and "Open widget on site"
+     *   - 'client' shows only "Open widget on site" (clients have no dashboard)
+     * Defaults to 'member' for backwards compatibility.
+     */
+    recipientKind?: 'member' | 'client';
 }
 
 export async function sendProjectCreatedNotification({
@@ -144,9 +224,27 @@ export async function sendProjectCreatedNotification({
     workspaceName,
     unsubscribeToken,
     workspaceId,
-    projectId
+    projectId,
+    widgetUrl,
+    recipientKind = 'member',
 }: SendProjectCreatedEmailParams) {
     try {
+        const introCopy = recipientKind === 'client'
+            ? `<strong>${esc(creatorName)}</strong> added a new project <strong>${esc(projectName)}</strong> to <strong>${esc(workspaceName)}</strong>. You can now leave feedback there using the embedded widget.`
+            : `<strong>${esc(creatorName)}</strong> has created a new project <strong>${esc(projectName)}</strong> in your workspace <strong>${esc(workspaceName)}</strong>.`;
+
+        const calloutCopy = recipientKind === 'client'
+            ? 'Click below to activate the feedback widget on the project site for this device.'
+            : 'You can now start collecting feedback and managing tasks for this project.';
+
+        const widgetCta = widgetUrl
+            ? `<a href="${widgetUrl}" style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; margin-right: 12px;">Open widget on site</a>`
+            : '';
+
+        const dashboardCta = recipientKind === 'member'
+            ? `<a href="${emailRedirectUrl({ page: 'feedback', workspaceId, projectId })}" style="display: inline-block; padding: 14px 32px; background-color: ${widgetUrl ? '#ffffff' : '#209CEE'}; color: ${widgetUrl ? '#209CEE' : '#ffffff'}; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; ${widgetUrl ? 'border: 1px solid #209CEE;' : ''}">Go to project</a>`
+            : '';
+
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
             to,
@@ -154,28 +252,22 @@ export async function sendProjectCreatedNotification({
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                        
-                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">New Project Created!</h2>
-                        
-                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            <strong>${esc(creatorName)}</strong> has created a new project <strong>${esc(projectName)}</strong> in your workspace <strong>${esc(workspaceName)}</strong>.
-                        </p>
+
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">New project created!</h2>
+
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">${introCopy}</p>
 
                         <div style="background-color: #f9fafb; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #f1f5f9;">
-                            <p style="margin: 0; color: #1a202c; line-height: 1.6; font-size: 16px;">
-                                You can now start collecting feedback and managing tasks for this project.
-                            </p>
+                            <p style="margin: 0; color: #1a202c; line-height: 1.6; font-size: 16px;">${calloutCopy}</p>
                         </div>
-                        
-                        <a href="${emailRedirectUrl({ page: 'feedback', workspaceId, projectId })}"
-                           style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
-                           Go to Project
-                        </a>
+
+                        <div>${widgetCta}${dashboardCta}</div>
 
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${RECOVERY_FOOTER_LINE}
                             </p>
 
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
@@ -249,6 +341,7 @@ export async function sendProjectDeletedNotification({
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${RECOVERY_FOOTER_LINE}
                             </p>
 
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
@@ -325,6 +418,7 @@ export async function sendReplyNotification({
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${RECOVERY_FOOTER_LINE}
                             </p>
 
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
@@ -332,7 +426,7 @@ export async function sendReplyNotification({
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
                         </div>
-                        
+
                     </div>
                 </div>
             `
@@ -385,11 +479,12 @@ export async function sendAgencyReplyNotification({
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${RECOVERY_FOOTER_LINE}
                             </p>
 
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
-                                If you have questions, reach out to 
+                                If you have questions, reach out to
                                 <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
@@ -468,6 +563,7 @@ export async function sendClientInviteNotification({
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${RECOVERY_FOOTER_LINE}
                             </p>
 
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
@@ -482,6 +578,110 @@ export async function sendClientInviteNotification({
         });
         return { data, error };
     } catch (e) {
+        return { data: null, error: e };
+    }
+}
+
+interface SendMemberWelcomeParams {
+    to: string;
+    workspaceName: string;
+    /**
+     * Per-project bootstrap links — each one carries `?vv_token=<rawToken>`
+     * tied to a freshly minted `widget_identities` row for the new member.
+     * Clicking opens the host site with the widget activated for that
+     * member on that device. May be empty if the workspace has no
+     * projects with a website_url at member-join time.
+     */
+    projects: { name: string; url: string }[];
+    unsubscribeToken?: string;
+}
+
+/**
+ * Sent right after a member's invite is accepted and the workspace_members
+ * row exists. Lists every project in the workspace with a per-project
+ * widget bootstrap link, so the new member can activate the widget on each
+ * project's host site without further owner action.
+ *
+ * Mirror of `sendClientInviteNotification` but with member-flavored copy
+ * and `?vv_token=` URLs (raw tokens) rather than `?vv_invite=` (invite IDs).
+ */
+export async function sendMemberWelcomeNotification({
+    to,
+    workspaceName,
+    projects,
+    unsubscribeToken,
+}: SendMemberWelcomeParams) {
+    try {
+        const projectListHtml = projects.length > 0
+            ? projects.map(p => `
+                <tr>
+                    <td style="padding: 8px 0; vertical-align: middle;">
+                        <span style="font-size: 14px; font-weight: 600; color: #1a202c;">${esc(p.name)}</span>
+                    </td>
+                    <td style="padding: 8px 0; vertical-align: middle; text-align: right;">
+                        <a href="${p.url}" style="font-size: 13px; color: #209CEE; text-decoration: none; font-weight: 500;">Open widget &rarr;</a>
+                    </td>
+                </tr>
+            `).join('')
+            : '';
+
+        const { data, error } = await resend.emails.send({
+            from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            to,
+            subject: `Welcome to ${workspaceName} on VibeVaults`,
+            html: `
+                <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
+                    <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+
+                        <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">You're in!</h2>
+
+                        <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
+                            Welcome to <strong>${esc(workspaceName)}</strong>. Your dashboard is ready, and you have widget access on every project below.
+                        </p>
+
+                        ${projectListHtml ? `
+                        <p style="margin-bottom: 16px; font-size: 14px; color: #4a5568;">
+                            Click a link to activate the feedback widget on the corresponding site for this device. Each link is per-device — open it in the browser where you want the widget to appear.
+                        </p>
+                        <div style="background-color: #f9fafb; padding: 16px 20px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #f1f5f9;">
+                            <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.05em;">Projects</p>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                ${projectListHtml}
+                            </table>
+                        </div>
+                        ` : `
+                        <div style="background-color: #f9fafb; padding: 16px 20px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #f1f5f9;">
+                            <p style="margin: 0; font-size: 14px; color: #4a5568;">
+                                There are no projects in this workspace yet. You'll get a fresh widget link the moment one is created.
+                            </p>
+                        </div>
+                        `}
+
+                        <a href="${BASE_URL}/dashboard" style="display: inline-block; padding: 14px 32px; background-color: #ffffff; color: #209CEE; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; border: 1px solid #209CEE;">
+                           Go to dashboard
+                        </a>
+
+                        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
+                                You received this because you accepted an invitation.
+                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${RECOVERY_FOOTER_LINE}
+                            </p>
+
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0;">
+                                This is an automatically generated email, please do not reply.<br>
+                                Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
+                            </p>
+                        </div>
+
+                    </div>
+                </div>
+            `
+        });
+        if (error) console.error('Failed to send member welcome email:', error);
+        return { data, error };
+    } catch (e) {
+        console.error('Error in sendMemberWelcomeNotification:', e);
         return { data: null, error: e };
     }
 }
@@ -523,6 +723,7 @@ export async function sendWorkspaceInviteNotification({
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${RECOVERY_FOOTER_LINE}
                             </p>
 
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
@@ -770,6 +971,7 @@ export async function sendFeedbackDigestEmail({
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${RECOVERY_FOOTER_LINE}
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
@@ -844,6 +1046,7 @@ export async function sendReplyDigestEmail({
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${RECOVERY_FOOTER_LINE}
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
@@ -870,6 +1073,13 @@ interface DigestProjectEventItem {
     type: 'created' | 'deleted';
     workspaceId?: string;
     projectId?: string;
+    /**
+     * Per-recipient widget bootstrap URL for `created` events. The cron
+     * processor mints a fresh `widget_identities` row at send time and embeds
+     * `?vv_token=` (members) or `?vv_invite=` (clients). Omitted for
+     * `deleted` events and for projects with no website_url.
+     */
+    widgetUrl?: string;
 }
 
 export async function sendProjectEventDigestEmail({
@@ -882,9 +1092,10 @@ export async function sendProjectEventDigestEmail({
     const itemsHtml = items.slice(0, 10).map(item => `
         <div style="padding: 12px 16px; border-left: 3px solid ${item.type === 'deleted' ? '#ef4444' : '#22c55e'}; margin-bottom: 12px; background: #f9fafb; border-radius: 0 8px 8px 0;">
             <p style="margin: 0 0 4px; font-size: 13px; color: #718096;">${esc(item.workspaceName)}</p>
-            <p style="margin: 0; font-size: 15px; color: #1a202c; line-height: 1.5;">
+            <p style="margin: 0 0 ${item.widgetUrl ? '8px' : '0'}; font-size: 15px; color: #1a202c; line-height: 1.5;">
                 <strong>${esc(item.actorName)}</strong> ${item.type === 'deleted' ? 'deleted' : 'created'} the project <strong>"${esc(item.projectName)}"</strong>
             </p>
+            ${item.widgetUrl ? `<a href="${item.widgetUrl}" style="font-size: 13px; color: #209CEE; text-decoration: none; font-weight: 500;">Open widget on site &rarr;</a>` : ''}
         </div>
     `).join('');
 
@@ -917,6 +1128,7 @@ export async function sendProjectEventDigestEmail({
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${RECOVERY_FOOTER_LINE}
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>

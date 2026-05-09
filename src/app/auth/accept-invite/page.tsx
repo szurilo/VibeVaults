@@ -55,6 +55,15 @@ export default async function AcceptInvitePage({ searchParams }: PageProps) {
         return <InvalidInviteView />;
     }
 
+    // Client invites don't flow through this page anymore — they're activated
+    // by visiting the host site with ?vv_invite=<token>, which exchanges the
+    // token for a per-device widget identity. If a client lands here (stale
+    // bookmark, hand-typed URL), surface a friendly recovery message instead
+    // of attempting an account flow that the new model no longer supports.
+    if (invite.role === 'client') {
+        return <ClientInviteView inviteEmail={invite.email} />;
+    }
+
     const { data: workspace } = await admin
         .from('workspaces')
         .select('name, owner_id')
@@ -145,6 +154,47 @@ function InvalidInviteView() {
                         <Link href="/auth/login">Go to sign in</Link>
                     </Button>
                 </CardFooter>
+            </Card>
+        </div>
+    );
+}
+
+function ClientInviteView({ inviteEmail }: { inviteEmail: string }) {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+            <Card className="w-full max-w-md text-center shadow-lg">
+                <CardHeader className="space-y-4">
+                    <div className="flex justify-center">
+                        <div className="rounded-full bg-blue-100 p-3">
+                            <AlertTriangle className="h-8 w-8 text-blue-600" />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <CardTitle className="text-2xl font-extrabold tracking-tight">
+                            Open your widget link instead
+                        </CardTitle>
+                        <CardDescription className="text-base">
+                            {`Client invites for `}
+                            <span className="font-semibold text-foreground">{inviteEmail}</span>
+                            {` don't need a sign-in here — they activate the feedback widget directly on the project site.`}
+                        </CardDescription>
+                    </div>
+                </CardHeader>
+                <CardContent className="text-left">
+                    <div className="bg-muted/50 rounded-lg p-4 text-sm">
+                        <p className="font-medium text-foreground mb-2">What you can do:</p>
+                        <ul className="space-y-1.5">
+                            <li className="flex items-center text-muted-foreground">
+                                <span className="mr-2 text-primary">•</span>
+                                Open the original invite email and click its widget link
+                            </li>
+                            <li className="flex items-center text-muted-foreground">
+                                <span className="mr-2 text-primary">•</span>
+                                Or ask the workspace owner to resend your widget invite
+                            </li>
+                        </ul>
+                    </div>
+                </CardContent>
             </Card>
         </div>
     );

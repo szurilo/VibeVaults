@@ -5,7 +5,7 @@
  * Sensitive Dependencies: feedback_attachments table, Supabase Storage (feedback-attachments bucket)
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest } from "@/lib/widget-helpers";
 
 export async function OPTIONS() {
     return optionsResponse();
@@ -17,7 +17,6 @@ export async function POST(request: Request) {
 
     let body: {
         apiKey?: string;
-        senderEmail?: string;
         projectId?: string;
         feedbackId?: string | null;
         replyId?: string | null;
@@ -30,24 +29,19 @@ export async function POST(request: Request) {
         return corsError("Invalid JSON body", 400);
     }
 
-    const { apiKey, senderEmail, projectId, feedbackId, replyId, files } = body;
+    const { apiKey, projectId, feedbackId, replyId, files } = body;
 
     if (!apiKey) return corsError("Missing API Key", 400);
-    if (!senderEmail) return corsError("Missing sender email", 400);
     if (!projectId) return corsError("Missing project ID", 400);
     if (!files || !Array.isArray(files) || files.length === 0) return corsError("No files to confirm.", 400);
 
-    // Validate API key + subscription
-    const { project, error, status } = await validateApiKey(apiKey);
-    if (error) return corsError(error, status);
+    const { project, identity, error, status } = await authenticateWidgetRequest(request, apiKey);
+    if (error || !project || !identity) return corsError(error ?? "Unauthorized", status);
 
-    // Verify the projectId matches
+    // Verify the projectId in the body matches the resolved one (defensive)
     if (project.id !== projectId) return corsError("Project ID mismatch.", 403);
 
-    // Verify sender is authorized
-    const isAuthorized = await verifyWidgetEmail(senderEmail, project.workspace_id);
-    if (!isAuthorized) return corsError("Unauthorized email address.", 403);
-
+    const senderEmail = identity.email;
     const adminSupabase = createAdminClient();
     const attachments: { id: string; file_name: string; file_url: string; mime_type: string }[] = [];
 

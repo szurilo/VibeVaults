@@ -83,10 +83,16 @@ tests/              # Playwright E2E tests
   - `get_user_owned_workspaces()` — owned workspace IDs
   - `get_client_project_ids()` — project IDs for invited clients
 
-### Widget Flow
+### Widget Flow (invite-only, token-based)
 - `public/widget.js` → API routes at `/api/widget/*`
-- **Widget visibility**: Widget always renders; if no stored email, shows an email prompt. Email is verified via `/api/widget/verify-email` before granting access. `vv_email` URL param still works for client invite links.
-- **Authorization**: Sender is checked against `workspace_members` first (owners/members can use widget without invite), then falls back to `workspace_invites` (for clients). Self-invites are blocked.
+- **Visibility**: anonymous visitors see *nothing* — `host.style.display = 'none'` until a valid widget identity is loaded. The legacy "type your email" prompt is gone.
+- **Bootstrap (clients)**: invite emails point at `${project.website_url}?vv_invite=<workspace_invites.id>`. On first load, widget.js POSTs the invite ID to `/api/widget/identity/exchange`, receives a per-device opaque token, and stores it in first-party `localStorage[vv_token_${apiKey}]`. The URL param is stripped via `history.replaceState` so it doesn't leak via referrer/share. Multi-device by design — multiple `widget_identities` rows per (project, email) are allowed.
+- **Bootstrap (owners/members)**: dashboard's `EmbedWidgetCard` has an "Open widget on site" button. Click → server action `issueSelfWidgetLink()` → fresh `widget_identities` row tied to `user_id` → returns `${project.website_url}?vv_token=<rawToken>`. Widget.js plants the raw token directly (no exchange round-trip).
+- **Authorization on every API call**: `Authorization: Bearer <token>` header (or `?token=` query param for SSE which can't send custom headers). `authenticateWidgetRequest()` in `widget-helpers.ts` resolves API key + Bearer in one shot, returning `{ project, ownerTier, identity }`. `identity.email` is the source of truth — clients can't claim arbitrary senders.
+- **Revocation**: deleting a `workspace_invites` row cascade-deletes all client `widget_identities`; removing a `workspace_members` row triggers `revoke_widget_identities_on_member_removal()` which clears the user's identities for that workspace's projects. Widget self-hides + clears localStorage on any 401/403.
+- **Clients no longer have `auth.users` rows.** They exist only as `workspace_invites` (role=`'client'`) plus `widget_identities`. The legacy `accept-invite` page rejects client invites with a `ClientInviteView` recovery message. A `CHECK (role <> 'client')` constraint on `workspace_members` prevents accidental promotions.
+- **Auto-bootstrap on project creation**: `POST /api/projects` now mints a fresh `widget_identities` row per workspace member (with `?vv_token=`) and reuses each client invitee's persistent ID (with `?vv_invite=`), embedding the resulting URLs in their respective project-created emails. Recipients click once per device to plant the token in `localStorage` and the widget renders.
+- **Public recovery page at `/access`**: invitees and members who lose their localStorage can enter their email and receive an emailed list of bootstrap links across every project they have access to. Rate-limited per IP and per email; always returns a generic confirmation regardless of whether the email is on file. Action: `requestWidgetAccessRecovery()` in `src/actions/widget-access.ts`. Excluded from auth gate in `src/lib/supabase/proxy.ts`.
 - Feedback submission: `POST /api/widget`
 - Real-time replies: SSE via `/api/widget/stream` + Supabase Realtime
 - **Rate limiting**: 30 req/min per IP on all widget endpoints (`src/lib/widget-helpers.ts`)
@@ -138,12 +144,13 @@ tests/              # Playwright E2E tests
 | `email_digest_queue` | `id`, `recipient_email`, `notification_type`, `project_id`, `feedback_id`, `payload`, `sent_at`, `created_at` |
 | `feedback_attachments` | `id`, `feedback_id`, `reply_id`, `project_id`, `file_name`, `file_url`, `file_size`, `mime_type`, `uploaded_by` |
 | `widget_errors` | `id`, `api_key`, `error_message`, `error_stack`, `url`, `user_agent`, `metadata`, `created_at` |
+| `widget_identities` | `id`, `project_id`, `invite_id` (nullable), `user_id` (nullable), `email`, `token_hash`, `created_at`, `last_used_at` — per-device widget auth tokens |
 
 ## API Routes
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/widget` | GET/POST | Widget config + feedback submission |
-| `/api/widget/verify-email` | GET | Lightweight email authorization check for widget |
+| `/api/widget` | GET/POST | Widget config + feedback submission (Bearer token required) |
+| `/api/widget/identity/exchange` | POST | Swap a `workspace_invites.id` for a per-device widget token (client bootstrap) |
 | `/api/widget/feedbacks` | GET | List feedbacks for widget (includes reply_count) |
 | `/api/widget/reply` | POST | Widget reply submission |
 | `/api/widget/upload` | POST | Request presigned upload URLs for widget attachments |

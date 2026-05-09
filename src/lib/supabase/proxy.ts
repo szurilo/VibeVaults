@@ -81,6 +81,7 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.startsWith('/terms-of-service') &&
         !request.nextUrl.pathname.startsWith('/pricing') &&
         !request.nextUrl.pathname.startsWith('/share') &&
+        !request.nextUrl.pathname.startsWith('/access') &&
         !request.nextUrl.pathname.includes('sitemap.xml') &&
         !request.nextUrl.pathname.includes('robots.txt')
     ) {

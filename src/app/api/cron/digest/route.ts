@@ -19,6 +19,82 @@ import {
     sendProjectEventDigestEmail,
 } from '@/lib/notifications';
 import { getNotificationPrefs } from '@/lib/notification-prefs';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { issueWidgetIdentity } from '@/lib/widget-helpers';
+
+/**
+ * Builds a per-recipient widget bootstrap URL for a `project_created` digest
+ * item. Returns null if the project has no website_url, or if the recipient
+ * isn't recognized as either a workspace member or a client invitee.
+ *
+ * Members: mints a fresh `widget_identities` row tied to user_id and embeds
+ * `?vv_token=<rawToken>`. Clients: reuses the persistent `workspace_invites.id`
+ * and embeds `?vv_invite=<inviteId>`. Either way, opening the link on the
+ * host site activates the widget for that recipient on that device.
+ */
+async function buildWidgetUrlForDigestItem(
+    recipientEmail: string,
+    projectId: string
+): Promise<string | null> {
+    try {
+        const admin = createAdminClient();
+
+        const { data: project } = await admin
+            .from('projects')
+            .select('id, workspace_id, website_url')
+            .eq('id', projectId)
+            .maybeSingle();
+
+        if (!project || !project.website_url) return null;
+
+        // Member path
+        const { data: profile } = await admin
+            .from('profiles')
+            .select('id')
+            .eq('email', recipientEmail)
+            .maybeSingle();
+
+        if (profile) {
+            const { data: membership } = await admin
+                .from('workspace_members')
+                .select('user_id')
+                .eq('workspace_id', project.workspace_id)
+                .eq('user_id', profile.id)
+                .maybeSingle();
+
+            if (membership) {
+                const rawToken = await issueWidgetIdentity({
+                    projectId: project.id,
+                    email: recipientEmail,
+                    userId: profile.id,
+                });
+                const url = new URL(project.website_url);
+                url.searchParams.set('vv_token', rawToken);
+                return url.toString();
+            }
+        }
+
+        // Client path — workspace_invites with role='client' for this email
+        const { data: invite } = await admin
+            .from('workspace_invites')
+            .select('id')
+            .eq('workspace_id', project.workspace_id)
+            .eq('email', recipientEmail)
+            .eq('role', 'client')
+            .maybeSingle();
+
+        if (invite) {
+            const url = new URL(project.website_url);
+            url.searchParams.set('vv_invite', invite.id);
+            return url.toString();
+        }
+
+        return null;
+    } catch (e) {
+        console.error('buildWidgetUrlForDigestItem failure', e);
+        return null;
+    }
+}
 
 export async function GET() {
     try {
@@ -102,16 +178,29 @@ export async function GET() {
                 }
 
                 if (shouldSend) {
-                    await sendProjectEventDigestEmail({
-                        to: recipientEmail,
-                        items: projectItems.map(item => ({
+                    // Build per-recipient widget URLs only for `created` items
+                    // — sequential await since each can mint a widget identity.
+                    // Items are typically <10 per recipient per cron tick.
+                    const enrichedItems = await Promise.all(projectItems.map(async (item) => {
+                        const isCreated = item.notification_type === 'project_created';
+                        const projectId = item.payload.projectId as string | undefined;
+                        const widgetUrl = isCreated && projectId
+                            ? await buildWidgetUrlForDigestItem(recipientEmail, projectId)
+                            : null;
+                        return {
                             projectName: (item.payload.projectName as string) || '',
                             actorName: (item.payload.actorName as string) || 'A team member',
                             workspaceName: (item.payload.workspaceName as string) || '',
                             type: item.notification_type === 'project_deleted' ? 'deleted' as const : 'created' as const,
                             workspaceId: item.payload.workspaceId as string,
                             projectId: item.payload.projectId as string,
-                        })),
+                            widgetUrl: widgetUrl ?? undefined,
+                        };
+                    }));
+
+                    await sendProjectEventDigestEmail({
+                        to: recipientEmail,
+                        items: enrichedItems,
                         unsubscribeToken: (await getNotificationPrefs(recipientEmail, hasDeleted ? 'project_deleted' : 'project_created')).unsubscribeToken,
                     });
                     totalSent++;

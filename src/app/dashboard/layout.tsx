@@ -17,6 +17,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { GlobalNotificationProvider } from "@/components/global-notification-provider";
 import { getUserTier, isTrialExpired as isTierExpired } from "@/lib/tier-helpers";
 import { sendWelcomeNotification } from "@/lib/notifications";
+import { dispatchMemberWelcomeBootstrap } from "@/lib/member-onboarding";
 
 export default async function DashboardLayout({
     children,
@@ -128,6 +129,18 @@ export default async function DashboardLayout({
                 .from("workspace_invites")
                 .delete()
                 .eq("id", invite.id);
+
+            // Fire-and-forget welcome email with per-project widget bootstrap links.
+            // Only when we actually inserted a fresh membership row (skip for the
+            // already-a-member branch above to avoid duplicate emails on every
+            // dashboard render).
+            if (!existing && user.email) {
+                dispatchMemberWelcomeBootstrap({
+                    workspaceId: invite.workspace_id,
+                    userId: user.id,
+                    userEmail: user.email,
+                }).catch(() => {});
+            }
         }
     }
 

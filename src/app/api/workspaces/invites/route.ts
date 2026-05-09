@@ -166,12 +166,15 @@ export async function POST(req: Request) {
                 .eq('workspace_id', workspaceId)
                 .order('created_at', { ascending: true });
 
+            // Client invites are bootstrapped per-device from the host site —
+            // each link carries the workspace_invites.id, which widget.js
+            // exchanges for a per-device token via /api/widget/identity/exchange.
             const projectList: { name: string, url: string }[] = [];
             for (const p of (projects || [])) {
                 if (!p.website_url) continue;
                 try {
                     const siteUrl = new URL(p.website_url);
-                    siteUrl.searchParams.set('vv_email', email);
+                    siteUrl.searchParams.set('vv_invite', invite.id);
                     projectList.push({ name: p.name, url: siteUrl.toString() });
                 } catch {
                     // website_url is not a valid URL, include project name with raw url

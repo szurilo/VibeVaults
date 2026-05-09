@@ -12,10 +12,11 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { dispatchMemberWelcomeBootstrap } from '@/lib/member-onboarding';
 
 export type AcceptInviteResult =
     | { ok: true; workspaceId: string }
-    | { ok: false; reason: 'not_authenticated' | 'invite_not_found' | 'email_mismatch' | 'internal_error' };
+    | { ok: false; reason: 'not_authenticated' | 'invite_not_found' | 'email_mismatch' | 'internal_error' | 'client_invite_not_acceptable' };
 
 export async function acceptInvite(token: string): Promise<AcceptInviteResult> {
     if (!token) {
@@ -45,6 +46,14 @@ export async function acceptInvite(token: string): Promise<AcceptInviteResult> {
         return { ok: false, reason: 'email_mismatch' };
     }
 
+    // Client invites no longer flow through the auth/accept-invite path.
+    // Clients access the widget via per-device tokens bootstrapped from
+    // the host URL (?vv_invite=...) — they never become workspace_members.
+    // This guard rejects any stale client-invite link routed here.
+    if (invite.role === 'client') {
+        return { ok: false, reason: 'client_invite_not_acceptable' };
+    }
+
     // Insert membership. Composite PK (workspace_id, user_id) makes this idempotent —
     // a duplicate accept just returns 23505, which we treat as success.
     const { error: insertError } = await admin
@@ -64,6 +73,15 @@ export async function acceptInvite(token: string): Promise<AcceptInviteResult> {
         .from('workspace_invites')
         .delete()
         .eq('id', invite.id);
+
+    // Fire-and-forget welcome email with per-project widget bootstrap links.
+    // Errors are logged inside the helper; failure here must not block the
+    // membership write that just succeeded.
+    dispatchMemberWelcomeBootstrap({
+        workspaceId: invite.workspace_id,
+        userId: user.id,
+        userEmail: user.email,
+    }).catch(() => {});
 
     return { ok: true, workspaceId: invite.workspace_id };
 }
