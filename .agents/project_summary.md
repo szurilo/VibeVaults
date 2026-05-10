@@ -46,7 +46,7 @@ Vercel deploys are atomic and zero-downtime, so shipping while users are active 
 ### Team Member & Client Invites
 - Comprehensive invitation system supporting both `member` and `client` roles. Team members get access to all projects in a workspace. Clients can review specific projects.
 - **Client invites are now workspace-level** (moved from project-level), simplifying the invite flow.
-- Auto-acceptance of pending invites happens in `dashboard/layout.tsx` on login. RLS policies use `SECURITY DEFINER` helper functions (like `get_client_project_ids()`) to securely allow invited clients to view and interact with feedbacks.
+- Auto-acceptance of pending **member** invites happens in `dashboard/layout.tsx` on login (client invites are skipped — clients no longer become `workspace_members` rows in the new model). RLS policies use `SECURITY DEFINER` helper functions like `get_user_workspaces()` and `get_user_owned_workspaces()` for workspace-scoped reads. The legacy `get_client_project_ids()` helper was dropped on 2026-05-06 along with the client clauses on projects/feedbacks/feedback_replies RLS — client-facing data flows through the widget API using the admin client, not RLS.
 - **Deferred account creation (GDPR)**: invite emails now link to `/auth/accept-invite?token=<invite_id>` instead of a pre-provisioned magic link. No `auth.users` row is created until the invitee actively signs in (magic link or Google OAuth). Accept-invite page handles four states — auto-accept, guest sign-in surface, email-mismatch (with sign-out recovery), and invalid-invite. `acceptInvite()` server action (`src/actions/invites.ts`) gates membership on email match via admin client; duplicate-insert (`23505`) is treated as success. After auto-accept, `dashboard/layout.tsx` re-reads workspaces via the admin client to bypass Next.js Request Memoization (user-scoped query would return a pre-insert snapshot).
 
 ### Member Access Revocation & Notifications
@@ -77,12 +77,14 @@ Vercel deploys are atomic and zero-downtime, so shipping while users are active 
 - Shared `CreateProjectDialog` component used by both `ProjectSwitcher` and `Onboarding`.
 
 ### Widget Enhancements
-- **Email verification prompt**: Widget always renders; if no stored email, shows an email prompt. Verified via `/api/widget/verify-email` before granting access. `vv_email` URL param still works for client invite links.
-- **Screenshot functionality in replies**: Widget replies now support screenshots and file attachments.
+- **Invite-only, token-based access**: Widget is invisible to anonymous visitors (`host.style.display = 'none'`). Renders only when a per-device token is in `localStorage[vv_token_${apiKey}]`. Clients bootstrap via `?vv_invite=<workspace_invites.id>` exchanged at `/api/widget/identity/exchange`. Owners/members bootstrap via `?vv_token=<rawToken>` issued by the dashboard's "Open widget on site" button (`issueSelfWidgetLink` server action) or auto-emailed on workspace join + on every project creation.
+- **Bearer-token auth on every API call**: `Authorization: Bearer <token>` header (or `?token=` query for SSE — `EventSource` can't send custom headers). `authenticateWidgetRequest()` in `widget-helpers.ts` resolves API key + bearer in one shot, returning `{ project, ownerTier, identity }`. `identity.email` is server-authoritative.
+- **Revocation**: FK cascade on `workspace_invites` deletion (clients) + `revoke_widget_identities_on_member_removal` trigger on `workspace_members` DELETE (owners/members). Widget self-hides + clears localStorage on any 401/403.
+- **Self-service recovery at `/access`**: rate-limited, anti-enumeration, emails fresh per-project bootstrap links to anyone who is a member or client invitee for the email they enter. Backed by `requestWidgetAccessRecovery()` in `src/actions/widget-access.ts`.
+- **Unused-token cleanup**: nightly pg_cron job deletes `widget_identities WHERE last_used_at IS NULL AND created_at < now() - interval '30 days'`. Active sessions never touched.
+- **Screenshot functionality in replies**: Widget replies support screenshots and file attachments.
 - **Attachment support in replies**: Reply endpoint returns `replyId` for subsequent attachment uploads; allows empty text if attachments present.
 - **Completed feedbacks hidden from widget**: Only shows `open`, `in progress`, `in review` statuses.
-- **UI/layout refinements**: `.compact` and `.tall` height variants, improved scrolling, better spacing, reply attachment preview padding.
-- **Authorization**: Two-tier check — workspace members (owner/member) auto-allowed via profile lookup, falls back to `workspace_invites` for clients. Self-invites blocked.
 - **Rate limiting**: 30 req/min per IP on all widget endpoints (`src/lib/widget-helpers.ts`). Auto-cleans expired entries every 5 minutes.
 - **Content limits**: 5000 chars max for feedback/reply content.
 - **Trial gate**: `validateApiKey()` checks owner's subscription/trial status — widget returns 403 post-trial.
@@ -263,8 +265,8 @@ Vercel deploys are atomic and zero-downtime, so shipping while users are active 
 ## 6. API Routes
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/widget` | GET/POST | Widget config + feedback submission |
-| `/api/widget/verify-email` | GET | Lightweight email authorization check for widget |
+| `/api/widget` | GET/POST | Widget config + feedback submission (Bearer token required) |
+| `/api/widget/identity/exchange` | POST | Swap a `workspace_invites.id` for a per-device widget token (client bootstrap) |
 | `/api/widget/feedbacks` | GET | List feedbacks for widget (includes reply_count, attachments, excludes completed) |
 | `/api/widget/reply` | POST | Submit reply from widget chat (supports attachments, returns replyId) |
 | `/api/widget/upload` | POST | Request presigned upload URLs for widget attachments |
@@ -297,15 +299,18 @@ Vercel deploys are atomic and zero-downtime, so shipping while users are active 
 | `updateEmailPreferencesAction` | `src/actions/preferences.ts` | Update per-project email preferences |
 | `getTierUsageAction` | `src/actions/tier.ts` | Returns tier, limits, and account-wide usage counts |
 | `deleteProjectAction` | `src/actions/projects.ts` | Delete project with storage cleanup, notifications, and digest queuing |
-| `acceptInvite` | `src/actions/invites.ts` | Email-gated invite acceptance — creates `workspace_members` row via admin client after validating authed user's email matches invite target |
+| `acceptInvite` | `src/actions/invites.ts` | Email-gated invite acceptance — creates `workspace_members` row via admin client after validating authed user's email matches invite target. Rejects `role='client'` invites (clients no longer become workspace members), and fires `dispatchMemberWelcomeBootstrap` to email per-project widget links to the new member. |
+| `issueSelfWidgetLink` | `src/actions/widget-access.ts` | Authenticated owner/member action — mints a `widget_identities` row tied to `user_id` and returns `${project.website_url}?vv_token=<rawToken>` for one-click widget activation on the host site. |
+| `requestWidgetAccessRecovery` | `src/actions/widget-access.ts` | Public, rate-limited self-service action backing `/access`. Looks up workspace memberships + client invites for an email and emails fresh per-project bootstrap links. Anti-enumeration: always returns `ok=true` regardless of match. |
 
 ## 8. Database Schema (Key Tables)
 | Table | Purpose |
 |---|---|
 | `profiles` | User profiles, onboarding state (`has_onboarded`, `completed_onboarding_steps`), Stripe fields (`stripe_customer_id`, `stripe_subscription_id`, `subscription_status`, `subscription_tier`), `trial_ends_at` |
 | `workspaces` | Multi-tenant workspaces with branding (name, logo) |
-| `workspace_members` | User ↔ workspace association with role (`owner`, `member`, `client`). Composite key `(workspace_id, user_id)` — no `id` column |
-| `workspace_invites` | Pending invitations with email, role, workspace reference |
+| `workspace_members` | User ↔ workspace association with role (`owner`, `member`). `'client'` role is forbidden by `CHECK (role <> 'client')` — clients live in `workspace_invites` only and never get an `auth.users` row in the new model. Composite key `(workspace_id, user_id)` — no `id` column |
+| `workspace_invites` | Pending member invitations + persistent client whitelist entries (`role='client'`). The invite's UUID id doubles as the client's bootstrap token (`?vv_invite=...`). |
+| `widget_identities` | Per-device widget auth tokens. `(project_id, invite_id?, user_id?, email, token_hash)` — `token_hash` is sha256 of the raw token; raw token is only returned at issue time. Multi-device by design (no unique on `(project, email)`). Cascade-deleted on `workspace_invites` / `auth.users` / `projects` removal; trigger-revoked on `workspace_members` removal. |
 | `projects` | Projects within workspaces (name, `website_url`, `api_key`, `share_token`, `is_sharing_enabled`) |
 | `feedbacks` | User-submitted feedback entries with status, metadata, screenshots |
 | `feedback_replies` | Threaded replies on feedback items (real-time enabled) |

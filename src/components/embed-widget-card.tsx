@@ -121,7 +121,7 @@ export function EmbedWidgetCard({ project }: EmbedWidgetCardProps) {
                 <div className="mt-5 pt-4 border-t border-blue-100/70">
                     <p className="text-sm font-medium text-blue-900 mb-1">Open the widget on your site</p>
                     <p className="text-xs text-blue-700/80 mb-3">
-                        Once the widget is embedded, click below to open <strong>{project.website_url || 'your site'}</strong> with widget access activated for your account on this device.
+                        Use this whenever the widget doesn&apos;t appear on <strong>{project.website_url || 'your site'}</strong> — typically the first time you visit on each new device or browser, or after you&apos;ve cleared your browser data. Each click activates the widget for your account on the current device.
                     </p>
                     <Button
                         type="button"
