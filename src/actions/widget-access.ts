@@ -14,6 +14,8 @@
  */
 'use server';
 
+import fs from 'fs';
+import path from 'path';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { issueWidgetIdentity } from '@/lib/widget-helpers';
@@ -27,7 +29,14 @@ const RECOVERY_MAX_PER_IP = 5;
 const RECOVERY_MAX_PER_EMAIL = 3;
 const recoveryHits = new Map<string, { count: number; resetAt: number }>();
 
+// Bypass the rate limiter when Playwright tests are running. The bucket is
+// process-local and the dev server is reused across runs, so accumulated
+// hits trip false positives in tests for the same email/IP. Same pattern
+// used by `src/lib/resend.ts` to stub Resend.
+const isPlaywrightRun = () => fs.existsSync(path.join(process.cwd(), '.playwright-running'));
+
 function isRecoveryRateLimited(key: string, max: number): boolean {
+    if (isPlaywrightRun()) return false;
     const now = Date.now();
     const entry = recoveryHits.get(key);
     if (!entry || now > entry.resetAt) {
