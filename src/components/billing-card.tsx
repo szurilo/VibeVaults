@@ -25,6 +25,7 @@ interface BillingCardProps {
     usage?: {
         workspaces: UsageItem;
         projects: UsageItem;
+        members?: UsageItem;
         storage: UsageItem;
     };
 }
@@ -121,6 +122,7 @@ export function BillingCard({ tierLabel, hasSubscription, billingInterval, usage
                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Usage</p>
                         <UsageBar label="Workspaces" item={usage.workspaces} />
                         <UsageBar label="Projects" item={usage.projects} />
+                        {usage.members && <UsageBar label="Members" item={usage.members} />}
                         <UsageBar label="Storage" item={usage.storage} />
                     </div>
                 )}
