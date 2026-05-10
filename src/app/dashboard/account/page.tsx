@@ -4,7 +4,6 @@ import { BillingCard } from "@/components/billing-card";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserTier, countUserWorkspaces, countUserProjects, countWorkspaceMembers, getStorageUsedBytes, formatBytes } from "@/lib/tier-helpers";
-import { stripe } from "@/lib/stripe";
 import { cookies } from "next/headers";
 
 export default async function AccountPage() {
@@ -22,7 +21,7 @@ export default async function AccountPage() {
             .single(),
         adminSupabase
             .from('profiles')
-            .select('stripe_subscription_id')
+            .select('billing_interval')
             .eq('id', user.id)
             .single(),
         getUserTier(user.id),
@@ -50,17 +49,7 @@ export default async function AccountPage() {
         getStorageUsedBytes(user.id),
     ]);
 
-    // Resolve billing interval from Stripe subscription
-    let billingInterval: 'monthly' | 'yearly' | null = null;
-    if (profile?.stripe_subscription_id) {
-        try {
-            const subscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
-            const interval = subscription.items.data[0]?.price?.recurring?.interval;
-            billingInterval = interval === 'year' ? 'yearly' : interval === 'month' ? 'monthly' : null;
-        } catch {
-            // Subscription may have been deleted
-        }
-    }
+    const billingInterval = (profile?.billing_interval as 'monthly' | 'yearly' | null) ?? null;
 
     const initialPreferences = {
         notify_new_feedback: preferences?.notify_new_feedback ?? true,

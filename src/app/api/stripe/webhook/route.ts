@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 import { getTierFromPriceId, type TierSlug } from '@/lib/tier-config';
-import { enforceTierLimitsOnChange, syncProfileFromCheckoutSession } from '@/lib/stripe-sync';
+import { enforceTierLimitsOnChange, intervalFromSubscription, syncProfileFromCheckoutSession } from '@/lib/stripe-sync';
 
 // Use secret key to bypass RLS for webhook updates
 const supabaseAdmin = createClient(
@@ -59,9 +59,11 @@ export async function POST(req: NextRequest) {
                 const status = (subscription.status === 'active' || subscription.status === 'past_due')
                     ? 'active' : 'inactive';
                 const tier = resolveTierFromSubscription(subscription);
+                const billingInterval = intervalFromSubscription(subscription);
 
                 const updateData: Record<string, string | null> = {
                     subscription_status: status,
+                    billing_interval: billingInterval,
                     updated_at: new Date().toISOString(),
                 };
                 if (tier) {
@@ -92,6 +94,7 @@ export async function POST(req: NextRequest) {
                         subscription_status: 'inactive',
                         stripe_subscription_id: null,
                         subscription_tier: null,
+                        billing_interval: null,
                         updated_at: new Date().toISOString(),
                     })
                     .eq('stripe_customer_id', customerId);
@@ -109,12 +112,14 @@ export async function POST(req: NextRequest) {
                 const invoice = data.object as any;
                 const customerId = invoice.customer;
 
-                // Resolve tier from the subscription associated with this invoice
+                // Resolve tier + interval from the subscription associated with this invoice
                 let tier: string | null = null;
+                let billingInterval: 'monthly' | 'yearly' | null = null;
                 if (invoice.subscription) {
                     try {
                         const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
                         tier = resolveTierFromSubscription(subscription);
+                        billingInterval = intervalFromSubscription(subscription);
                     } catch (e) {
                         console.error('❌ Webhook: Failed to retrieve subscription for invoice.paid:', e);
                     }
@@ -122,6 +127,7 @@ export async function POST(req: NextRequest) {
 
                 const updateData: Record<string, string | null> = {
                     subscription_status: 'active',
+                    billing_interval: billingInterval,
                     updated_at: new Date().toISOString(),
                 };
                 if (tier) {
@@ -152,10 +158,12 @@ export async function POST(req: NextRequest) {
                     try {
                         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
                         const tier = resolveTierFromSubscription(subscription);
+                        const billingInterval = intervalFromSubscription(subscription);
                         const customerId = subscription.customer as string;
 
                         const updateData: Record<string, string | null> = {
                             subscription_status: subscription.status === 'active' ? 'active' : 'inactive',
+                            billing_interval: billingInterval,
                             updated_at: new Date().toISOString(),
                         };
                         if (tier) {

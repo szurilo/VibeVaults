@@ -17,6 +17,17 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SECRET_KEY!
 );
 
+/**
+ * Map a Stripe subscription to our 'monthly' | 'yearly' billing interval.
+ * Returns null when the subscription has no recurring price (shouldn't happen
+ * for our SKUs) or the interval is something we don't model (week/day).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function intervalFromSubscription(subscription: any): 'monthly' | 'yearly' | null {
+    const interval = subscription?.items?.data?.[0]?.price?.recurring?.interval;
+    return interval === 'year' ? 'yearly' : interval === 'month' ? 'monthly' : null;
+}
+
 export async function enforceTierLimitsOnChange(tier: TierSlug | null, customerId: string) {
     // Within this downgrade-enforcement path, `null` means "cancelled" (fired by
     // customer.subscription.deleted), not "trialing". Resolve to Starter caps so
@@ -85,7 +96,7 @@ export async function syncProfileFromCheckoutSession(
 ): Promise<SyncResult> {
     let session;
     try {
-        session = await stripe.checkout.sessions.retrieve(sessionId);
+        session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['subscription'] });
     } catch (e) {
         console.error('❌ stripe-sync: failed to retrieve session', sessionId, e);
         return { status: 'not_found' };
@@ -93,8 +104,10 @@ export async function syncProfileFromCheckoutSession(
 
     const userId = session.metadata?.userId;
     const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+    const subscriptionObject = typeof session.subscription === 'object' ? session.subscription : null;
     const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
     const tier = session.metadata?.tier || null;
+    const billingInterval = subscriptionObject ? intervalFromSubscription(subscriptionObject) : null;
 
     if (!userId || !customerId) {
         return { status: 'not_found' };
@@ -125,6 +138,7 @@ export async function syncProfileFromCheckoutSession(
             stripe_subscription_id: subscriptionId,
             subscription_status: 'active',
             subscription_tier: tier,
+            billing_interval: billingInterval,
             updated_at: new Date().toISOString(),
         })
         .eq('id', userId);

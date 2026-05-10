@@ -1,10 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Turnstile } from '@marsidev/react-turnstile';
+
+const Turnstile = dynamic(
+    () => import('@marsidev/react-turnstile').then((m) => m.Turnstile),
+    { ssr: false }
+);
 
 type AuthMode = 'login' | 'register';
 
@@ -50,8 +55,22 @@ export function AuthForm({ mode, socialProviders }: AuthFormProps) {
     const [devMailpitHint, setDevMailpitHint] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [captchaToken, setCaptchaToken] = useState<string>();
+    const [showTurnstile, setShowTurnstile] = useState(false);
 
     const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITEKEY;
+
+    useEffect(() => {
+        if (!turnstileSiteKey) return;
+        const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number };
+        const handle = w.requestIdleCallback
+            ? w.requestIdleCallback(() => setShowTurnstile(true), { timeout: 2000 })
+            : window.setTimeout(() => setShowTurnstile(true), 800);
+        return () => {
+            const cancel = (window as Window & { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback;
+            if (cancel) cancel(handle);
+            else clearTimeout(handle);
+        };
+    }, [turnstileSiteKey]);
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -182,12 +201,14 @@ export function AuthForm({ mode, socialProviders }: AuthFormProps) {
                             </div>
                             {turnstileSiteKey && (
                                 <div className="flex justify-center w-full min-h-[65px]">
-                                    <Turnstile
-                                        siteKey={turnstileSiteKey}
-                                        onSuccess={(token) => setCaptchaToken(token)}
-                                        onError={() => setError('Security check failed. Please refresh the page.')}
-                                        onExpire={() => setCaptchaToken(undefined)}
-                                    />
+                                    {showTurnstile && (
+                                        <Turnstile
+                                            siteKey={turnstileSiteKey}
+                                            onSuccess={(token) => setCaptchaToken(token)}
+                                            onError={() => setError('Security check failed. Please refresh the page.')}
+                                            onExpire={() => setCaptchaToken(undefined)}
+                                        />
+                                    )}
                                 </div>
                             )}
                             <button
