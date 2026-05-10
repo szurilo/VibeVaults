@@ -6,7 +6,7 @@
  * Sensitive Dependencies: Supabase Storage (feedback-attachments bucket), tier-helpers
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest } from "@/lib/widget-helpers";
 import { checkStorageLimit } from "@/lib/tier-helpers";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -31,7 +31,6 @@ export async function POST(request: Request) {
 
     let body: {
         apiKey?: string;
-        senderEmail?: string;
         files?: { name: string; size: number; type: string }[];
     };
 
@@ -41,20 +40,14 @@ export async function POST(request: Request) {
         return corsError("Invalid JSON body", 400);
     }
 
-    const { apiKey, senderEmail, files } = body;
+    const { apiKey, files } = body;
 
     if (!apiKey) return corsError("Missing API Key", 400);
-    if (!senderEmail) return corsError("Missing sender email", 400);
     if (!files || !Array.isArray(files) || files.length === 0) return corsError("No files provided.", 400);
     if (files.length > MAX_FILES_PER_REQUEST) return corsError(`Maximum ${MAX_FILES_PER_REQUEST} files per upload.`, 400);
 
-    // Validate API key + subscription
-    const { project, error, status } = await validateApiKey(apiKey);
-    if (error) return corsError(error, status);
-
-    // Verify sender is authorized
-    const isAuthorized = await verifyWidgetEmail(senderEmail, project.workspace_id);
-    if (!isAuthorized) return corsError("Unauthorized email address.", 403);
+    const { project, error, status } = await authenticateWidgetRequest(request, apiKey);
+    if (error || !project) return corsError(error ?? "Unauthorized", status);
 
     // Check storage limit for workspace owner
     const adminSupabase = createAdminClient();

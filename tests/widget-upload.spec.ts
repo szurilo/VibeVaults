@@ -13,17 +13,14 @@
  * cliff, (b) create orphaned storage objects, (c) let unauthorized senders
  * upload via the widget, (d) bypass the tier storage cap.
  *
- * Negative cases covered here:
- *   - Missing API key / sender → 400
- *   - Unauthorized sender email → 403
- *   - Disallowed MIME type → 400
- *   - Oversized file → 400
- *   - Confirm with wrong projectId → 403
- *   - Confirm without actually uploading first → 400 (storage list is empty)
+ * Auth model: every widget API route requires `Authorization: Bearer <token>`.
+ * The token resolves to a `widget_identities` row whose `email` is the
+ * server-authoritative sender — clients can no longer claim arbitrary senders
+ * via a body field. The seed pre-issues `widgetTokens.client` for the seeded
+ * client; this file uses that for the happy path and bogus tokens for the
+ * unauthorized cases.
  *
  * Sensitive Dependencies:
- * - Uses the seeded client's email for the happy path — it has a matching
- *   workspace_invites row so verifyWidgetEmail() accepts it.
  * - Cleans up the attachment row + storage object in afterAll.
  */
 
@@ -34,7 +31,7 @@ import { AUTH_FILES } from './fixtures/test-data';
 
 test.describe.configure({ mode: 'serial' });
 
-// Widget endpoints are public — no auth cookies.
+// Widget endpoints are public (no auth cookies); identity rides in Bearer.
 test.use({ storageState: AUTH_FILES.empty });
 
 // Minimal valid PNG (1×1 transparent pixel) — keeps the storage round-trip cheap.
@@ -63,12 +60,13 @@ test.afterAll(async () => {
 test.describe('Widget upload — happy path', () => {
     test('upload → PUT to signed URL → confirm → row exists', async ({ request }) => {
         const seed = getSeedResult();
+        const auth = { Authorization: `Bearer ${seed.widgetTokens.client}` };
 
         // Step 1 — request presigned URLs.
         const presignRes = await request.post('/api/widget/upload', {
+            headers: auth,
             data: {
                 apiKey: seed.apiKey,
-                senderEmail: seed.clientEmail,
                 files: [{ name: 'pixel.png', size: PNG_BYTES.length, type: 'image/png' }],
             },
         });
@@ -78,8 +76,7 @@ test.describe('Widget upload — happy path', () => {
         const upload = presign.uploads[0];
         createdPaths.push(upload.path);
 
-        // Step 2 — PUT the bytes at the signed URL. Supabase signed URLs accept
-        // a direct PUT with the file body and x-upsert header.
+        // Step 2 — PUT the bytes at the signed URL.
         const putRes = await request.put(upload.signedUrl, {
             headers: {
                 'Content-Type': 'image/png',
@@ -89,12 +86,13 @@ test.describe('Widget upload — happy path', () => {
         });
         expect(putRes.ok(), `PUT status: ${putRes.status()}`).toBeTruthy();
 
-        // Step 3 — confirm. This verifies the object exists in storage and
-        // inserts the feedback_attachments row.
+        // Step 3 — confirm. Verifies the object exists in storage and inserts
+        // the feedback_attachments row. uploaded_by is taken from the bearer
+        // token's identity, not from the request body.
         const confirmRes = await request.post('/api/widget/upload/confirm', {
+            headers: auth,
             data: {
                 apiKey: seed.apiKey,
-                senderEmail: seed.clientEmail,
                 projectId: presign.projectId,
                 feedbackId: null,
                 replyId: null,
@@ -135,32 +133,45 @@ test.describe('Widget upload — rejections', () => {
     test('missing apiKey → 400', async ({ request }) => {
         const seed = getSeedResult();
         const res = await request.post('/api/widget/upload', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
             data: {
-                senderEmail: seed.clientEmail,
                 files: [{ name: 'x.png', size: 10, type: 'image/png' }],
             },
         });
         expect(res.status()).toBe(400);
     });
 
-    test('unauthorized sender email → 403', async ({ request }) => {
+    test('no Bearer token → 401', async ({ request }) => {
+        // Anonymous visitors must not be able to upload at all. The route
+        // requires a valid widget identity token bound to the resolved project.
         const seed = getSeedResult();
         const res = await request.post('/api/widget/upload', {
             data: {
                 apiKey: seed.apiKey,
-                senderEmail: `random-${Date.now()}@example.com`,
                 files: [{ name: 'x.png', size: 10, type: 'image/png' }],
             },
         });
-        expect(res.status()).toBe(403);
+        expect(res.status()).toBe(401);
+    });
+
+    test('bogus Bearer token → 401', async ({ request }) => {
+        const seed = getSeedResult();
+        const res = await request.post('/api/widget/upload', {
+            headers: { Authorization: `Bearer not-a-real-token-${Date.now()}` },
+            data: {
+                apiKey: seed.apiKey,
+                files: [{ name: 'x.png', size: 10, type: 'image/png' }],
+            },
+        });
+        expect(res.status()).toBe(401);
     });
 
     test('disallowed MIME type → 400', async ({ request }) => {
         const seed = getSeedResult();
         const res = await request.post('/api/widget/upload', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
             data: {
                 apiKey: seed.apiKey,
-                senderEmail: seed.clientEmail,
                 files: [{ name: 'evil.exe', size: 10, type: 'application/x-msdownload' }],
             },
         });
@@ -172,9 +183,9 @@ test.describe('Widget upload — rejections', () => {
     test('oversized file (>10MB) → 400', async ({ request }) => {
         const seed = getSeedResult();
         const res = await request.post('/api/widget/upload', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
             data: {
                 apiKey: seed.apiKey,
-                senderEmail: seed.clientEmail,
                 files: [{ name: 'big.png', size: 11 * 1024 * 1024, type: 'image/png' }],
             },
         });
@@ -186,9 +197,9 @@ test.describe('Widget upload — rejections', () => {
     test('confirm with wrong projectId → 403', async ({ request }) => {
         const seed = getSeedResult();
         const res = await request.post('/api/widget/upload/confirm', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
             data: {
                 apiKey: seed.apiKey,
-                senderEmail: seed.clientEmail,
                 projectId: '00000000-0000-0000-0000-000000000000',
                 files: [
                     {
@@ -210,9 +221,9 @@ test.describe('Widget upload — rejections', () => {
         const seed = getSeedResult();
         const bogusPath = `${seed.projectId}/does-not-exist-${Date.now()}.png`;
         const res = await request.post('/api/widget/upload/confirm', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
             data: {
                 apiKey: seed.apiKey,
-                senderEmail: seed.clientEmail,
                 projectId: seed.projectId,
                 files: [
                     {

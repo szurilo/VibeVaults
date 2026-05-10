@@ -9,6 +9,7 @@
  */
 
 import { supabaseAdmin } from '../utils/supabase-admin';
+import { issueTestWidgetToken } from '../utils/widget-token';
 import { TEST_USERS, TEST_WORKSPACE, TEST_PROJECT } from './test-data';
 
 export interface SeedResult {
@@ -18,9 +19,23 @@ export interface SeedResult {
     memberEmail: string;
     clientId: string;
     clientEmail: string;
+    clientInviteId: string;
     workspaceId: string;
     projectId: string;
     apiKey: string;
+    /**
+     * Pre-seeded widget bearer tokens, keyed by intended sender identity.
+     * Each is a per-device token planted directly into widget_identities
+     * — same primitive a real client would obtain by clicking
+     * `?vv_invite=...` on the host site, or a member would obtain via
+     * the dashboard's "Open widget on site" button. Tests pass these in
+     * the Authorization header on widget API calls.
+     */
+    widgetTokens: {
+        owner: string;
+        member: string;
+        client: string;
+    };
 }
 
 /**
@@ -114,14 +129,41 @@ export async function seedTestData(): Promise<SeedResult> {
     // Wait for client's auto-workspace trigger
     await new Promise(r => setTimeout(r, 500));
 
-    // Create workspace invite for client (widget authorization checks this)
-    await supabaseAdmin
+    // Create workspace invite for client. In the new invite-only widget
+    // model this row is also the authorization anchor — the client invite
+    // ID doubles as the bootstrap token, and FK-cascade-deleting it
+    // revokes every widget token derived from it.
+    const { data: clientInvite, error: cInvErr } = await supabaseAdmin
         .from('workspace_invites')
         .insert({
             workspace_id: workspaceId,
             email: TEST_USERS.client.email,
             role: 'client',
-        });
+        })
+        .select('id')
+        .single();
+    if (cInvErr || !clientInvite) throw new Error(`Client invite creation failed: ${cInvErr?.message}`);
+
+    // 7. Pre-issue widget tokens for owner, member, and client so tests
+    // can hit widget API endpoints with `Authorization: Bearer <token>`
+    // without going through the real bootstrap UX.
+    const [ownerWidgetToken, memberWidgetToken, clientWidgetToken] = await Promise.all([
+        issueTestWidgetToken({
+            projectId: project.id,
+            email: TEST_USERS.owner.email,
+            userId: ownerId,
+        }),
+        issueTestWidgetToken({
+            projectId: project.id,
+            email: TEST_USERS.member.email,
+            userId: memberId,
+        }),
+        issueTestWidgetToken({
+            projectId: project.id,
+            email: TEST_USERS.client.email,
+            inviteId: clientInvite.id,
+        }),
+    ]);
 
     return {
         ownerId,
@@ -130,8 +172,14 @@ export async function seedTestData(): Promise<SeedResult> {
         memberEmail: TEST_USERS.member.email,
         clientId,
         clientEmail: TEST_USERS.client.email,
+        clientInviteId: clientInvite.id,
         workspaceId,
         projectId: project.id,
         apiKey: project.api_key,
+        widgetTokens: {
+            owner: ownerWidgetToken,
+            member: memberWidgetToken,
+            client: clientWidgetToken,
+        },
     };
 }

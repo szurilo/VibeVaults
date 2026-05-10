@@ -1,35 +1,31 @@
 /**
  * Tier 1 — Abuse-prevention: Widget auth and input validation
  *
- * The widget endpoints are the only fully-public product surfaces. Their input
- * validation + sender-authorization checks are what keep strangers from (a)
- * submitting feedback or replies they shouldn't, (b) pushing oversized payloads
- * through the serverless runtime, and (c) brute-forcing email enumeration.
+ * The widget endpoints are the only fully-public product surfaces. Every
+ * widget API request now carries `Authorization: Bearer <token>` (or
+ * `?token=` for SSE) — the legacy email-prompt flow + `/api/widget/verify-email`
+ * route were removed in slice C2. The bearer's identity is server-authoritative;
+ * `request.body.sender` is no longer accepted.
  *
  * Covered endpoints:
- *   - GET  /api/widget/verify-email  (email authorization check)
  *   - POST /api/widget               (feedback submission)
  *   - POST /api/widget/reply         (reply submission)
  *
  * What we assert:
- *   - Authorization: invited emails pass; strangers get {authorized:false} or 403
- *   - Membership precedence: workspace owner/member emails also pass
- *     (even without a matching workspace_invites row)
- *   - Content limits: >5000 chars rejected
- *   - Input validation: invalid email format, missing fields rejected
- *   - Reply gate: wrong feedback_id for the project rejected
- *   - Side-effects: a rejected request must NOT write a feedback/reply row
+ *   - Anonymous (no Bearer) → 401, no row written
+ *   - Bogus Bearer → 401, no row written
+ *   - Valid Bearer → request proceeds; identity.email becomes the sender
+ *   - Content limits: >5000 chars rejected (400)
+ *   - Empty content rejected (400)
+ *   - Reply gate: feedback_id from a different project rejected (404)
+ *   - Side-effects: rejected requests must NOT write a feedback/reply row
  *
- * Not covered here: rate limiting. The in-memory limiter is 60/min per
- * (IP, endpoint). Triggering it requires 61 sequential requests, which is
- * slow and process-local (useless on Vercel with warm-instance sprawl).
- * Lower-value than the assertions above; revisit if we move the limiter
- * into Redis/Upstash.
+ * Not covered here: rate limiting (60/min per IP+endpoint, process-local —
+ * impractical to exercise reliably).
  *
  * Sensitive Dependencies:
- * - Uses the seeded client's email for the authorized case (they have a
- *   matching workspace_invites row).
- * - Uses the seeded owner's email for the membership-precedence case.
+ * - Uses the seeded client's bearer token (`widgetTokens.client`) for the
+ *   authorized cases. The widget identity row is created at seed time.
  * - Cleans up any rogue feedback/reply rows in afterAll.
  */
 
@@ -38,75 +34,14 @@ import { supabaseAdmin } from './utils/supabase-admin';
 import { getSeedResult } from './utils/seed-result';
 import { AUTH_FILES } from './fixtures/test-data';
 
-// Public endpoints — no auth cookies.
+// Public endpoints — no Supabase auth cookies.
 test.use({ storageState: AUTH_FILES.empty });
-
-// ---------------------------------------------------------------------------
-// GET /api/widget/verify-email
-// ---------------------------------------------------------------------------
-
-test.describe('GET /api/widget/verify-email', () => {
-    test('missing API key → 400', async ({ request }) => {
-        const res = await request.get('/api/widget/verify-email?email=foo@example.com');
-        expect(res.status()).toBe(400);
-    });
-
-    test('invalid email format → 400', async ({ request }) => {
-        const seed = getSeedResult();
-        const res = await request.get(
-            `/api/widget/verify-email?key=${seed.apiKey}&email=not-an-email`
-        );
-        expect(res.status()).toBe(400);
-    });
-
-    test('invalid API key → 401 (validateApiKey rejection)', async ({ request }) => {
-        const res = await request.get(
-            '/api/widget/verify-email?key=bogus&email=foo@example.com'
-        );
-        expect(res.status()).toBe(401);
-    });
-
-    test('invited client email → {authorized: true}', async ({ request }) => {
-        const seed = getSeedResult();
-        const res = await request.get(
-            `/api/widget/verify-email?key=${seed.apiKey}&email=${encodeURIComponent(seed.clientEmail)}`
-        );
-        expect(res.ok()).toBeTruthy();
-        const body = await res.json();
-        expect(body.authorized).toBe(true);
-    });
-
-    test('workspace owner email → {authorized: true} (members beat invites)', async ({ request }) => {
-        // Owners/members have NO workspace_invites row — they're authorized via
-        // workspace_members. A regression in the precedence order would lock
-        // owners out of their own widget.
-        const seed = getSeedResult();
-        const res = await request.get(
-            `/api/widget/verify-email?key=${seed.apiKey}&email=${encodeURIComponent(seed.ownerEmail)}`
-        );
-        expect(res.ok()).toBeTruthy();
-        const body = await res.json();
-        expect(body.authorized).toBe(true);
-    });
-
-    test('stranger email → {authorized: false}', async ({ request }) => {
-        const seed = getSeedResult();
-        const stranger = `e2e-stranger-${Date.now()}@example.com`;
-        const res = await request.get(
-            `/api/widget/verify-email?key=${seed.apiKey}&email=${encodeURIComponent(stranger)}`
-        );
-        expect(res.ok()).toBeTruthy();
-        const body = await res.json();
-        expect(body.authorized).toBe(false);
-    });
-});
 
 // ---------------------------------------------------------------------------
 // POST /api/widget  (feedback submission)
 // ---------------------------------------------------------------------------
 
 test.describe('POST /api/widget (feedback submission)', () => {
-    // Track any rows we accidentally create so we can clean them up.
     const createdFeedbackIds: string[] = [];
 
     test.afterAll(async () => {
@@ -115,43 +50,89 @@ test.describe('POST /api/widget (feedback submission)', () => {
         }
     });
 
-    test('stranger sender email → 403 and no feedback row written', async ({ request }) => {
+    test('happy path — valid Bearer submits a feedback whose sender = identity.email', async ({ request }) => {
         const seed = getSeedResult();
-        const strangerContent = `should-not-persist-${Date.now()}`;
+        const marker = `auth-spec-happy-${Date.now()}`;
+        const res = await request.post('/api/widget', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
+            data: {
+                apiKey: seed.apiKey,
+                content: marker,
+                type: 'Feature',
+            },
+        });
+        expect(res.status()).toBe(200);
+        const body = await res.json();
+        expect(body.feedback_id).toBeTruthy();
+        createdFeedbackIds.push(body.feedback_id);
+
+        const { data: row } = await supabaseAdmin
+            .from('feedbacks')
+            .select('content, sender, project_id')
+            .eq('id', body.feedback_id)
+            .single();
+        expect(row?.content).toBe(marker);
+        expect(row?.project_id).toBe(seed.projectId);
+        // Sender comes from the bearer's identity row, not the request body.
+        expect(row?.sender).toBe(seed.clientEmail);
+    });
+
+    test('no Bearer token → 401 and no feedback row written', async ({ request }) => {
+        const seed = getSeedResult();
+        const marker = `should-not-persist-anon-${Date.now()}`;
         const res = await request.post('/api/widget', {
             data: {
                 apiKey: seed.apiKey,
-                content: strangerContent,
+                content: marker,
                 type: 'Feature',
-                sender: `e2e-stranger-${Date.now()}@example.com`,
             },
         });
-        expect(res.status()).toBe(403);
+        expect(res.status()).toBe(401);
 
         const { data: leaked } = await supabaseAdmin
             .from('feedbacks')
             .select('id')
             .eq('project_id', seed.projectId)
-            .eq('content', strangerContent);
-        expect(leaked?.length ?? 0, 'stranger submission must not persist').toBe(0);
+            .eq('content', marker);
+        expect(leaked?.length ?? 0, 'anonymous submission must not persist').toBe(0);
+    });
+
+    test('bogus Bearer token → 401 and no feedback row written', async ({ request }) => {
+        const seed = getSeedResult();
+        const marker = `should-not-persist-bogus-${Date.now()}`;
+        const res = await request.post('/api/widget', {
+            headers: { Authorization: `Bearer not-a-real-token-${Date.now()}` },
+            data: {
+                apiKey: seed.apiKey,
+                content: marker,
+                type: 'Feature',
+            },
+        });
+        expect(res.status()).toBe(401);
+
+        const { data: leaked } = await supabaseAdmin
+            .from('feedbacks')
+            .select('id')
+            .eq('project_id', seed.projectId)
+            .eq('content', marker);
+        expect(leaked?.length ?? 0, 'bogus-token submission must not persist').toBe(0);
     });
 
     test('content over 5000 chars → 400 and no row written', async ({ request }) => {
         const seed = getSeedResult();
         const huge = 'x'.repeat(5001);
         const res = await request.post('/api/widget', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
             data: {
                 apiKey: seed.apiKey,
                 content: huge,
                 type: 'Feature',
-                sender: seed.clientEmail,
             },
         });
         expect(res.status()).toBe(400);
         const body = await res.json();
         expect(body.error).toMatch(/too long/i);
 
-        // Sanity: no feedback row matching the oversized content should exist.
         const { data: leaked } = await supabaseAdmin
             .from('feedbacks')
             .select('id')
@@ -163,35 +144,10 @@ test.describe('POST /api/widget (feedback submission)', () => {
     test('empty / whitespace-only content → 400', async ({ request }) => {
         const seed = getSeedResult();
         const res = await request.post('/api/widget', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
             data: {
                 apiKey: seed.apiKey,
                 content: '   ',
-                type: 'Feature',
-                sender: seed.clientEmail,
-            },
-        });
-        expect(res.status()).toBe(400);
-    });
-
-    test('malformed sender email → 400', async ({ request }) => {
-        const seed = getSeedResult();
-        const res = await request.post('/api/widget', {
-            data: {
-                apiKey: seed.apiKey,
-                content: 'legit text',
-                type: 'Feature',
-                sender: 'not-an-email',
-            },
-        });
-        expect(res.status()).toBe(400);
-    });
-
-    test('missing sender → 400', async ({ request }) => {
-        const seed = getSeedResult();
-        const res = await request.post('/api/widget', {
-            data: {
-                apiKey: seed.apiKey,
-                content: 'legit text',
                 type: 'Feature',
             },
         });
@@ -204,8 +160,6 @@ test.describe('POST /api/widget (feedback submission)', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('POST /api/widget/reply', () => {
-    // Seed a feedback row we can reply against. Cleaned up in afterAll along
-    // with any reply rows the negative tests accidentally create.
     let feedbackId: string;
     const createdReplyIds: string[] = [];
 
@@ -235,18 +189,65 @@ test.describe('POST /api/widget/reply', () => {
         }
     });
 
-    test('stranger sender → 403 and no reply row written', async ({ request }) => {
+    test('happy path — valid Bearer posts a reply attributed to identity.email', async ({ request }) => {
         const seed = getSeedResult();
-        const marker = `stranger-reply-${Date.now()}`;
+        const marker = `auth-spec-reply-${Date.now()}`;
+        const res = await request.post('/api/widget/reply', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
+            data: {
+                feedbackId,
+                content: marker,
+                apiKey: seed.apiKey,
+            },
+        });
+        expect(res.status()).toBe(200);
+        const body = await res.json();
+        expect(body.replyId).toBeTruthy();
+        createdReplyIds.push(body.replyId);
+
+        const { data: row } = await supabaseAdmin
+            .from('feedback_replies')
+            .select('content, author_name, author_role')
+            .eq('id', body.replyId)
+            .single();
+        expect(row?.content).toBe(marker);
+        // author_name is the identity email, not anything the body claimed.
+        expect(row?.author_name).toBe(seed.clientEmail);
+        expect(row?.author_role).toBe('client');
+    });
+
+    test('no Bearer token → 401 and no reply row written', async ({ request }) => {
+        const seed = getSeedResult();
+        const marker = `anon-reply-${Date.now()}`;
         const res = await request.post('/api/widget/reply', {
             data: {
                 feedbackId,
                 content: marker,
                 apiKey: seed.apiKey,
-                senderEmail: `e2e-stranger-${Date.now()}@example.com`,
             },
         });
-        expect(res.status()).toBe(403);
+        expect(res.status()).toBe(401);
+
+        const { data: leaked } = await supabaseAdmin
+            .from('feedback_replies')
+            .select('id')
+            .eq('feedback_id', feedbackId)
+            .eq('content', marker);
+        expect(leaked?.length ?? 0).toBe(0);
+    });
+
+    test('bogus Bearer → 401 and no reply row written', async ({ request }) => {
+        const seed = getSeedResult();
+        const marker = `bogus-reply-${Date.now()}`;
+        const res = await request.post('/api/widget/reply', {
+            headers: { Authorization: `Bearer not-a-real-token-${Date.now()}` },
+            data: {
+                feedbackId,
+                content: marker,
+                apiKey: seed.apiKey,
+            },
+        });
+        expect(res.status()).toBe(401);
 
         const { data: leaked } = await supabaseAdmin
             .from('feedback_replies')
@@ -259,11 +260,11 @@ test.describe('POST /api/widget/reply', () => {
     test('empty content and no attachments → 400', async ({ request }) => {
         const seed = getSeedResult();
         const res = await request.post('/api/widget/reply', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
             data: {
                 feedbackId,
                 content: '   ',
                 apiKey: seed.apiKey,
-                senderEmail: seed.clientEmail,
                 hasAttachments: false,
             },
         });
@@ -273,11 +274,11 @@ test.describe('POST /api/widget/reply', () => {
     test('content over 5000 chars → 400', async ({ request }) => {
         const seed = getSeedResult();
         const res = await request.post('/api/widget/reply', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
             data: {
                 feedbackId,
                 content: 'x'.repeat(5001),
                 apiKey: seed.apiKey,
-                senderEmail: seed.clientEmail,
             },
         });
         expect(res.status()).toBe(400);
@@ -285,26 +286,14 @@ test.describe('POST /api/widget/reply', () => {
         expect(body.error).toMatch(/too long/i);
     });
 
-    test('malformed sender email → 400', async ({ request }) => {
-        const seed = getSeedResult();
-        const res = await request.post('/api/widget/reply', {
-            data: {
-                feedbackId,
-                content: 'valid text',
-                apiKey: seed.apiKey,
-                senderEmail: 'not-an-email',
-            },
-        });
-        expect(res.status()).toBe(400);
-    });
-
-    test('feedbackId from another project → 401 (no cross-project replies)', async ({ request }) => {
-        // This is the key isolation assertion: even with a valid API key + an
-        // authorized sender, you cannot reply to a feedback that belongs to a
-        // different project.
+    test('feedbackId from another project → 404 (no cross-project replies)', async ({ request }) => {
+        // Even with a valid Bearer + matching API key, you cannot reply to a
+        // feedback that belongs to a different project. The route returns 404
+        // ("Feedback not found for this project") rather than a more
+        // explicit 403 so that cross-tenant feedback IDs aren't confirmable
+        // via response shape.
         const seed = getSeedResult();
 
-        // Create a disposable owner + project, then a feedback under it.
         const foreignEmail = `e2e-foreign-${Date.now()}@example.com`;
         const { data: user } = await supabaseAdmin.auth.admin.createUser({
             email: foreignEmail,
@@ -341,17 +330,16 @@ test.describe('POST /api/widget/reply', () => {
 
         try {
             const res = await request.post('/api/widget/reply', {
+                headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
                 data: {
-                    feedbackId: foreignFeedback!.id, // ← foreign
+                    feedbackId: foreignFeedback!.id,  // ← foreign feedback
                     content: 'cross-project attempt',
-                    apiKey: seed.apiKey,              // ← seed's key
-                    senderEmail: seed.clientEmail,
+                    apiKey: seed.apiKey,              // ← seed's key (auth resolves to seed project)
                 },
             });
-            // verifyApiKeyForFeedback returns { error: "Feedback not found for this project" } → 401
-            expect(res.status()).toBe(401);
+            expect(res.status()).toBe(404);
         } finally {
-            // Cleanup — deleteUser cascades through workspace/project/feedback.
+            // deleteUser cascades through workspace/project/feedback.
             await supabaseAdmin.auth.admin.deleteUser(user.user.id);
         }
     });

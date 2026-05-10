@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest } from "@/lib/widget-helpers";
 
 export async function OPTIONS() {
     return optionsResponse();
@@ -11,25 +11,14 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const apiKey = searchParams.get("key");
-    const email = searchParams.get("email");
 
     if (!apiKey) {
         return corsError("Missing API Key", 400);
     }
 
-    if (!email) {
-        return corsError("Missing email", 400);
-    }
-
-    const { project, error, status } = await validateApiKey(apiKey);
-    if (error) {
-        return corsError(error, status);
-    }
-
-    // Verify the requesting user still has access to this workspace
-    const isAuthorized = await verifyWidgetEmail(email, project.workspace_id);
-    if (!isAuthorized) {
-        return corsError("Access revoked. You no longer have access to this workspace.", 403);
+    const { project, identity, error, status } = await authenticateWidgetRequest(request, apiKey);
+    if (error || !project || !identity) {
+        return corsError(error ?? "Unauthorized", status);
     }
 
     const adminSupabase = createAdminClient();
@@ -55,7 +44,6 @@ export async function GET(request: Request) {
         return corsError(feedbackError.message, 500);
     }
 
-    // Transform to include reply_count and feedback-level attachments
     const result = (feedbacks || []).map(f => ({
         id: f.id,
         content: f.content,

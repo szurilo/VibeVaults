@@ -18,7 +18,7 @@
     const API_STREAM = `${origin}/api/widget/stream`;
     const API_UPLOAD = `${origin}/api/widget/upload`;
     const API_UPLOAD_CONFIRM = `${origin}/api/widget/upload/confirm`;
-    const API_VERIFY = `${origin}/api/widget/verify-email`;
+    const API_IDENTITY_EXCHANGE = `${origin}/api/widget/identity/exchange`;
     const API_ERRORS = `${origin}/api/widget/errors`;
     const API_SCREENSHOT_EVENT = `${origin}/api/widget/screenshot-event`;
 
@@ -32,31 +32,49 @@
     const isVibeVaults = apiKey === 'e3917e214418009aea8b7a2712cb0059';
 
     // --- State Management ---
+    // Auth model: per-device opaque token issued by /api/widget/identity/exchange
+    // when the visitor lands on the host site with `?vv_invite=<workspace_invites.id>`.
+    // The token is stored in first-party localStorage on this origin and sent as a
+    // Bearer header on every widget API call. Anonymous visitors (no token) get no
+    // widget UI at all.
     let isOpen = false;
-    const emailKey = `vv_email_${apiKey}`;
+    const tokenKey = `vv_token_${apiKey}`;
+    const emailKey = `vv_email_${apiKey}`; // cached only for "self vs other" message styling
+    const prefsKey = `vv_prefs_${apiKey}`;
 
-
+    let widgetToken = localStorage.getItem(tokenKey) || '';
     let clientEmail = localStorage.getItem(emailKey) || '';
+    let notifyRepliesSetting = localStorage.getItem(prefsKey) !== 'false';
 
-    // Extract identity if passed via invite link URL parameter
+    // Two bootstrap URL params, both stripped before render so they don't leak
+    // via referrer/share:
+    //   * vv_invite : workspace_invites.id — exchanged for a token by the server
+    //                (client-invitee flow)
+    //   * vv_token  : raw widget token — planted directly into localStorage
+    //                (owner/member self-issued flow from the dashboard)
     const urlParams = new URLSearchParams(window.location.search);
-    const invitedEmail = urlParams.get('vv_email');
-    if (invitedEmail) {
-      clientEmail = invitedEmail;
-      localStorage.setItem(emailKey, clientEmail);
-      // Remove it from the URL so it's clean and doesn't get shared accidentally
-      urlParams.delete('vv_email');
+    const inviteToken = urlParams.get('vv_invite');
+    const directToken = urlParams.get('vv_token');
+    if (inviteToken || directToken) {
+      urlParams.delete('vv_invite');
+      urlParams.delete('vv_token');
       const newParams = urlParams.toString();
       const cleanUrl = window.location.pathname + (newParams ? '?' + newParams : '') + window.location.hash;
       window.history.replaceState({}, '', cleanUrl);
     }
+    if (directToken) {
+      widgetToken = directToken;
+      localStorage.setItem(tokenKey, widgetToken);
+    }
 
-    const prefsKey = `vv_prefs_${apiKey}`;
-    let notifyRepliesSetting = localStorage.getItem(prefsKey) !== 'false';
+    const authHeaders = () => widgetToken ? { 'Authorization': `Bearer ${widgetToken}` } : {};
 
-
-    // Track whether the user needs to verify their email before using the widget
-    let needsEmailVerification = !clientEmail;
+    const clearWidgetIdentity = () => {
+      widgetToken = '';
+      clientEmail = '';
+      localStorage.removeItem(tokenKey);
+      localStorage.removeItem(emailKey);
+    };
 
     let selectedFeedbackId = null;
     let cachedFeedbacks = [];
@@ -170,8 +188,8 @@
       const fileMeta = files.map(f => ({ name: f.name, size: f.size, type: f.type }));
       const urlRes = await fetch(API_UPLOAD, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, senderEmail: clientEmail, files: fileMeta }),
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ apiKey, files: fileMeta }),
       });
       if (!urlRes.ok) {
         const err = await urlRes.json().catch(() => ({}));
@@ -204,8 +222,8 @@
       // Step 3: Confirm uploads and create DB records
       const confirmRes = await fetch(API_UPLOAD_CONFIRM, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, senderEmail: clientEmail, projectId, feedbackId, replyId, files: completedFiles }),
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ apiKey, projectId, feedbackId, replyId, files: completedFiles }),
       });
       if (!confirmRes.ok) {
         const err = await confirmRes.json().catch(() => ({}));
@@ -402,11 +420,6 @@
     .btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-sm { padding: 8px 12px; font-size: 12px; }
     .success-view { display: none; text-align: center; padding: 40px 20px; }
-    .view-email-prompt { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px 20px; text-align: center; flex: 1; }
-    .view-email-prompt p { font-size: 14px; color: #6b7280; margin: 0 0 20px; line-height: 1.5; }
-    .view-email-prompt .email-prompt-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; box-sizing: border-box; background: #fff; color: #1f2937; }
-    .view-email-prompt .email-prompt-input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.1); }
-    .view-email-prompt .btn { margin-top: 12px; width: 100%; }
     .branding { padding: 10px; text-align: center; font-size: 11px; color: #9ca3af; background: #f9fafb; border-top: 1px solid #f3f4f6; }
     .branding a { color: #209CEE; text-decoration: none; }
     .close-btn { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 28px; height: 28px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -532,12 +545,6 @@
           <div class="chat-messages" id="vv-chat"></div>
           <div id="vv-reply-section"></div>
         </div>
-        <div class="view-email-prompt" id="vv-email-prompt">
-          <p>Enter your email to get started</p>
-          <input type="email" class="email-prompt-input" id="vv-email-input" placeholder="you@example.com" />
-          <button class="btn" id="vv-email-verify">Continue</button>
-          <p style="font-size:11px;color:#9ca3af;margin:14px 0 0;line-height:1.5">By continuing, your message and email are shared with the site owner via VibeVaults. See our <a href="https://vibe-vaults.com/privacy-policy" target="_blank" rel="noopener" style="color:#6366f1;text-decoration:underline">Privacy Policy</a>.</p>
-        </div>
         <div class="success-view" id="vv-success">
           <div style="width:40px;height:40px;background:#ecfdf5;color:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
           <p style="font-weight:700;color:#1f2937;margin:0">Sent!</p><p style="font-size:14px;color:#6b7280;margin:8px 0 0">We'll chat soon.</p>
@@ -548,31 +555,78 @@
   `;
     shadow.appendChild(wrapper);
 
-    // If user needs email verification, show the prompt view by default
-    if (needsEmailVerification) {
-      wrapper.querySelector('.view-form').style.display = 'none';
-      wrapper.querySelector('.nav').style.display = 'none';
-      wrapper.querySelector('#vv-email-prompt').style.display = 'flex';
-    }
+    // Anonymous visitors never see the widget — only show the trigger button
+    // once we have a valid identity token (either already in storage, or one
+    // we obtain by exchanging an `?vv_invite=` param for a per-device token).
+    const setWidgetVisible = (visible) => {
+      host.style.display = visible ? '' : 'none';
+    };
+    setWidgetVisible(false);
 
-    // Fetch project setting context asynchronously
-    const fetchUrl = `${API_BASE}?key=${apiKey}${clientEmail ? '&sender=' + encodeURIComponent(clientEmail) : ''}`;
-    fetch(fetchUrl)
-      .then(r => r.json())
-      .then(data => {
-        if (data.notifyReplies !== undefined) {
-          notifyRepliesSetting = data.notifyReplies;
-          localStorage.setItem(prefsKey, data.notifyReplies.toString());
-          const checkbox = wrapper.querySelector('#vv-notify-replies');
-          if (checkbox) checkbox.checked = notifyRepliesSetting;
-        }
-        // Hide branding if the owner's plan doesn't require it
-        if (data.showBranding === false) {
-          const brandingEl = wrapper.querySelector('.branding');
-          if (brandingEl) brandingEl.style.display = 'none';
-        }
-      })
-      .catch(() => { });
+    // Fetch widget config (project meta + notification prefs + branding flag)
+    // for the authenticated identity. 401 means the token has been revoked
+    // or never existed — clear local state and stay hidden.
+    const loadConfig = () => {
+      return fetch(`${API_BASE}?key=${apiKey}`, { headers: authHeaders() })
+        .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+        .then(({ ok, status, data }) => {
+          if (!ok) {
+            if (status === 401) {
+              clearWidgetIdentity();
+              setWidgetVisible(false);
+            }
+            return false;
+          }
+          if (data.identity?.email) {
+            clientEmail = data.identity.email;
+            localStorage.setItem(emailKey, clientEmail);
+          }
+          if (data.notifyReplies !== undefined) {
+            notifyRepliesSetting = data.notifyReplies;
+            localStorage.setItem(prefsKey, data.notifyReplies.toString());
+            const checkbox = wrapper.querySelector('#vv-notify-replies');
+            if (checkbox) checkbox.checked = notifyRepliesSetting;
+          }
+          if (data.showBranding === false) {
+            const brandingEl = wrapper.querySelector('.branding');
+            if (brandingEl) brandingEl.style.display = 'none';
+          }
+          setWidgetVisible(true);
+          return true;
+        })
+        .catch(() => false);
+    };
+
+    // Bootstrap path: if the URL had `?vv_invite=...`, swap it for a long-lived
+    // widget token, persist it on this origin, then load config. Otherwise just
+    // try config with whatever token is already in localStorage.
+    const bootstrapIdentity = async () => {
+      if (inviteToken) {
+        try {
+          const res = await fetch(API_IDENTITY_EXCHANGE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey, inviteToken }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.token) {
+              widgetToken = data.token;
+              localStorage.setItem(tokenKey, widgetToken);
+            }
+            if (data.email) {
+              clientEmail = data.email;
+              localStorage.setItem(emailKey, clientEmail);
+            }
+          }
+        } catch (_) { /* fall through to config fetch */ }
+      }
+      if (widgetToken) {
+        await loadConfig();
+      }
+    };
+
+    bootstrapIdentity();
 
     // --- View switching ---
     const switchView = (v) => {
@@ -581,15 +635,21 @@
       wrapper.querySelector('.view-feedbacks').style.display = v === 'feedbacks' ? 'flex' : 'none';
       wrapper.querySelector('.view-detail').style.display = v === 'detail' ? 'flex' : 'none';
       wrapper.querySelector('#vv-success').style.display = v === 'success' ? 'block' : 'none';
-      wrapper.querySelector('#vv-email-prompt').style.display = v === 'email-prompt' ? 'flex' : 'none';
-      // Hide nav when showing email prompt
-      wrapper.querySelector('.nav').style.display = v === 'email-prompt' ? 'none' : 'flex';
-      // Compact popup for form/success views, taller for detail conversation, default for feedbacks list
       const popup = wrapper.querySelector('.popup');
-      popup.classList.toggle('compact', v === 'form' || v === 'success' || v === 'email-prompt');
+      popup.classList.toggle('compact', v === 'form' || v === 'success');
       popup.classList.toggle('tall', v === 'detail');
       if (v === 'feedbacks') { fetchAllFeedbacks(); startListPolling(); } else { stopListPolling(); }
       if (v === 'detail') { startStream(); } else { stopStream(); stopPolling(); }
+    };
+
+    // Centralized 401-handler — used by every API call to react to a
+    // revoked or expired token by clearing local state and self-hiding.
+    const handleAuthRevocation = () => {
+      clearWidgetIdentity();
+      isOpen = false;
+      stopAll();
+      wrapper.querySelector('.popup').classList.remove('open');
+      setWidgetVisible(false);
     };
 
     // --- Feedbacks list ---
@@ -612,16 +672,11 @@
         listEl.innerHTML = '<div class="feedbacks-loading">Loading feedbacks...</div>';
       }
       try {
-        const res = await fetch(`${API_FEEDBACKS}?key=${apiKey}&email=${encodeURIComponent(clientEmail)}`);
+        const res = await fetch(`${API_FEEDBACKS}?key=${apiKey}`, { headers: authHeaders() });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          // If access was revoked, clear stored email and show email prompt
-          if (res.status === 403) {
-            clientEmail = '';
-            localStorage.removeItem(emailKey);
-            needsEmailVerification = true;
-            stopAll();
-            switchView('email-prompt');
+          if (res.status === 401 || res.status === 403) {
+            handleAuthRevocation();
             return;
           }
           listEl.innerHTML = `<div class="feedbacks-loading">${err.error || 'Failed to load feedbacks.'}</div>`;
@@ -714,7 +769,10 @@
     const renderReplySection = () => {
       const section = wrapper.querySelector('#vv-reply-section');
       replyAttachments = [];
-      if (clientEmail) {
+      // The widget is only mounted when the user has a valid token, so the
+      // reply input is always available — there's no longer a "you must be
+      // invited" branch since unidentified visitors never see this UI.
+      {
         section.innerHTML = `
         <div class="reply-attach-previews" id="vv-reply-attach-previews"></div>
         <div class="chat-input" style="border-top: none; padding: 0;">
@@ -749,12 +807,6 @@
           refreshReplyPreviews();
           replyFileInput.value = '';
         };
-      } else {
-        section.innerHTML = `
-        <div style="padding: 16px; text-align: center; font-size: 12px; color: #6b7280; background: #f9fafb; border-top: 1px solid #f3f4f6;">
-          You must be invited via a VibeVaults tracking link to reply.
-        </div>
-      `;
       }
     };
 
@@ -801,14 +853,10 @@
     const fetchReplies = async () => {
       if (!selectedFeedbackId) return;
       try {
-        const res = await fetch(`${API_REPLY}?feedbackId=${selectedFeedbackId}&key=${apiKey}&email=${encodeURIComponent(clientEmail)}`);
+        const res = await fetch(`${API_REPLY}?feedbackId=${selectedFeedbackId}&key=${apiKey}`, { headers: authHeaders() });
         if (!res.ok) {
-          if (res.status === 403) {
-            clientEmail = '';
-            localStorage.removeItem(emailKey);
-            needsEmailVerification = true;
-            stopAll();
-            switchView('email-prompt');
+          if (res.status === 401 || res.status === 403) {
+            handleAuthRevocation();
             return;
           }
           const err = await res.json().catch(() => ({}));
@@ -841,7 +889,10 @@
       if (!selectedFeedbackId) return;
 
       if (sseSupported) {
-        const url = `${API_STREAM}?feedbackId=${selectedFeedbackId}&key=${apiKey}&email=${encodeURIComponent(clientEmail)}`;
+        // EventSource cannot send custom headers, so the bearer token rides in
+        // the URL for the SSE handshake only. The endpoint validates it the
+        // same way as the Authorization header on every other widget request.
+        const url = `${API_STREAM}?feedbackId=${selectedFeedbackId}&key=${apiKey}&token=${encodeURIComponent(widgetToken)}`;
         eventSource = new EventSource(url);
 
         eventSource.addEventListener('new_reply', () => {
@@ -910,12 +961,6 @@
         return;
       }
 
-      if (!clientEmail) {
-        needsEmailVerification = true;
-        switchView('email-prompt');
-        return;
-      }
-
       btn.disabled = true;
       try {
         const metadata = getMetadata();
@@ -934,15 +979,11 @@
 
         const res = await fetch(API_BASE, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey, content: text, sender: clientEmail, metadata, notifyReplies })
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ apiKey, content: text, metadata, notifyReplies })
         });
-        if (res.status === 403) {
-          clientEmail = '';
-          localStorage.removeItem(emailKey);
-          needsEmailVerification = true;
-          stopAll();
-          switchView('email-prompt');
+        if (res.status === 401 || res.status === 403) {
+          handleAuthRevocation();
           return;
         }
         const data = await res.json();
@@ -1249,15 +1290,15 @@
       const textEl = wrapper.querySelector('#vv-reply-text');
       if (!textEl) return;
       const text = textEl.value.trim();
-      if ((!text && replyAttachments.length === 0) || !selectedFeedbackId || !clientEmail) return;
+      if ((!text && replyAttachments.length === 0) || !selectedFeedbackId || !widgetToken) return;
       const btn = wrapper.querySelector('#vv-send-reply');
       btn.disabled = true;
 
       try {
         const res = await fetch(API_REPLY, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feedbackId: selectedFeedbackId, content: text || '', apiKey, senderEmail: clientEmail, hasAttachments: replyAttachments.length > 0 })
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ feedbackId: selectedFeedbackId, content: text || '', apiKey, hasAttachments: replyAttachments.length > 0 })
         });
         if (res.ok) {
           const replyData = await res.json();
@@ -1276,12 +1317,8 @@
           if (replyPreviewsEl) replyPreviewsEl.innerHTML = '';
           fetchReplies();
         } else {
-          if (res.status === 403) {
-            clientEmail = '';
-            localStorage.removeItem(emailKey);
-            needsEmailVerification = true;
-            stopAll();
-            switchView('email-prompt');
+          if (res.status === 401 || res.status === 403) {
+            handleAuthRevocation();
             return;
           }
           const err = await res.json();
@@ -1323,9 +1360,6 @@
       popup.classList.toggle('open', isOpen);
       if (isOpen) {
         wrapper.querySelector('.badge').style.display = 'none';
-        if (needsEmailVerification) {
-          switchView('email-prompt');
-        }
       } else {
         stopAll();
       }
@@ -1359,7 +1393,6 @@
     };
     wrapper.querySelector('#vv-back-btn').onclick = goBackToList;
     wrapper.querySelectorAll('.nav-item').forEach(i => i.onclick = () => {
-      if (needsEmailVerification) return; // Block navigation until email is verified
       if (i.dataset.view === 'feedbacks' && selectedFeedbackId) {
         // If user is in detail view and clicks "Feedbacks" tab, go back to list
         goBackToList();
@@ -1375,47 +1408,6 @@
       });
     }
 
-    // --- Email verification prompt ---
-    const verifyEmailBtn = wrapper.querySelector('#vv-email-verify');
-    const emailInput = wrapper.querySelector('#vv-email-input');
-
-    const handleEmailVerify = async () => {
-      const email = emailInput.value.trim().toLowerCase();
-
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showWidgetToast('Please enter a valid email address.');
-        return;
-      }
-
-      verifyEmailBtn.disabled = true;
-      verifyEmailBtn.textContent = 'Verifying...';
-
-      try {
-        const res = await fetch(`${API_VERIFY}?key=${apiKey}&email=${encodeURIComponent(email)}`);
-        const data = await res.json();
-
-        if (data.authorized) {
-          clientEmail = email;
-          localStorage.setItem(emailKey, clientEmail);
-          needsEmailVerification = false;
-          switchView('form');
-        } else if (data.error) {
-          showWidgetToast(data.error);
-        } else {
-          showWidgetToast('This email does not have access. Please contact the site owner.');
-        }
-      } catch (e) {
-        showWidgetToast('Network error. Please try again.');
-      } finally {
-        verifyEmailBtn.disabled = false;
-        verifyEmailBtn.textContent = 'Continue';
-      }
-    };
-
-    verifyEmailBtn.onclick = handleEmailVerify;
-    emailInput.onkeydown = (e) => {
-      if (e.key === 'Enter') handleEmailVerify();
-    };
   } // end init()
 
   // Ensure document.body exists before mounting the widget DOM

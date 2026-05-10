@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest } from "@/lib/widget-helpers";
 import { sendAgencyReplyNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { shouldSendReplyImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
@@ -8,38 +8,33 @@ export async function OPTIONS() {
     return optionsResponse();
 }
 
-// Verify that the API key is valid and the feedback belongs to the project
-async function verifyApiKeyForFeedback(apiKey: string, feedbackId: string) {
-    const { project, error } = await validateApiKey(apiKey);
-
-    if (error || !project) {
-        return { error: "Invalid API Key" };
-    }
-
+// Returns the error message string if the feedback isn't part of the project,
+// or `null` on success. Callers map non-null to a 404 response.
+async function verifyFeedbackForProject(projectId: string, feedbackId: string): Promise<string | null> {
     const adminSupabase = createAdminClient();
     const { data: feedback, error: feedbackError } = await adminSupabase
         .from('feedbacks')
         .select('id, project_id')
         .eq('id', feedbackId)
-        .eq('project_id', project.id)
+        .eq('project_id', projectId)
         .single();
 
     if (feedbackError || !feedback) {
-        return { error: "Feedback not found for this project" };
+        return "Feedback not found for this project";
     }
-
-    return { projectId: project.id, workspaceId: project.workspace_id };
+    return null;
 }
 
-// --- POST: Send a reply (API key + email auth) ---
+// --- POST: Send a reply (Bearer-token auth) ---
 
 export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     if (isRateLimited(ip, "widget:reply")) return corsError("Too many requests. Please try again later.", 429);
 
-    const { feedbackId, content, apiKey, senderEmail, hasAttachments } = await request.json();
+    const body = await request.json() as { feedbackId?: string; content?: string; apiKey?: string; hasAttachments?: boolean };
+    const { feedbackId, content, apiKey, hasAttachments } = body;
 
-    if (!feedbackId || !apiKey || !senderEmail) {
+    if (!feedbackId || !apiKey) {
         return corsError("Missing required fields", 400);
     }
     const replyContent = typeof content === "string" ? content.trim() : "";
@@ -52,21 +47,17 @@ export async function POST(request: Request) {
         return corsError("Reply content is too long (max 5000 characters).", 400);
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
-        return corsError("Invalid email address", 400);
+    const { project, identity, error, status } = await authenticateWidgetRequest(request, apiKey);
+    if (error || !project || !identity) {
+        return corsError(error ?? "Unauthorized", status);
     }
 
-    const apiKeyResult = await verifyApiKeyForFeedback(apiKey, feedbackId);
-    if (apiKeyResult.error) {
-        return corsError(apiKeyResult.error, 401);
+    const feedbackCheckError = await verifyFeedbackForProject(project.id, feedbackId);
+    if (feedbackCheckError) {
+        return corsError(feedbackCheckError, 404);
     }
 
-    // Verify the sender still has access to this workspace
-    const isAuthorized = await verifyWidgetEmail(senderEmail, apiKeyResult.workspaceId!);
-    if (!isAuthorized) {
-        return corsError("Unauthorized email address. Access may have been revoked.", 403);
-    }
-
+    const senderEmail = identity.email;
     const adminSupabase = createAdminClient();
 
     // 1. Get Feedback & Project ID
@@ -169,7 +160,7 @@ export async function POST(request: Request) {
     return corsSuccess({ success: true, replyId: newReply.id });
 }
 
-// --- GET: Fetch replies for a feedback (API key auth) ---
+// --- GET: Fetch replies for a feedback (Bearer-token auth) ---
 
 export async function GET(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -178,36 +169,30 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const feedbackId = searchParams.get('feedbackId');
     const apiKey = searchParams.get('key');
-    const email = searchParams.get('email');
 
     if (!feedbackId || !apiKey) {
         return corsError("Missing feedbackId or key", 400);
     }
 
-    if (!email) {
-        return corsError("Missing email", 400);
+    const { project, identity, error, status } = await authenticateWidgetRequest(request, apiKey);
+    if (error || !project || !identity) {
+        return corsError(error ?? "Unauthorized", status);
     }
 
-    const apiKeyResult = await verifyApiKeyForFeedback(apiKey, feedbackId);
-    if (apiKeyResult.error) {
-        return corsError(apiKeyResult.error, 401);
-    }
-
-    // Verify the requesting user still has access to this workspace
-    const isEmailAuthorized = await verifyWidgetEmail(email, apiKeyResult.workspaceId!);
-    if (!isEmailAuthorized) {
-        return corsError("Access revoked. You no longer have access to this workspace.", 403);
+    const feedbackCheckError = await verifyFeedbackForProject(project.id, feedbackId);
+    if (feedbackCheckError) {
+        return corsError(feedbackCheckError, 404);
     }
 
     const adminSupabase = createAdminClient();
-    const { data: replies, error } = await adminSupabase
+    const { data: replies, error: queryError } = await adminSupabase
         .from('feedback_replies')
         .select('*, feedback_attachments(id, file_name, file_url, file_size, mime_type)')
         .eq('feedback_id', feedbackId)
         .order('created_at', { ascending: true });
 
-    if (error) {
-        return corsError(error.message, 500);
+    if (queryError) {
+        return corsError(queryError.message, 500);
     }
 
     // Flatten attachment join into an `attachments` property for each reply

@@ -7,9 +7,14 @@
  * widget as soon as the dashboard sends it" UX — users usually misread this
  * as "chat is broken" rather than "realtime stopped working".
  *
+ * Auth model: EventSource cannot send custom headers, so unlike the rest of
+ * the widget API the SSE route reads the bearer token from a `?token=` query
+ * parameter. The seed pre-issues `widgetTokens.client`; tests pass it in the
+ * URL.
+ *
  * Covered:
- *   1. Auth + validation — missing/invalid params, wrong API key, unauthorized
- *      email, cross-project feedbackId all reject before the stream opens.
+ *   1. Auth + validation — missing/invalid params, wrong API key, bogus
+ *      token, cross-project feedbackId all reject before the stream opens.
  *   2. Happy path — opening a stream for a valid feedback then inserting a
  *      reply produces a `new_reply` SSE event with the reply body.
  *   3. Connected event — the stream emits `event: connected` on open (the
@@ -95,40 +100,39 @@ test.describe('GET /api/widget/stream — auth + validation', () => {
     test('missing feedbackId → 400', async () => {
         const seed = getSeedResult();
         const res = await fetch(
-            `${BASE}/api/widget/stream?key=${seed.apiKey}&email=${encodeURIComponent(seed.clientEmail)}`
+            `${BASE}/api/widget/stream?key=${seed.apiKey}&token=${encodeURIComponent(seed.widgetTokens.client)}`
         );
         expect(res.status).toBe(400);
     });
 
-    test('missing email → 400', async () => {
+    test('missing token → 401', async () => {
         const seed = getSeedResult();
         const res = await fetch(
             `${BASE}/api/widget/stream?feedbackId=x&key=${seed.apiKey}`
         );
-        expect(res.status).toBe(400);
+        expect(res.status).toBe(401);
     });
 
     test('invalid API key → 401', async () => {
         const seed = getSeedResult();
         const res = await fetch(
-            `${BASE}/api/widget/stream?feedbackId=x&key=bogus&email=${encodeURIComponent(seed.clientEmail)}`
+            `${BASE}/api/widget/stream?feedbackId=x&key=bogus&token=${encodeURIComponent(seed.widgetTokens.client)}`
         );
         expect(res.status).toBe(401);
     });
 
-    test('unauthorized email → 403', async () => {
+    test('bogus token → 401', async () => {
         const seed = getSeedResult();
-        const stranger = `e2e-stranger-sse-${Date.now()}@example.com`;
         const res = await fetch(
-            `${BASE}/api/widget/stream?feedbackId=doesnt-matter&key=${seed.apiKey}&email=${encodeURIComponent(stranger)}`
+            `${BASE}/api/widget/stream?feedbackId=doesnt-matter&key=${seed.apiKey}&token=not-a-real-token-${Date.now()}`
         );
-        expect(res.status).toBe(403);
+        expect(res.status).toBe(401);
     });
 
-    test('valid key + email but feedbackId not in this project → 404', async () => {
+    test('valid key + token but feedbackId not in this project → 404', async () => {
         const seed = getSeedResult();
         const res = await fetch(
-            `${BASE}/api/widget/stream?feedbackId=00000000-0000-0000-0000-000000000000&key=${seed.apiKey}&email=${encodeURIComponent(seed.clientEmail)}`
+            `${BASE}/api/widget/stream?feedbackId=00000000-0000-0000-0000-000000000000&key=${seed.apiKey}&token=${encodeURIComponent(seed.widgetTokens.client)}`
         );
         expect(res.status).toBe(404);
     });
@@ -165,7 +169,7 @@ test.describe('GET /api/widget/stream — live reply delivery', () => {
 
     test('stream emits a `connected` event on open', async () => {
         const seed = getSeedResult();
-        const url = `${BASE}/api/widget/stream?feedbackId=${feedbackId}&key=${seed.apiKey}&email=${encodeURIComponent(seed.clientEmail)}`;
+        const url = `${BASE}/api/widget/stream?feedbackId=${feedbackId}&key=${seed.apiKey}&token=${encodeURIComponent(seed.widgetTokens.client)}`;
 
         const match = await collectSseEventUntil(
             url,
@@ -178,7 +182,7 @@ test.describe('GET /api/widget/stream — live reply delivery', () => {
 
     test('inserting a reply produces a `new_reply` event on an open stream', async () => {
         const seed = getSeedResult();
-        const url = `${BASE}/api/widget/stream?feedbackId=${feedbackId}&key=${seed.apiKey}&email=${encodeURIComponent(seed.clientEmail)}`;
+        const url = `${BASE}/api/widget/stream?feedbackId=${feedbackId}&key=${seed.apiKey}&token=${encodeURIComponent(seed.widgetTokens.client)}`;
         const replyMarker = `sse-roundtrip-${Date.now()}`;
 
         // Kick off stream collection; don't await it yet.

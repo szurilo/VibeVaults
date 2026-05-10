@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsHeaders, validateApiKey, verifyWidgetEmail } from "@/lib/widget-helpers";
+import { corsHeaders, validateApiKey, verifyWidgetToken } from "@/lib/widget-helpers";
 
 // SSE streams must not be cached or statically rendered
 export const dynamic = "force-dynamic";
@@ -13,18 +13,20 @@ export async function OPTIONS() {
  *
  * Query params:
  *   - feedbackId : the feedback to watch
- *   - key        : the project API key (used for auth)
+ *   - key        : the project API key
+ *   - token      : the widget identity token (EventSource cannot send custom
+ *                  headers, so the bearer token has to ride in the URL).
  *
- * The route validates the API key, subscribes to Supabase Realtime for
- * INSERTs on the feedback_replies table filtered by feedback_id, and
- * pushes each new row as an SSE "message" event.  A heartbeat is sent
- * every 30 s to keep the connection alive through proxies.
+ * Validates the token+key, subscribes to Supabase Realtime for INSERTs on
+ * feedback_replies (filtered by feedback_id) and UPDATEs on the parent
+ * feedback (status changes), and pushes each event over SSE. Sends a heartbeat
+ * every 30 s so proxies don't drop the connection.
  */
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const feedbackId = searchParams.get("feedbackId");
     const apiKey = searchParams.get("key");
-    const email = searchParams.get("email");
+    const token = searchParams.get("token");
 
     if (!feedbackId || !apiKey) {
         return new Response(
@@ -33,14 +35,13 @@ export async function GET(request: Request) {
         );
     }
 
-    if (!email) {
+    if (!token) {
         return new Response(
-            JSON.stringify({ error: "Missing email" }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            JSON.stringify({ error: "Missing token" }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
 
-    // --- Auth: validate API key + feedback ownership ---
     const { project, error: apiKeyError } = await validateApiKey(apiKey);
 
     if (apiKeyError || !project) {
@@ -50,12 +51,11 @@ export async function GET(request: Request) {
         );
     }
 
-    // Verify the requesting user still has access to this workspace
-    const isAuthorized = await verifyWidgetEmail(email, project.workspace_id);
-    if (!isAuthorized) {
+    const identity = await verifyWidgetToken(token, project.id);
+    if (!identity) {
         return new Response(
-            JSON.stringify({ error: "Access revoked. You no longer have access to this workspace." }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            JSON.stringify({ error: "Widget access not authorized. Request a new access link." }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
 
@@ -79,13 +79,10 @@ export async function GET(request: Request) {
 
     const stream = new ReadableStream({
         start(controller) {
-            // Send an initial "connected" event
             controller.enqueue(
                 encoder.encode(`event: connected\ndata: ${JSON.stringify({ feedbackId })}\n\n`)
             );
 
-            // Subscribe to realtime INSERTs on feedback_replies for this feedback
-            // and UPDATEs on the feedback itself (e.g. status changes)
             const channel = adminSupabase
                 .channel(`replies-${feedbackId}`)
                 .on(
@@ -147,7 +144,6 @@ export async function GET(request: Request) {
                 )
                 .subscribe();
 
-            // Heartbeat every 30s to keep connection alive through proxies
             const heartbeat = setInterval(() => {
                 try {
                     controller.enqueue(encoder.encode(`: heartbeat\n\n`));
@@ -156,7 +152,6 @@ export async function GET(request: Request) {
                 }
             }, 30_000);
 
-            // Cleanup when the client disconnects
             request.signal.addEventListener("abort", () => {
                 clearInterval(heartbeat);
                 adminSupabase.removeChannel(channel);
@@ -175,7 +170,7 @@ export async function GET(request: Request) {
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache, no-transform",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no", // Disable Nginx buffering
+            "X-Accel-Buffering": "no",
         },
     });
 }

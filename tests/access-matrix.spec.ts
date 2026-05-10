@@ -121,7 +121,14 @@ test.describe('Widget gate × owner billing state', () => {
             const seed = getSeedResult();
             await setOwnerBillingState(seed.ownerId, state);
 
-            const response = await request.get(`/api/widget?key=${seed.apiKey}`);
+            // Widget API requires Bearer auth (slice C2). validateApiKey runs
+            // first inside authenticateWidgetRequest, so the subscription gate
+            // still fires for the inactive-states with 403 even though we send
+            // a valid bearer — the bearer is only checked after the apiKey
+            // resolves to a usable project.
+            const response = await request.get(`/api/widget?key=${seed.apiKey}`, {
+                headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
+            });
 
             if (expectedWidgetAllowed(state)) {
                 expect(response.status(), `${state} should allow widget`).toBe(200);
@@ -136,7 +143,10 @@ test.describe('Widget gate × owner billing state', () => {
     }
 
     test('widget config — invalid API key (sanity)', async ({ request }) => {
-        const response = await request.get('/api/widget?key=not-a-real-key');
+        const seed = getSeedResult();
+        const response = await request.get('/api/widget?key=not-a-real-key', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
+        });
         expect(response.status()).toBe(401);
     });
 });

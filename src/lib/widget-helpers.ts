@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { getTierLimits, type TierSlug } from "@/lib/tier-config";
 import { hasActiveAccess } from "@/lib/tier-helpers";
+import { createHash, randomBytes } from "crypto";
 
 export const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -97,40 +98,133 @@ export async function validateApiKey(apiKey: string) {
     return { project, ownerTier: null, error: null, status: 200 };
 }
 
+// ---------------------------------------------------------------------------
+// Widget identity tokens
+//
+// Per-device, opaque, server-issued tokens that authenticate a single browser
+// against a single project. Rows live in `widget_identities`; we only ever
+// store the sha256 hash of the raw token.
+// ---------------------------------------------------------------------------
+
+const WIDGET_TOKEN_BYTES = 32;
+
+function hashWidgetToken(rawToken: string): string {
+    return createHash("sha256").update(rawToken).digest("hex");
+}
+
+function generateRawWidgetToken(): string {
+    return randomBytes(WIDGET_TOKEN_BYTES).toString("base64url");
+}
+
+export type IssueWidgetIdentityArgs = {
+    projectId: string;
+    email: string;
+    /** Set when the identity is provisioned from a client invite. */
+    inviteId?: string | null;
+    /** Set when the identity is provisioned for an owner/member. */
+    userId?: string | null;
+};
+
 /**
- * Checks if an email is authorized for a workspace — either as a workspace member
- * (owner/member/client) or via a workspace invite. Used by widget endpoints to
- * gate access after email verification.
- * Returns `true` if the email is authorized.
+ * Creates a `widget_identities` row and returns the raw token.
+ * The raw token is only ever returned at issue time — caller is responsible
+ * for delivering it to the client (URL param on bootstrap link, etc.).
  */
-export async function verifyWidgetEmail(email: string, workspaceId: string): Promise<boolean> {
-    const adminSupabase = createAdminClient();
-
-    // Check if email belongs to a workspace member
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email)
-        .single();
-
-    if (profile) {
-        const { data: membership } = await adminSupabase
-            .from('workspace_members')
-            .select('user_id')
-            .eq('workspace_id', workspaceId)
-            .eq('user_id', profile.id)
-            .single();
-
-        if (membership) return true;
+export async function issueWidgetIdentity(args: IssueWidgetIdentityArgs): Promise<string> {
+    if (!args.inviteId && !args.userId) {
+        throw new Error("issueWidgetIdentity requires either inviteId or userId");
     }
 
-    // Fall back to checking workspace_invites (for clients)
-    const { data: invite } = await adminSupabase
-        .from('workspace_invites')
-        .select('id')
-        .eq('workspace_id', workspaceId)
-        .eq('email', email)
-        .single();
+    const adminSupabase = createAdminClient();
+    const rawToken = generateRawWidgetToken();
+    const tokenHash = hashWidgetToken(rawToken);
 
-    return !!invite;
+    const { error } = await adminSupabase.from("widget_identities").insert({
+        project_id: args.projectId,
+        email: args.email,
+        invite_id: args.inviteId ?? null,
+        user_id: args.userId ?? null,
+        token_hash: tokenHash,
+    });
+
+    if (error) {
+        throw new Error(`Failed to issue widget identity: ${error.message}`);
+    }
+
+    return rawToken;
+}
+
+export type WidgetIdentity = {
+    id: string;
+    project_id: string;
+    email: string;
+    invite_id: string | null;
+    user_id: string | null;
+};
+
+/**
+ * Verifies a raw widget token against a project. Returns the identity row
+ * or `null` if the token is missing, unknown, or scoped to a different project.
+ * On success, best-effort updates `last_used_at`.
+ */
+export async function verifyWidgetToken(rawToken: string | null | undefined, projectId: string): Promise<WidgetIdentity | null> {
+    if (!rawToken) return null;
+
+    const adminSupabase = createAdminClient();
+    const tokenHash = hashWidgetToken(rawToken);
+
+    const { data, error } = await adminSupabase
+        .from("widget_identities")
+        .select("id, project_id, email, invite_id, user_id")
+        .eq("token_hash", tokenHash)
+        .eq("project_id", projectId)
+        .maybeSingle();
+
+    if (error || !data) return null;
+
+    // Best-effort timestamp; intentionally not awaited for failure handling.
+    adminSupabase
+        .from("widget_identities")
+        .update({ last_used_at: new Date().toISOString() })
+        .eq("id", data.id)
+        .then(() => undefined, () => undefined);
+
+    return data as WidgetIdentity;
+}
+
+/**
+ * Extracts a Bearer token from an Authorization header. Returns null if
+ * absent or malformed.
+ */
+export function readBearerToken(request: Request): string | null {
+    const header = request.headers.get("authorization") || request.headers.get("Authorization");
+    if (!header) return null;
+    const match = header.match(/^Bearer\s+(.+)$/i);
+    return match?.[1]?.trim() || null;
+}
+
+/**
+ * One-shot authentication for widget API requests:
+ *   1. Validates the project API key (and the workspace owner's subscription/trial).
+ *   2. Reads a Bearer token from the Authorization header.
+ *   3. Verifies the token against `widget_identities` for the resolved project.
+ *
+ * Returns the project (with ownerTier) and identity row on success, or an
+ * error+status the caller should pass to `corsError`. SSE routes that can't
+ * send custom headers should compose `validateApiKey` + `verifyWidgetToken`
+ * directly, reading the token from a query parameter.
+ */
+export async function authenticateWidgetRequest(request: Request, apiKey: string) {
+    const { project, ownerTier, error: keyError, status } = await validateApiKey(apiKey);
+    if (keyError || !project) {
+        return { project: null, ownerTier: null, identity: null, error: keyError ?? "Invalid project.", status };
+    }
+
+    const token = readBearerToken(request);
+    const identity = await verifyWidgetToken(token, project.id);
+    if (!identity) {
+        return { project: null, ownerTier: null, identity: null, error: "Widget access not authorized. Request a new access link.", status: 401 };
+    }
+
+    return { project, ownerTier, identity, error: null, status: 200 };
 }

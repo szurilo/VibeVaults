@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsError, corsSuccess, optionsResponse, validateApiKey, isRateLimited, verifyWidgetEmail } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest } from "@/lib/widget-helpers";
 import { getTierLimits } from "@/lib/tier-config";
 import { sendFeedbackNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
@@ -21,28 +21,28 @@ export async function GET(request: Request) {
         return corsError("Missing API Key", 400);
     }
 
-    const { project, ownerTier, error, status } = await validateApiKey(apiKey);
-    if (error) {
-        return corsError(error, status);
+    const { project, ownerTier, identity, error, status } = await authenticateWidgetRequest(request, apiKey);
+    if (error || !project || !identity) {
+        return corsError(error ?? "Unauthorized", status);
     }
 
-    let notifyReplies = true; // default
-    const sender = searchParams.get("sender");
-    if (sender) {
-        const adminSupabase = createAdminClient();
-        const { data: pref } = await adminSupabase
-            .from('email_preferences')
-            .select('notify_replies')
-            .eq('email', sender)
-            .single();
-        if (pref) {
-            notifyReplies = pref.notify_replies;
-        }
+    // Notification preference for the authenticated identity (replaces the
+    // legacy `?sender=` lookup — the bearer token is now the source of truth).
+    let notifyReplies = true;
+    const adminSupabase = createAdminClient();
+    const { data: pref } = await adminSupabase
+        .from('email_preferences')
+        .select('notify_replies')
+        .eq('email', identity.email)
+        .single();
+    if (pref) {
+        notifyReplies = pref.notify_replies;
     }
 
     const limits = getTierLimits(ownerTier ?? null);
     return corsSuccess({
         project: { name: project.name },
+        identity: { email: identity.email },
         notifyReplies,
         showBranding: limits.showBranding,
     });
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     if (isRateLimited(ip, "widget:submit")) return corsError("Too many requests. Please try again later.", 429);
 
-    const { apiKey, content, type, sender, metadata, notifyReplies } = await request.json();
+    const { apiKey, content, type, metadata, notifyReplies } = await request.json();
 
     if (!apiKey) {
         return corsError("Missing API Key", 400);
@@ -66,30 +66,20 @@ export async function POST(request: Request) {
         return corsError("Feedback content is too long (max 5000 characters).", 400);
     }
 
-    const { project, error, status } = await validateApiKey(apiKey);
-    if (error) {
-        return corsError(error, status);
+    const { project, identity, error, status } = await authenticateWidgetRequest(request, apiKey);
+    if (error || !project || !identity) {
+        return corsError(error ?? "Unauthorized", status);
     }
 
-    // Email validation for client email provided by the widget
-    if (!sender) {
-        return corsError("Missing sender email.", 400);
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender)) {
-        return corsError("Invalid email format.", 400);
-    }
-
-    const isAuthorized = await verifyWidgetEmail(sender, project.workspace_id);
-    if (!isAuthorized) {
-        return corsError("Unauthorized email address. Access may have been revoked.", 403);
-    }
+    // Identity email is server-authoritative — clients can no longer claim
+    // an arbitrary sender by passing it in the body.
+    const sender = identity.email;
 
     // Generate the ID upfront so we don't need .select() after insert.
     const feedbackId = crypto.randomUUID();
 
     // Save email preferences if notifyReplies is defined
-    if (sender && notifyReplies !== undefined) {
+    if (notifyReplies !== undefined) {
         const adminSupabase = createAdminClient();
         await adminSupabase.from('email_preferences').upsert({
             email: sender,
