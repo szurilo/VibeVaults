@@ -79,6 +79,8 @@ export async function sendWidgetAccessRecoveryEmail({ to, items }: SendWidgetAcc
                         <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 You received this because someone — possibly you — requested fresh widget access links for this email at <a href="${BASE_URL}/access" style="color: #209CEE; text-decoration: none;">${BASE_URL.replace(/^https?:\/\//, '')}/access</a>. If that wasn't you, you can ignore this email.<br><br>
+                                If you have questions, reach out to
+                                <a href="mailto:support@vibe-vaults.com" style="color: #EE7220; text-decoration: none; font-weight: 600;">support@vibe-vaults.com</a><br>
                                 Powered by <a href="${BASE_URL}" style="color: #209CEE; text-decoration: none; font-weight: 600;">VibeVaults</a>.
                             </p>
                         </div>
@@ -537,7 +539,7 @@ export async function sendClientInviteNotification({
                         </p>
 
                         <p style="margin-bottom: 32px; font-size: 16px; color: #4a5568;">
-                            A feedback widget will appear in the bottom right corner of each site, ready to record your notes.
+                            Click a link below to activate the feedback widget on the corresponding site. The widget will then appear in the bottom right corner, ready to record your notes. Each link activates the widget for this device only — open the link in any other browser or device you want to use.
                         </p>
 
                         ${projectListHtml ? `
@@ -553,9 +555,9 @@ export async function sendClientInviteNotification({
                         <div style="margin-top: 32px;">
                             <a href="${firstProject.url}"
                                style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
-                               Get Started
+                               ${projects.length > 1 ? `Open ${esc(firstProject.name)}` : 'Get started'}
                             </a>
-                            ${projects.length > 1 ? `<p style="margin-top: 12px; font-size: 13px; color: #718096;">You have access to all projects in this workspace.</p>` : ''}
+                            ${projects.length > 1 ? `<p style="margin-top: 12px; font-size: 13px; color: #718096;">You have access to every project listed above — open each one to activate its widget on this device.</p>` : ''}
                         </div>
                         ` : ''}
 
@@ -636,7 +638,7 @@ export async function sendMemberWelcomeNotification({
                         <h2 style="margin: 0 0 20px; color: #1a202c; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;">You're in!</h2>
 
                         <p style="margin-bottom: 24px; font-size: 16px; color: #4a5568;">
-                            Welcome to <strong>${esc(workspaceName)}</strong>. Your dashboard is ready, and you have widget access on every project below.
+                            Welcome to <strong>${esc(workspaceName)}</strong>. Your dashboard is ready.
                         </p>
 
                         ${projectListHtml ? `
@@ -657,7 +659,7 @@ export async function sendMemberWelcomeNotification({
                         </div>
                         `}
 
-                        <a href="${BASE_URL}/dashboard" style="display: inline-block; padding: 14px 32px; background-color: #ffffff; color: #209CEE; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; border: 1px solid #209CEE;">
+                        <a href="${BASE_URL}/dashboard" style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;">
                            Go to dashboard
                         </a>
 
@@ -812,7 +814,7 @@ export async function sendMemberLeftNotification({
         ? `<strong>${esc(memberName)}</strong> deleted their VibeVaults account, so they have been removed from your workspace <strong>${esc(workspaceName)}</strong>.`
         : `<strong>${esc(memberName)}</strong> has left your workspace <strong>${esc(workspaceName)}</strong>.`;
     const info = isAccountDeleted
-        ? 'Their account has been permanently removed. If you want to work with them again, they will need to sign up and be re-invited.'
+        ? 'Their account has been permanently removed. If you want to work with them again, they will need to be re-invited.'
         : 'They will no longer have access to the projects and feedback in this workspace.';
 
     try {
