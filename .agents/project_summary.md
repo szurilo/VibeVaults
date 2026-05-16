@@ -1,7 +1,7 @@
 # VibeVaults - Project Summary
 
 ## 1. Project Overview & State
-**VibeVaults** is a B2B SaaS application providing an embeddable feedback widget (`public/widget.js`) for clients to seamlessly collect user feedback and engage in real-time chat directly from their websites. It supports multi-workspace, multi-project architecture with role-based access (owners, team members, clients).
+**VibeVaults** is a B2B SaaS application providing an embeddable feedback widget (`public/widget.js`) for clients to seamlessly collect user feedback and engage in real-time chat directly from their websites. It supports multi-workspace, multi-project architecture with role-based access (owners, team members, clients). Domain is vibe-vaults.com
 **Current State**: In active development (mostly functional) — currently focused on notification refinements, widget UX polish, member/client management improvements, feedback filtering, and continuous UI/UX dashboard refinement.
 
 ## 2. Architecture & Tech Stack

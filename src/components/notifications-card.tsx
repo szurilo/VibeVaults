@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { updateAgencyPreferencesAction, updateEmailFrequencyAction } from '@/actions/preferences';
+import { reportClientError } from '@/lib/client-error-logging';
 import { useUnsavedChangesWarning } from '@/hooks/use-unsaved-changes-warning';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -59,8 +60,10 @@ export function NotificationsCard({ initialPreferences, canUseRealtime = false }
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (error) {
-            console.error('Failed to update email preferences:', error);
-            alert('Failed to save preferences. Please try again.');
+            const message = reportClientError(error, 'notification-prefs-save', {
+                emailFrequency,
+            });
+            alert(`Failed to save preferences: ${message}`);
         } finally {
             setLoading(false);
         }

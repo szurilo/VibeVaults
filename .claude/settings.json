@@ -52,7 +52,8 @@
       "Bash(curl -s -L -A \"Mozilla/5.0\" https://canny.io/pricing)",
       "WebFetch(domain:marker.io)",
       "WebFetch(domain:www.userback.io)",
-      "WebFetch(domain:www.featurebase.app)"
+      "WebFetch(domain:www.featurebase.app)",
+      "WebFetch(domain:www.monterey.ai)"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"
