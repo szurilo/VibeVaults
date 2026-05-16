@@ -17,6 +17,7 @@ import {
     sendFeedbackDigestEmail,
     sendReplyDigestEmail,
     sendProjectEventDigestEmail,
+    sendNewSignupNotification,
 } from '@/lib/notifications';
 import { getNotificationPrefs } from '@/lib/notification-prefs';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -104,9 +105,24 @@ export async function GET() {
             return NextResponse.json({ processed: 0 });
         }
 
-        const grouped = groupDigestItems(pendingItems);
         let totalSent = 0;
         const allProcessedIds: string[] = [];
+
+        // Admin signup notifications are routed to ADMIN_EMAIL (server env), not the
+        // row's recipient_email, so handle them before the per-recipient grouping.
+        // One email per signup — low volume, no batching needed.
+        const adminSignupItems = pendingItems.filter(i => i.notification_type === 'admin_new_signup');
+        const remainingItems = pendingItems.filter(i => i.notification_type !== 'admin_new_signup');
+        for (const item of adminSignupItems) {
+            const email = (item.payload.email as string) || '';
+            if (email) {
+                await sendNewSignupNotification({ userEmail: email });
+                totalSent++;
+            }
+            allProcessedIds.push(item.id);
+        }
+
+        const grouped = groupDigestItems(remainingItems);
 
         for (const [recipientEmail, byType] of grouped) {
             // Process feedback digests
