@@ -14,7 +14,7 @@ const FEEDBACK_DIGEST_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const REPLY_COOLDOWN_MS = 10 * 60 * 1000;         // 10 minutes
 const PROJECT_EVENT_WINDOW_MS = 15 * 60 * 1000;   // 15 minutes
 
-type DigestNotificationType = 'new_feedback' | 'reply' | 'agency_reply' | 'project_created' | 'project_deleted';
+type DigestNotificationType = 'new_feedback' | 'reply' | 'agency_reply' | 'project_created' | 'project_deleted' | 'admin_new_signup';
 
 interface QueueEmailParams {
     recipientEmail: string;
@@ -128,7 +128,7 @@ export interface PendingDigestItem {
     id: string;
     recipient_email: string;
     notification_type: DigestNotificationType;
-    project_id: string;
+    project_id: string | null;
     feedback_id: string | null;
     payload: Record<string, unknown>;
     created_at: string;
