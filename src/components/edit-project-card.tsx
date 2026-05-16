@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { reportClientError } from '@/lib/client-error-logging';
 import { useUnsavedChangesWarning } from '@/hooks/use-unsaved-changes-warning';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,8 +68,10 @@ export function EditProjectCard({ project }: EditProjectCardProps) {
             // Success state duration
             setTimeout(() => setSuccess(false), 3000);
         } catch (error) {
-            console.error('Failed to update project name:', error);
-            alert('Failed to update project name. Please try again.');
+            const message = reportClientError(error, 'project-update', {
+                projectId: project.id,
+            });
+            alert(`Failed to update project: ${message}`);
         } finally {
             setLoading(false);
         }

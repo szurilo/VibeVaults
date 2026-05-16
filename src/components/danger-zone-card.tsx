@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
+import { reportClientError } from "@/lib/client-error-logging";
 
 interface DangerZoneCardProps {
     entityName: string;
@@ -46,8 +47,10 @@ export function DangerZoneCard({
         try {
             await onDelete();
         } catch (error) {
-            console.error(`Error deleting ${entityName.toLowerCase()}:`, error);
-            alert(`Failed to delete ${entityName.toLowerCase()}. Please try again.`);
+            const message = reportClientError(error, 'entity-delete', {
+                entityName,
+            });
+            alert(`Failed to delete ${entityName.toLowerCase()}: ${message}`);
         } finally {
             setLoading(false);
         }

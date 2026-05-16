@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { updatePreferencesAction } from "@/actions/preferences";
+import { reportClientError } from "@/lib/client-error-logging";
 
 interface EmailPreferences {
     notify_new_feedback?: boolean;
@@ -29,8 +30,10 @@ export default function UnsubscribeForm({ initialPreferences, token, isAgency }:
             await updatePreferencesAction(token, notifyReplies, isAgency ? notifyNewFeedback : undefined, isAgency ? notifyProjectCreated : undefined, isAgency ? notifyProjectDeleted : undefined);
             setSuccess(true);
         } catch (error) {
-            console.error("Failed to update preferences", error);
-            alert("Failed to save changes.");
+            const message = reportClientError(error, 'unsubscribe-prefs-save', {
+                isAgency: !!isAgency,
+            });
+            alert(`Failed to save changes: ${message}`);
         } finally {
             setLoading(false);
         }

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useUnsavedChangesWarning } from '@/hooks/use-unsaved-changes-warning';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { reportClientError } from '@/lib/client-error-logging';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -71,8 +72,10 @@ export function WorkspaceSettingsCard({ workspace }: WorkspaceSettingsCardProps)
             // Success state duration
             setTimeout(() => setSuccess(false), 3000);
         } catch (error) {
-            console.error('Failed to update workspace details:', error);
-            alert('Failed to update workspace details. Please try again.');
+            const message = reportClientError(error, 'workspace-details-update', {
+                workspaceId: workspace.id,
+            });
+            alert(`Failed to update workspace details: ${message}`);
         } finally {
             setLoading(false);
         }
@@ -102,9 +105,9 @@ export function WorkspaceSettingsCard({ workspace }: WorkspaceSettingsCardProps)
             const filePath = `${workspace.id}/${fileName}`;
 
             // Upload the file to Supabase storage
-            const { error: uploadError, data } = await supabase.storage
+            const { error: uploadError } = await supabase.storage
                 .from('workspace-logos')
-                .upload(filePath, file, { cacheControl: '3600', upsert: true });
+                .upload(filePath, file, { cacheControl: '3600' });
 
             if (uploadError) throw uploadError;
 
@@ -115,8 +118,13 @@ export function WorkspaceSettingsCard({ workspace }: WorkspaceSettingsCardProps)
 
             setLogoUrl(publicUrlData.publicUrl);
         } catch (error) {
-            console.error('Error uploading logo:', error);
-            alert('Failed to upload logo.');
+            const message = reportClientError(error, 'workspace-logo-upload', {
+                workspaceId: workspace.id,
+                fileName: file.name,
+                fileSize: file.size,
+                mimeType: file.type,
+            });
+            alert(`Failed to upload logo: ${message}`);
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';

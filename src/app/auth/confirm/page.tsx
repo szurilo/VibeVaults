@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -24,8 +24,14 @@ function ConfirmContent() {
 
     const tokenHash = searchParams.get('token_hash')
     const type = searchParams.get('type')
+    const hasRunRef = useRef(false)
 
     useEffect(() => {
+        // Guard against StrictMode / re-render double-invocation consuming the same
+        // single-use token twice (second call would error with "already used").
+        if (hasRunRef.current) return
+        hasRunRef.current = true
+
         async function verifyOtp() {
             if (!tokenHash || !type) {
                 setState('error')
@@ -41,29 +47,37 @@ function ConfirmContent() {
                 token_hash: tokenHash,
             })
 
+            // If verifyOtp errored (e.g. email scanner pre-consumed the token, the
+            // user is already authenticated in this browser, or the effect re-ran),
+            // fall back to checking whether a valid session actually exists. If it
+            // does, the user is effectively logged in — don't flash a scary error.
             if (error) {
-                console.error('Error verifying OTP:', error)
-                setState('error')
-                setErrorMessage(error.message)
-            } else {
-                setState('success')
-
-                // Check for a saved redirect from email deep-links (cookie set by AuthForm)
-                const cookieMatch = document.cookie.match(/(?:^|;\s*)auth_redirect=([^;]*)/)
-                const savedRedirect = cookieMatch ? decodeURIComponent(cookieMatch[1]) : null
-                if (savedRedirect) {
-                    document.cookie = 'auth_redirect=; path=/; max-age=0'
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) {
+                    console.error('Error verifying OTP:', error)
+                    setState('error')
+                    setErrorMessage(error.message)
+                    return
                 }
-                // Only allow relative paths — block protocol-relative URLs (//evil.com) and absolute URLs
-                const isSafePath = savedRedirect && savedRedirect.startsWith('/') && !savedRedirect.startsWith('//')
-                const next = isSafePath ? savedRedirect : '/dashboard'
-
-                // Use window.location for redirect — the target may be an API route
-                // (e.g. /api/email-redirect) which router.push can't handle
-                setTimeout(() => {
-                    window.location.href = next
-                }, 500)
             }
+
+            setState('success')
+
+            // Check for a saved redirect from email deep-links (cookie set by AuthForm)
+            const cookieMatch = document.cookie.match(/(?:^|;\s*)auth_redirect=([^;]*)/)
+            const savedRedirect = cookieMatch ? decodeURIComponent(cookieMatch[1]) : null
+            if (savedRedirect) {
+                document.cookie = 'auth_redirect=; path=/; max-age=0'
+            }
+            // Only allow relative paths — block protocol-relative URLs (//evil.com) and absolute URLs
+            const isSafePath = savedRedirect && savedRedirect.startsWith('/') && !savedRedirect.startsWith('//')
+            const next = isSafePath ? savedRedirect : '/dashboard'
+
+            // Use window.location for redirect — the target may be an API route
+            // (e.g. /api/email-redirect) which router.push can't handle
+            setTimeout(() => {
+                window.location.href = next
+            }, 500)
         }
 
         verifyOtp()
