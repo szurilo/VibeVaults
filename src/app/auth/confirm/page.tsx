@@ -57,6 +57,25 @@ function ConfirmContent() {
                     console.error('Error verifying OTP:', error)
                     setState('error')
                     setErrorMessage(error.message)
+                    try {
+                        const payload = JSON.stringify({
+                            errorMessage: error.message,
+                            type,
+                            tokenPrefix: tokenHash.slice(0, 5),
+                            hadPriorSession: false,
+                            userAgent: navigator.userAgent,
+                            url: window.location.href,
+                        })
+                        const blob = new Blob([payload], { type: 'application/json' })
+                        if (!navigator.sendBeacon('/api/admin-alerts/auth-confirm-error', blob)) {
+                            fetch('/api/admin-alerts/auth-confirm-error', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: payload,
+                                keepalive: true,
+                            }).catch(() => { })
+                        }
+                    } catch { /* never let telemetry break the user's flow */ }
                     return
                 }
             }

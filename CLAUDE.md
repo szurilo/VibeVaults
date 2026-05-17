@@ -167,8 +167,10 @@ tests/              # Playwright E2E tests
 | `/api/cron/digest` | GET | Processes queued digest emails (Supabase pg_cron, every 15 min) |
 | `/api/widget/errors` | POST | Receives widget-side error reports, writes to `widget_errors` (rate-limited) |
 | `/api/widget/screenshot-event` | POST | Receives screenshot-capture telemetry beacons → PostHog `widget_screenshot_capture` event (browser, GPU, DPR, viewport, duration) |
+| `/api/admin-alerts/auth-confirm-error` | POST | Beacon from `/auth/confirm` error branch → instant Resend email to `ADMIN_EMAIL`. Rate-limited per IP. Used to diagnose rare "Verification Failed" flashes we can't reproduce locally. |
 
 ## Proxy Redirects (`src/lib/supabase/proxy.ts`)
 - Unauthenticated users on protected routes → `/auth/login`
 - **Authenticated users** hitting `/auth/login` or `/auth/register` → `/dashboard` (skip duplicate sign-in screens)
 - `/pricing` excluded from auth checks (public)
+- `/api/admin-alerts/*` excluded from auth checks (beacons fire from pre-auth pages)
