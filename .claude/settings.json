@@ -53,7 +53,8 @@
       "WebFetch(domain:marker.io)",
       "WebFetch(domain:www.userback.io)",
       "WebFetch(domain:www.featurebase.app)",
-      "WebFetch(domain:www.monterey.ai)"
+      "WebFetch(domain:www.monterey.ai)",
+      "WebFetch(domain:meetvolley.com)"
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"

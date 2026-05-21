@@ -28,7 +28,7 @@ export const ProductDemo = ({ videoUrl }: ProductDemoProps) => {
             See it in action
           </h2>
           <p className="text-xl text-gray-500 max-w-2xl mx-auto">
-            Watch how agencies collect, manage, and resolve client feedback in
+            Watch how agencies and dev studios collect, manage, and resolve client feedback in
             minutes — not days.
           </p>
         </motion.div>

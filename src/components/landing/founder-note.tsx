@@ -57,7 +57,7 @@ export const FounderNote = () => {
               <div className="space-y-4 text-gray-600 leading-relaxed">
                 <p>
                   I built VibeVaults because I lived the problem. After years of
-                  running feedback rounds for agencies — chasing clients through
+                  running feedback rounds for agencies and dev studios — chasing clients through
                   email threads, decoding vague screenshots, and losing hours to
                   miscommunication — I knew there had to be a better way.
                 </p>
@@ -68,7 +68,7 @@ export const FounderNote = () => {
                   check the third section?&quot; emails.
                 </p>
                 <p className="font-semibold text-gray-900">
-                  I&apos;m looking for a small group of founding agencies to
+                  I&apos;m looking for a small group of founding agencies and dev studios to
                   shape this product with me. In return, you get a serious
                   discount — and a direct line to the person building it.
                 </p>
