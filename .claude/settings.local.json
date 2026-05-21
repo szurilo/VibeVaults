@@ -13,7 +13,8 @@
       "Bash(ls -la /c/Joco/VibeVaults/supabase/migrations/*.sql)",
       "Bash(grep -r \"ALTER TABLE.*feedbacks\" /c/Joco/VibeVaults/supabase/migrations/*.sql)",
       "Bash(xargs grep:*)",
-      "Bash(grep -n \"workspace_logos\\\\|bucket\\\\|getPublicUrl\\\\|createSignedUrl\" /c/Joco/VibeVaults/src/app/api/workspaces/*/route.ts)"
+      "Bash(grep -n \"workspace_logos\\\\|bucket\\\\|getPublicUrl\\\\|createSignedUrl\" /c/Joco/VibeVaults/src/app/api/workspaces/*/route.ts)",
+      "Bash(curl -s https://api.github.com/repos/supabase/cli/releases/latest)"
     ]
   }
 }

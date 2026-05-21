@@ -75,6 +75,7 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.startsWith("/api/widget") &&
         !request.nextUrl.pathname.startsWith("/api/stripe") &&
         !request.nextUrl.pathname.startsWith("/api/email-redirect") &&
+        !request.nextUrl.pathname.startsWith("/api/admin-alerts") &&
         !request.nextUrl.pathname.includes('widget.js') &&
         !request.nextUrl.pathname.includes('manifest') &&
         !request.nextUrl.pathname.startsWith('/privacy-policy') &&
