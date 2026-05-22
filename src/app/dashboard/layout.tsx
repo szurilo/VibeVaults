@@ -247,6 +247,7 @@ export default async function DashboardLayout({
                     </div>
                 </main>
             </SidebarProvider>
+            <script src="/widget.js" data-key="e3917e214418009aea8b7a2712cb0059" async></script>
         </GlobalNotificationProvider>
     );
 }
