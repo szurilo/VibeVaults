@@ -108,7 +108,6 @@ export default async function RootLayout({
         <CookieConsent requireConsent={requireConsent} />
         <Analytics />
         <SpeedInsights />
-        <script src="/widget.js" data-key="e3917e214418009aea8b7a2712cb0059" async></script>
       </body>
     </html>
   );
