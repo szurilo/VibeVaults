@@ -16,7 +16,10 @@ jobs:
     - name: Install dependencies
       run: npm ci
     - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
+      # CI only runs the chromium project (see playwright.config.ts).
+      # Downloading firefox + webkit too (the default) was burning ~5min
+      # and pushed the job past its 60-min timeout.
+      run: npx playwright install --with-deps chromium
 
     - name: Setup Supabase CLI
       uses: supabase/setup-cli@v1
