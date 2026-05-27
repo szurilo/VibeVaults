@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest } from "@/lib/widget-helpers";
 import { getTierLimits } from "@/lib/tier-config";
@@ -87,7 +86,11 @@ export async function POST(request: Request) {
         }, { onConflict: 'email' });
     }
 
-    const supabase = await createClient();
+    // Admin client: the legacy "Public can insert feedback" RLS policy was
+    // dropped in 20260527000000_security_hardening.sql. Widget callers have
+    // no Supabase session — authorization already happened via the bearer
+    // token above, so service_role is the right fit here.
+    const supabase = createAdminClient();
     const { error: insertError } = await supabase.from('feedbacks').insert({
         id: feedbackId,
         content,

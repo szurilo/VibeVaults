@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { getTierLimits, type TierSlug } from "@/lib/tier-config";
@@ -63,7 +62,10 @@ export function isRateLimited(ip: string, endpoint?: string): boolean {
  * Returns `{ project }` on success or `{ error, status }` on failure.
  */
 export async function validateApiKey(apiKey: string) {
-    const supabase = await createClient();
+    // Admin client: get_project_by_api_key is no longer granted to anon /
+    // authenticated (see 20260527000000_security_hardening.sql). Widget
+    // requests have no user session anyway, so service_role is the right fit.
+    const supabase = createAdminClient();
     const { data: projects, error } = await supabase.rpc('get_project_by_api_key', { key_param: apiKey });
 
     if (error || !projects || projects.length === 0) {
