@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Linkedin } from "lucide-react";
 import { CookiePreferencesLink } from "@/components/CookiePreferencesLink";
 import { ProductDemo } from "@/components/landing/product-demo";
 import { ROICalculator } from "@/components/landing/roi-calculator";
@@ -139,7 +140,7 @@ export default function Home() {
           <div className="text-sm text-gray-500">
             &copy; {new Date().getFullYear()} VibeVaults. All rights reserved.
           </div>
-          <div className="flex gap-6 text-sm font-medium text-gray-600">
+          <div className="flex gap-6 text-sm font-medium text-gray-600 items-center">
             <Link href="/terms-of-service" className="hover:text-primary transition-colors">
               Terms of Service
             </Link>
@@ -147,6 +148,15 @@ export default function Home() {
               Privacy Policy
             </Link>
             <CookiePreferencesLink />
+            <a
+              href="https://www.linkedin.com/company/vibevaults/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="VibeVaults on LinkedIn"
+              className="hover:text-primary transition-colors inline-flex items-center md:ml-4"
+            >
+              <Linkedin className="w-4 h-4" />
+            </a>
           </div>
         </div>
       </footer>

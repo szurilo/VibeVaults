@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Check, X } from 'lucide-react';
+import { Check, X, Linkedin } from 'lucide-react';
 import { PricingCards } from '@/components/landing/pricing-cards';
 import { CookiePreferencesLink } from '@/components/CookiePreferencesLink';
 import { FEATURE_COMPARISON } from '@/lib/tier-config';
@@ -144,7 +144,7 @@ export default function PricingPage() {
                     <div className="text-sm text-gray-500">
                         &copy; {new Date().getFullYear()} VibeVaults. All rights reserved.
                     </div>
-                    <div className="flex gap-6 text-sm font-medium text-gray-600">
+                    <div className="flex gap-6 text-sm font-medium text-gray-600 items-center">
                         <Link href="/terms-of-service" className="hover:text-primary transition-colors">
                             Terms of Service
                         </Link>
@@ -152,6 +152,15 @@ export default function PricingPage() {
                             Privacy Policy
                         </Link>
                         <CookiePreferencesLink />
+                        <a
+                            href="https://www.linkedin.com/company/vibevaults/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="VibeVaults on LinkedIn"
+                            className="hover:text-primary transition-colors inline-flex items-center md:ml-4"
+                        >
+                            <Linkedin className="w-4 h-4" />
+                        </a>
                     </div>
                 </div>
             </footer>
