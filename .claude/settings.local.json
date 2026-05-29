@@ -52,7 +52,9 @@
       "WebFetch(domain:webery.com)",
       "Bash(supabase migration *)",
       "Bash(supabase status *)",
-      "Bash(gh run *)"
+      "Bash(gh run *)",
+      "WebFetch(domain:bugsmash.io)",
+      "Bash(node -p \"require\\('./node_modules/@playwright/test/package.json'\\).version\")"
     ]
   }
 }
