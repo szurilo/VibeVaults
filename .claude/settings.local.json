@@ -53,7 +53,8 @@
       "Bash(supabase migration *)",
       "Bash(supabase status *)",
       "Bash(gh run *)",
-      "WebFetch(domain:bugsmash.io)"
+      "WebFetch(domain:bugsmash.io)",
+      "Bash(node -p \"require\\('./node_modules/@playwright/test/package.json'\\).version\")"
     ]
   }
 }

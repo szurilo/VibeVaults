@@ -19,8 +19,8 @@ jobs:
 
     # Cache the Playwright browser binary across runs. Without this, every CI
     # run re-downloads ~170MB from cdn.playwright.dev — which intermittently
-    # hangs and blows past the job timeout. Key on the playwright version so a
-    # bump invalidates the cache automatically.
+    # hangs (see https://github.com/microsoft/playwright/issues/40998).
+    # Key on the playwright version so a bump invalidates the cache automatically.
     - name: Get installed Playwright version
       id: playwright-version
       run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> $GITHUB_OUTPUT
