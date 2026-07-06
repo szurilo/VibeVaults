@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { FeedbackCard } from '@/components/feedback-card'
 import Link from 'next/link'
@@ -5,6 +6,16 @@ import { Clock, ExternalLink } from 'lucide-react'
 import { getWorkspaceOwnerTier } from '@/lib/tier-helpers'
 import { hasActiveAccess } from '@/lib/tier-config'
 import { fetchSenderAvatars } from '@/lib/feedback-utils'
+
+// Public share boards expose client feedback content — keep them out of
+// search indexes. Meta noindex (not robots.txt disallow) so crawlers can
+// still fetch the page and see the directive.
+export const metadata: Metadata = {
+    robots: {
+        index: false,
+        follow: false,
+    },
+}
 
 function NotFoundView() {
     return (
