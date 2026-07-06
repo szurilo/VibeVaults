@@ -58,6 +58,7 @@
     ],
     "additionalDirectories": [
       "c:\\Joco\\VibeVaults\\src\\app\\dashboard\\feedback"
-    ]
+    ],
+    "cleanupPeriodDays": 9999
   }
 }
