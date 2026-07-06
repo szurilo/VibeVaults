@@ -80,7 +80,7 @@ export default function Home() {
               Ship client sites faster without the <span className="text-primary font-black italic">feedback chaos.</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-500 max-w-3xl mb-12 leading-relaxed mx-auto">
-              Ditch the endless email threads, scattered Slack messages, and vague screenshots. Collaborate with clients directly on their live website and hit your deadlines.
+              Clients comment right on the live site. No logins, no browser extensions, and you never pay per client. Send a link, they start marking up, you ship faster.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20">
               <Link href="/auth/register" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 bg-secondary text-white hover:bg-secondary/90 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
@@ -89,6 +89,20 @@ export default function Home() {
               <Link href="#demo" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 border-2 border-gray-200 text-gray-700 hover:border-primary hover:text-primary hover:shadow-lg hover:-translate-y-1 active:translate-y-0">
                 See it in action
               </Link>
+            </div>
+            <div className="flex justify-center mb-20">
+              <a
+                href="https://www.uneed.best/tool/vibevaults"
+                target="_blank"
+                className="inline-flex items-center hover:opacity-80 transition-opacity"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://www.uneed.best/EMBED3B.png"
+                  alt="VibeVaults is launching soon on Uneed"
+                  className="h-12 w-auto"
+                />
+              </a>
             </div>
           </div>
         </section>
