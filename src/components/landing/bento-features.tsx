@@ -9,8 +9,10 @@ import {
   ClipboardCheck,
   Share2,
   Users,
+  Maximize2,
 } from "lucide-react";
 import Image from "next/image";
+import { createPortal } from "react-dom";
 
 /**
  * Main Responsibility: Zig-zag feature showcase pairing large feature screenshots
@@ -87,17 +89,54 @@ const features: FeatureItem[] = [
   },
 ];
 
-const FeatureScreenshot = ({ slug }: { slug: string }) => {
+const FeatureScreenshot = ({ slug, title }: { slug: string; title: string }) => {
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const src = `/screenshots/feature-${slug}.png`;
+
+  React.useEffect(() => {
+    if (!isFullscreen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsFullscreen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isFullscreen]);
+
   return (
-    <div className="relative w-full aspect-16/10 rounded-2xl overflow-hidden bg-linear-to-br from-gray-50 to-gray-100 shadow-lg ring-1 ring-gray-200/60">
-      <Image
-        src={`/screenshots/feature-${slug}.png`}
-        alt={`${slug} feature screenshot`}
-        fill
-        sizes="(min-width: 1024px) 640px, 100vw"
-        className="object-contain"
-      />
-    </div>
+    <>
+      <button
+        type="button"
+        onClick={() => setIsFullscreen(true)}
+        aria-label={`Enlarge ${title} screenshot`}
+        className="group relative block w-full aspect-16/10 rounded-2xl overflow-hidden bg-linear-to-br from-gray-50 to-gray-100 shadow-lg ring-1 ring-gray-200/60 cursor-zoom-in"
+      >
+        <Image
+          src={src}
+          alt={`${title} feature screenshot`}
+          fill
+          sizes="(min-width: 1024px) 640px, 100vw"
+          className="object-contain"
+        />
+        <span className="absolute top-3 right-3 flex items-center justify-center w-9 h-9 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 backdrop-blur-sm">
+          <Maximize2 className="w-4 h-4" />
+        </span>
+      </button>
+
+      {isFullscreen && createPortal(
+        <div
+          className="fixed inset-0 z-99999 bg-black/90 flex items-center justify-center cursor-zoom-out animate-in fade-in duration-200"
+          onClick={() => setIsFullscreen(false)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={`${title} feature screenshot`}
+            className="max-w-[95vw] max-h-[95vh] object-contain drop-shadow-2xl"
+          />
+        </div>,
+        document.body
+      )}
+    </>
   );
 };
 
@@ -139,7 +178,7 @@ export const BentoFeatures = () => {
                 <div
                   className={`${imageSpan} ${imageFirst ? "lg:order-1" : "lg:order-2"}`}
                 >
-                  <FeatureScreenshot slug={feature.slug} />
+                  <FeatureScreenshot slug={feature.slug} title={feature.title} />
                 </div>
 
                 <div className={imageFirst ? "lg:order-2" : "lg:order-1"}>
