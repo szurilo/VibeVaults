@@ -151,7 +151,7 @@ export const BentoFeatures = () => {
           className="text-center mb-20"
         >
           <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-            Built for agency velocity
+            A website feedback widget built for agency velocity
           </h2>
           <p className="text-xl text-gray-500 max-w-2xl mx-auto">
             Stop deciphering &quot;make the logo bigger&quot; from cropped PDFs.

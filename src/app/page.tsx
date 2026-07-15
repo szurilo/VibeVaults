@@ -61,7 +61,7 @@ export default function Home() {
               "name": "VibeVaults",
               "operatingSystem": "Web",
               "applicationCategory": "BusinessApplication",
-              "description": "The feedback tool for modern agencies. Collect visual feedback, share progress with clients, and ship faster with VibeVaults.",
+              "description": "VibeVaults is a visual feedback widget for websites. The feedback tool for modern agencies: collect visual feedback directly on live client sites, share progress, and ship faster.",
               "offers": {
                 "@type": "AggregateOffer",
                 "lowPrice": "29.00",
@@ -80,7 +80,7 @@ export default function Home() {
               Ship client sites faster without the <span className="text-primary font-black italic">feedback chaos.</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-500 max-w-3xl mb-12 leading-relaxed mx-auto">
-              Clients comment right on the live site. No logins, no browser extensions, and you never pay per client. Send a link, they start marking up, you ship faster.
+              VibeVaults is a visual feedback widget for websites. Clients comment right on the live site. No logins, no browser extensions, and you never pay per client. Send a link, they start marking up, you ship faster.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20">
               <Link href="/auth/register" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 bg-secondary text-white hover:bg-secondary/90 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
