@@ -25,7 +25,7 @@ export const ProductDemo = ({ videoUrl }: ProductDemoProps) => {
           className="text-center mb-12"
         >
           <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-            See it in action
+            See the visual feedback tool in action
           </h2>
           <p className="text-xl text-gray-500 max-w-2xl mx-auto">
             Watch how agencies and dev studios collect, manage, and resolve client feedback in
