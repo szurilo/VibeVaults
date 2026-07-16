@@ -104,6 +104,8 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
         capture_pageleave: true,
         autocapture: true,
         capture_exceptions: true,
+        // Core Web Vitals capture (replaces Vercel Speed Insights) is enabled via
+        // remote config: PostHog project settings → "Autocapture web vitals".
         opt_out_capturing_by_default: true,
         disable_session_recording: true,
         mask_all_text: false,
