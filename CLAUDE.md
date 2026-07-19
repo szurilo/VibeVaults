@@ -26,7 +26,7 @@
 8. **Form validation** via standard React state — no form libraries.
 9. **Add comment blocks** at top of complex files: "Main Responsibility" + "Sensitive Dependencies".
 10. **Use Context7 MCP** proactively for library/API docs without user asking.
-11. **Default terminal**: PowerShell (but Claude Code runs bash).
+11. **Default terminal**: bash (Linux Mint dev environment).
 12. **Next.js 16**: `middleware.ts` → `src/proxy.ts`, Supabase middleware → `src/lib/supabase/proxy.ts`.
 
 ## File Structure

@@ -80,7 +80,32 @@
       "Bash(node marketing/render-svg.mjs)",
       "WebFetch(domain:verycreatives.com)",
       "WebFetch(domain:smartwebdesignagency.com)",
-      "WebFetch(domain:wistlmarketing.com)"
+      "WebFetch(domain:wistlmarketing.com)",
+      "Bash(MEM=/home/jozsef/.claude/projects/-home-jozsef-repo-VibeVaults/memory; echo \"=== memory dir present? ===\" && ls -1 \"$MEM\" 2>/dev/null | head -40; echo \"\"; echo \"=== stale powershell/windows refs in MEMORY.md ===\" && grep -niE \"powershell|windows|c:\\\\\\\\\\\\\\\\|c:/\" \"$MEM/MEMORY.md\" 2>/dev/null)",
+      "Read(//home/jozsef/dotfiles/claude/vibevaults-memory/**)",
+      "Read(//home/jozsef/.claude/**)",
+      "Read(//home/jozsef/dotfiles/claude/**)",
+      "Bash(git -C ~/dotfiles status --short)",
+      "Bash(git -C ~/dotfiles remote -v)",
+      "Bash(gh repo *)",
+      "Bash(git config *)",
+      "Bash(gh auth *)",
+      "Bash(gh config *)",
+      "Bash(chmod +x install.sh autopush.sh)",
+      "Bash(bash -n install.sh)",
+      "Bash(bash -n autopush.sh)",
+      "Bash(./install.sh)",
+      "Read(//home/jozsef/repo/VibeVaults-claude/**)",
+      "Read(//home/jozsef/.config/systemd/user/**)",
+      "Bash(systemctl --user is-enabled claude-autopush.timer)",
+      "Bash(systemctl --user list-timers claude-autopush.timer --no-pager)",
+      "Bash(systemctl --user show claude-autopush.service -p Result -p ExecMainStatus)",
+      "Bash(systemctl --user start claude-autopush.service)",
+      "Bash(systemctl --user show claude-autopush.service -p Result -p ExecMainStatus -p ActiveEnterTimestamp)",
+      "Bash(journalctl --user -u claude-autopush.service -n 15 --no-pager -o cat)",
+      "Bash(sed -i 's#~/VibeVaults-claude#~/repo/VibeVaults-claude#g' README.md)",
+      "Bash(sed -i 's#^cp ~/repo/VibeVaults-claude/systemd/claude-autopush.*$#\\\\# \\(install.sh already generated and installed these with the correct path\\)#' README.md)",
+      "Bash(./autopush.sh)"
     ]
   }
 }
