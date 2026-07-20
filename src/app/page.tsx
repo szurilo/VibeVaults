@@ -98,8 +98,8 @@ export default function Home() {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="https://www.uneed.best/EMBED3B.png"
-                  alt="VibeVaults is launching soon on Uneed"
+                  src="https://www.uneed.best/EMBED1B.png"
+                  alt="VibeVaults is featured on Uneed"
                   className="h-12 w-auto"
                 />
               </a>
