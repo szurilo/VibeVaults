@@ -105,7 +105,9 @@
       "Bash(journalctl --user -u claude-autopush.service -n 15 --no-pager -o cat)",
       "Bash(sed -i 's#~/VibeVaults-claude#~/repo/VibeVaults-claude#g' README.md)",
       "Bash(sed -i 's#^cp ~/repo/VibeVaults-claude/systemd/claude-autopush.*$#\\\\# \\(install.sh already generated and installed these with the correct path\\)#' README.md)",
-      "Bash(./autopush.sh)"
+      "Bash(./autopush.sh)",
+      "Bash(which xclip *)",
+      "Read(//home/jozsef/.config/Code/User/**)"
     ]
   }
 }
