@@ -107,7 +107,13 @@
       "Bash(sed -i 's#^cp ~/repo/VibeVaults-claude/systemd/claude-autopush.*$#\\\\# \\(install.sh already generated and installed these with the correct path\\)#' README.md)",
       "Bash(./autopush.sh)",
       "Bash(which xclip *)",
-      "Read(//home/jozsef/.config/Code/User/**)"
+      "Read(//home/jozsef/.config/Code/User/**)",
+      "Bash(npx ctx7@latest library \"PostHog\" \"session recording missing for sessions that have events, why no replay captured\")",
+      "Bash(npx ctx7@latest docs /posthog/posthog.com \"why do I see users/pageviews but no session recordings, bot traffic, sampling, recording not captured\")",
+      "Bash(timeout 120 npx ctx7@latest library \"Resend\" \"duplicate email prevention idempotency same email sent twice not delivered\")",
+      "Bash(timeout 180 npx ctx7@latest docs /websites/resend \"duplicate email detection idempotency identical email not delivered twice\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/access)",
+      "Bash(timeout 180 npx ctx7@latest docs /vercel/next.js \"after\\(\\) from next/server in a Server Action to run background work after the response\")"
     ]
   }
 }
