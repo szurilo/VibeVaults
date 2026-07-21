@@ -14,7 +14,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isWorkspaceOwner } from "@/lib/role-helpers";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { sendWorkspaceInviteNotification, sendClientInviteNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { checkMemberLimit } from "@/lib/tier-helpers";
@@ -202,16 +202,27 @@ export async function POST(req: Request) {
                 .single();
 
             if (invitedProfile) {
-                adminSupabaseForNotif
-                    .from('notifications')
-                    .insert({
-                        user_id: invitedProfile.id,
-                        type: 'workspace_invite',
-                        title: 'Workspace Invitation',
-                        message: `${user.user_metadata?.full_name || user.email || 'Someone'} invited you to join ${workspace?.name || 'a workspace'}`,
-                        project_id: null
-                    })
-                    .then(() => {});
+                const inviterName = user.user_metadata?.full_name || user.email || 'Someone';
+                const invitedProfileId = invitedProfile.id;
+
+                // `after()` rather than a bare un-awaited insert: once this
+                // handler returns its JSON, Vercel can freeze the instance and
+                // drop anything still in flight.
+                after(async () => {
+                    const { error: notifError } = await adminSupabaseForNotif
+                        .from('notifications')
+                        .insert({
+                            user_id: invitedProfileId,
+                            type: 'workspace_invite',
+                            title: 'Workspace Invitation',
+                            message: `${inviterName} invited you to join ${workspace?.name || 'a workspace'}`,
+                            project_id: null
+                        });
+
+                    if (notifError) {
+                        console.error('Failed to insert workspace invite notification:', notifError);
+                    }
+                });
             }
         }
 

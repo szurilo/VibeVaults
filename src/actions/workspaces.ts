@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { sendMemberRemovedNotification } from '@/lib/notifications';
 import { notifyOwnerMemberDeparted } from '@/lib/workspace-notifications';
 import { checkWorkspaceLimit } from '@/lib/tier-helpers';
@@ -72,24 +73,37 @@ export async function removeMemberAction(workspaceId: string, userId: string) {
         throw new Error(error.message);
     }
 
-    // Send in-app notification + email to removed member (fire-and-forget)
     const workspaceName = workspace?.name || 'Unknown workspace';
     const removerName = currentUser?.email?.split('@')[0] || 'The workspace owner';
 
-    adminSupabase.from('notifications').insert({
-        user_id: userId,
-        type: 'member_removed',
-        title: 'Access Revoked',
-        message: `You have been removed from ${workspaceName}`
-    }).then(() => {});
+    // In-app notification + email to the removed member. Deliberately not
+    // blocking the response, but via `after()` rather than a bare un-awaited
+    // promise: on Vercel the instance can be frozen the moment the action
+    // returns, silently dropping whatever is still in flight.
+    after(async () => {
+        const { error: notifError } = await adminSupabase.from('notifications').insert({
+            user_id: userId,
+            type: 'member_removed',
+            title: 'Access Revoked',
+            message: `You have been removed from ${workspaceName}`
+        });
 
-    if (removedProfile?.email) {
-        sendMemberRemovedNotification({
-            to: removedProfile.email,
-            workspaceName,
-            removedByName: removerName
-        }).catch(e => console.error('Failed to send member removed email:', e));
-    }
+        if (notifError) {
+            console.error('Failed to insert member removed notification:', notifError);
+        }
+
+        if (removedProfile?.email) {
+            try {
+                await sendMemberRemovedNotification({
+                    to: removedProfile.email,
+                    workspaceName,
+                    removedByName: removerName
+                });
+            } catch (e) {
+                console.error('Failed to send member removed email:', e);
+            }
+        }
+    });
 
     revalidatePath('/dashboard/settings/users');
 }
@@ -118,13 +132,25 @@ export async function leaveWorkspaceAction(workspaceId: string) {
     }
 
     if (workspace?.owner_id) {
-        notifyOwnerMemberDeparted({
-            workspaceId,
-            workspaceName: workspace.name || 'Unknown workspace',
-            ownerId: workspace.owner_id,
-            memberName: user.email?.split('@')[0] || 'A member',
-            reason: 'left'
-        }).catch((e: unknown) => console.error('Failed to notify owner of member leave:', e));
+        const ownerId = workspace.owner_id;
+        const departedWorkspaceName = workspace.name || 'Unknown workspace';
+        const memberName = user.email?.split('@')[0] || 'A member';
+
+        // See removeMemberAction: `after()` keeps the invocation alive so the
+        // owner's notification survives the response returning.
+        after(async () => {
+            try {
+                await notifyOwnerMemberDeparted({
+                    workspaceId,
+                    workspaceName: departedWorkspaceName,
+                    ownerId,
+                    memberName,
+                    reason: 'left'
+                });
+            } catch (e: unknown) {
+                console.error('Failed to notify owner of member leave:', e);
+            }
+        });
     }
 
     revalidatePath('/dashboard');

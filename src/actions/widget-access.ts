@@ -152,8 +152,6 @@ export async function requestWidgetAccessRecovery(email: string): Promise<Reques
         return { ok: false, reason: 'rate_limited' };
     }
 
-    const requestedAt = new Date();
-
     // From here on, log errors but always return ok:true to prevent
     // enumeration of which emails are valid invitees / members.
     //
@@ -237,7 +235,7 @@ export async function requestWidgetAccessRecovery(email: string): Promise<Reques
             }
 
             if (items.length > 0) {
-                await sendWidgetAccessRecoveryEmail({ to: normalisedEmail, items, requestedAt });
+                await sendWidgetAccessRecoveryEmail({ to: normalisedEmail, items });
             }
         } catch (e) {
             console.error('requestWidgetAccessRecovery: background failure', e);

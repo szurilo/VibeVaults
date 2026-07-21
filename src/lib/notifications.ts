@@ -6,6 +6,7 @@
  * - Resend API Client (./resend) for securely delivering emails without exposing API keys to the client.
  * - Environment Variable (NEXT_PUBLIC_APP_URL) to dynamically route links per environment.
  */
+import { randomUUID } from 'crypto';
 import { resend } from './resend';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL!;
@@ -41,7 +42,6 @@ function emailRedirectUrl(params: {
 interface SendWidgetAccessRecoveryParams {
     to: string;
     items: { projectName: string; workspaceName: string; url: string }[];
-    requestedAt?: Date;
 }
 
 /**
@@ -53,13 +53,14 @@ interface SendWidgetAccessRecoveryParams {
  * For privacy: this is only sent if at least one item exists; the recovery
  * page itself returns a generic response either way to prevent enumeration.
  *
- * `requestedAt` is rendered into the body on purpose. Client invitees get the
- * same persistent `?vv_invite=` URL on every request, so without it two
- * recovery emails to the same inbox are byte-identical — Gmail collapses the
- * later copy as a duplicate of the one already in the thread and the user
- * never sees it. The timestamp also tells the recipient which email is newest.
+ * Sends a unique `X-Entity-Ref-ID` per call so Gmail files each recovery email
+ * as its own conversation instead of threading it under the previous one.
+ * Matters here because client invitees get the same persistent `?vv_invite=`
+ * URL every time, making repeat emails identical in subject and body — a
+ * re-request would otherwise collapse into the existing thread and read as
+ * "no email arrived". Resend documents this header for exactly this purpose.
  */
-export async function sendWidgetAccessRecoveryEmail({ to, items, requestedAt = new Date() }: SendWidgetAccessRecoveryParams) {
+export async function sendWidgetAccessRecoveryEmail({ to, items }: SendWidgetAccessRecoveryParams) {
     if (items.length === 0) return { data: null, error: null };
 
     const itemsHtml = items.map(item => `
@@ -75,6 +76,9 @@ export async function sendWidgetAccessRecoveryEmail({ to, items, requestedAt = n
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
             to,
             subject: 'Your widget access links',
+            headers: {
+                'X-Entity-Ref-ID': randomUUID(),
+            },
             html: `
                 <div style="background-color: #fdfdfd; padding: 60px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; line-height: 1.6;">
                     <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
@@ -84,9 +88,6 @@ export async function sendWidgetAccessRecoveryEmail({ to, items, requestedAt = n
                         </p>
                         ${itemsHtml}
                         <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
-                            <p style="font-size: 12px; color: #a0aec0; margin: 0 0 12px;">
-                                Requested ${esc(requestedAt.toUTCString())}
-                            </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 You received this because someone — possibly you — requested fresh widget access links for this email at <a href="${BASE_URL}/access" style="color: #209CEE; text-decoration: none;">${BASE_URL.replace(/^https?:\/\//, '')}/access</a>. If that wasn't you, you can ignore this email.<br><br>
                                 If you have questions, reach out to
