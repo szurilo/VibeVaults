@@ -113,7 +113,8 @@
       "Bash(timeout 120 npx ctx7@latest library \"Resend\" \"duplicate email prevention idempotency same email sent twice not delivered\")",
       "Bash(timeout 180 npx ctx7@latest docs /websites/resend \"duplicate email detection idempotency identical email not delivered twice\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/access)",
-      "Bash(timeout 180 npx ctx7@latest docs /vercel/next.js \"after\\(\\) from next/server in a Server Action to run background work after the response\")"
+      "Bash(timeout 180 npx ctx7@latest docs /vercel/next.js \"after\\(\\) from next/server in a Server Action to run background work after the response\")",
+      "Bash(timeout 180 npx ctx7@latest docs /websites/resend \"prevent Gmail threading collapsing similar emails custom headers X-Entity-Ref-ID Message-ID\")"
     ]
   }
 }
