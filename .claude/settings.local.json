@@ -114,7 +114,27 @@
       "Bash(timeout 180 npx ctx7@latest docs /websites/resend \"duplicate email detection idempotency identical email not delivered twice\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/access)",
       "Bash(timeout 180 npx ctx7@latest docs /vercel/next.js \"after\\(\\) from next/server in a Server Action to run background work after the response\")",
-      "Bash(timeout 180 npx ctx7@latest docs /websites/resend \"prevent Gmail threading collapsing similar emails custom headers X-Entity-Ref-ID Message-ID\")"
+      "Bash(timeout 180 npx ctx7@latest docs /websites/resend \"prevent Gmail threading collapsing similar emails custom headers X-Entity-Ref-ID Message-ID\")",
+      "Bash(git mv *)",
+      "Bash(sed -i -e 's|^    feedbacks: any\\\\[\\\\];|    feedbackItems: any[];|' -e 's|export function FeedbackList\\({ feedbacks, senderAvatars|export function FeedbackList\\({ feedbackItems, senderAvatars|' -e 's|const filtered = feedbacks.filter|const filtered = feedbackItems.filter|' src/components/feedback-list.tsx)",
+      "Bash(sed -i -e 's|const feedbacks = \\(feedbackData|const feedback = \\(feedbackData|' -e 's|fetchSenderAvatars\\(supabase, feedbacks.map|fetchSenderAvatars\\(supabase, feedback.map|' -e 's|{feedbacks.length}|{feedback.length}|' -e 's|{feedbacks.length === 0|{feedback.length === 0|' -e 's|{feedbacks.map\\(\\(f\\)|{feedback.map\\(\\(f\\)|' -e 's|^                        Feedbacks$|                        Feedback|' src/app/share/[token]/page.tsx)",
+      "Bash(sed -i 's|Back to Feedbacks|Back to Feedback|' src/app/dashboard/feedback/\\\\[id\\\\]/page.tsx)",
+      "Bash(sed -i 's|, and all the feedbacks within those projects\\\\.|, and all the feedback within those projects.|' src/components/delete-workspace-card.tsx)",
+      "Bash(sed -i 's|</span> and all its feedbacks\\\\.|</span> and all its feedback.|' src/components/delete-project-card.tsx)",
+      "Bash(sed -i -e \"s|'Unlimited feedbacks \\\\& clients'|'Unlimited feedback \\\\& clients'|\" -e \"s|label: 'Feedbacks \\\\& clients'|label: 'Feedback \\\\& clients'|\" src/lib/tier-config.ts)",
+      "Bash(sed -i 's|All feedbacks and attachments associated|All feedback and attachments associated|' src/lib/notifications.ts)",
+      "Bash(sed -i -e 's|slug: \"feedbacks\"|slug: \"feedback\"|' -e 's|title: \"Interactive Feedbacks Tab\"|title: \"Interactive Feedback Tab\"|' src/components/landing/bento-features.tsx)",
+      "Bash(sed -i -e 's|test\\('\\\\''widget feedbacks list shows submitted feedback'\\\\''|test\\('\\\\''widget feedback list shows submitted feedback'\\\\''|' -e 's|// Switch directly to the feedbacks tab|// Switch directly to the feedback tab|' -e 's|data-view=\"feedbacks\"|data-view=\"feedback\"|' -e 's|'\\\\''No feedbacks found — run widget tests first'\\\\''|'\\\\''No feedback found — run widget tests first'\\\\''|' tests/feedback-flow.spec.ts)",
+      "Bash(sed -i 's|along with the feedbacks\\\\.|along with the feedback.|' tests/email-digest.spec.ts)",
+      "Bash(sed -i 's|→ on feedbacks INSERT|→ on feedbacks INSERT \\(table name\\)|' tests/notification-triggers.spec.ts)",
+      "Bash(sed -i -e 's|All projects, feedbacks, replies|All projects, feedback, replies|' -e 's|\\\\| List feedbacks \\\\||\\\\| List feedback \\\\||' -e 's|Two feedbacks within 15 min|Two feedback items within 15 min|' tests/manual-test-plan.md)",
+      "Bash(sed -i 's|→ on feedbacks INSERT \\(table name\\)|→ on feedbacks INSERT|' tests/notification-triggers.spec.ts)",
+      "Bash(sed -i 's|hasFeedbacks|hasFeedback|g' tests/feedback-flow.spec.ts)",
+      "Bash(sed -i 's:| `/api/widget/feedbacks` | GET | List feedbacks for widget \\(includes reply_count\\) |:| `/api/widget/feedback` | GET | List feedback for widget \\(includes reply_count\\) |:' CLAUDE.md)",
+      "Bash(sed -i -e 's:| `/api/widget/feedbacks` | GET | List feedbacks for widget:| `/api/widget/feedback` | GET | List feedback for widget:' -e 's|Completed feedbacks hidden from widget|Completed feedback hidden from widget|' -e 's|Full attachment support for feedbacks and replies|Full attachment support for feedback and replies|' -e 's|File attachments for feedbacks/replies|File attachments for feedback/replies|' .agents/project_summary.md)",
+      "Bash(node -e \"const s=require\\('./package.json'\\).scripts; console.log\\(JSON.stringify\\(s,null,2\\)\\)\")",
+      "Bash(node --check public/widget.js)",
+      "Bash(git stash *)"
     ]
   }
 }

@@ -41,11 +41,11 @@ function loadStoredStatuses(): string[] {
 
 interface FeedbackListProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    feedbacks: any[];
+    feedbackItems: any[];
     senderAvatars?: Record<string, string>;
 }
 
-export function FeedbackList({ feedbacks, senderAvatars = {} }: FeedbackListProps) {
+export function FeedbackList({ feedbackItems, senderAvatars = {} }: FeedbackListProps) {
     const [activeStatuses, setActiveStatuses] = useState<string[]>(DEFAULT_STATUSES);
     const [hydrated, setHydrated] = useState(false);
 
@@ -71,7 +71,7 @@ export function FeedbackList({ feedbacks, senderAvatars = {} }: FeedbackListProp
         );
     };
 
-    const filtered = feedbacks.filter(f => {
+    const filtered = feedbackItems.filter(f => {
         const status = (f.status || 'open').toLowerCase();
         return activeStatuses.includes(status);
     });

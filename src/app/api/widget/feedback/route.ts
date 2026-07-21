@@ -7,7 +7,7 @@ export async function OPTIONS() {
 
 export async function GET(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip, "widget:feedbacks")) return corsError("Too many requests. Please try again later.", 429);
+    if (isRateLimited(ip, "widget:feedback")) return corsError("Too many requests. Please try again later.", 429);
 
     const { searchParams } = new URL(request.url);
     const apiKey = searchParams.get("key");
@@ -23,8 +23,8 @@ export async function GET(request: Request) {
 
     const adminSupabase = createAdminClient();
 
-    // Fetch all feedbacks for the project with reply counts and attachments
-    const { data: feedbacks, error: feedbackError } = await adminSupabase
+    // Fetch all feedback for the project with reply counts and attachments
+    const { data: feedback, error: feedbackError } = await adminSupabase
         .from('feedbacks')
         .select(`
             id,
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
         return corsError(feedbackError.message, 500);
     }
 
-    const result = (feedbacks || []).map(f => ({
+    const result = (feedback || []).map(f => ({
         id: f.id,
         content: f.content,
         sender: f.sender,
@@ -55,5 +55,5 @@ export async function GET(request: Request) {
         attachments: (f as any).feedback_attachments || [],
     }));
 
-    return corsSuccess({ feedbacks: result });
+    return corsSuccess({ feedback: result });
 }

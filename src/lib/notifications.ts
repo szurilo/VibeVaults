@@ -341,7 +341,7 @@ export async function sendProjectDeletedNotification({
 
                         <div style="background-color: #fef2f2; padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #fee2e2;">
                             <p style="margin: 0; color: #991b1b; line-height: 1.6; font-size: 16px;">
-                                All feedbacks and attachments associated with this project have been permanently removed.
+                                All feedback and attachments associated with this project have been permanently removed.
                             </p>
                         </div>
 

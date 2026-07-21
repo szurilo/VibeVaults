@@ -61,8 +61,8 @@ const features: FeatureItem[] = [
     iconBg: "bg-green-500/10",
   },
   {
-    slug: "feedbacks",
-    title: "Interactive Feedbacks Tab",
+    slug: "feedback",
+    title: "Interactive Feedback Tab",
     description:
       "All stakeholders see ongoing discussions and participate from the widget — preventing duplicate requests.",
     icon: ClipboardCheck,

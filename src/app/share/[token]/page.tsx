@@ -81,9 +81,9 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
         .eq('project_id', project.id)
         .order('created_at', { ascending: false })
 
-    const feedbacks = (feedbackData || []) as Feedback[]
+    const feedback = (feedbackData || []) as Feedback[]
 
-    const senderAvatars = await fetchSenderAvatars(supabase, feedbacks.map(f => f.sender))
+    const senderAvatars = await fetchSenderAvatars(supabase, feedback.map(f => f.sender))
 
 
 
@@ -119,14 +119,14 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
             <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-3">
-                        Feedbacks
+                        Feedback
                         <span className="text-sm font-normal text-gray-500 bg-white border border-gray-200 px-2.5 py-0.5 rounded-full shadow-sm">
-                            {feedbacks.length}
+                            {feedback.length}
                         </span>
                     </h2>
                 </div>
 
-                {feedbacks.length === 0 ? (
+                {feedback.length === 0 ? (
                     <div className="bg-white border text-center py-20 px-4 rounded-xl shadow-sm border-dashed">
                         <div className="mx-auto w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                             <Clock className="w-8 h-8 text-gray-300" />
@@ -138,7 +138,7 @@ export default async function SharedProjectPage({ params }: { params: Promise<{ 
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {feedbacks.map((f) => (
+                        {feedback.map((f) => (
                             <FeedbackCard key={f.id} feedback={f} mode="view" senderAvatarUrl={senderAvatars[f.sender]} />
                         ))}
                     </div>

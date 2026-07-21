@@ -83,7 +83,7 @@ test.describe('Widget feedback flow (real API)', () => {
         await expect(dashboardPage.getByText(feedbackContent)).toBeVisible({ timeout: 15_000 });
     });
 
-    test('widget feedbacks list shows submitted feedback', async ({ page }) => {
+    test('widget feedback list shows submitted feedback', async ({ page }) => {
         const seed = getSeedResult();
 
         await loadWidgetWithToken(page, seed.widgetTokens.client);
@@ -92,9 +92,9 @@ test.describe('Widget feedback flow (real API)', () => {
         await page.locator('.trigger-btn').click();
         await expect(page.locator('.popup')).toBeVisible({ timeout: 5_000 });
 
-        // Switch directly to the feedbacks tab (no email prompt to clear first)
+        // Switch directly to the feedback tab (no email prompt to clear first)
         await expect(page.locator('#vv-textarea')).toBeVisible({ timeout: 5_000 });
-        await page.locator('.nav-item[data-view="feedbacks"]').click();
+        await page.locator('.nav-item[data-view="feedback"]').click();
 
         // Should see at least one feedback item
         await expect(page.locator('.feedback-item').first()).toBeVisible({ timeout: 10_000 });
@@ -112,9 +112,9 @@ test.describe('Dashboard feedback interaction', () => {
 
         // Click the first feedback card to open detail view
         const firstCard = page.locator('a[href*="/dashboard/feedback"]').first();
-        const hasFeedbacks = await firstCard.isVisible().catch(() => false);
-        if (!hasFeedbacks) {
-            test.skip(true, 'No feedbacks found — run widget tests first');
+        const hasFeedback = await firstCard.isVisible().catch(() => false);
+        if (!hasFeedback) {
+            test.skip(true, 'No feedback found — run widget tests first');
             return;
         }
 
