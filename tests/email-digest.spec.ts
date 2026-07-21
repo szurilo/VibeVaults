@@ -160,7 +160,7 @@ test.describe('shouldSendReplyImmediately', () => {
             ).toBe(true);
         } finally {
             // Cleanup — notifications were created by notify_new_reply on insert,
-            // so wipe those first along with the feedbacks.
+            // so wipe those first along with the feedback.
             await supabaseAdmin
                 .from('notifications')
                 .delete()

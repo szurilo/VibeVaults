@@ -37,7 +37,7 @@ export function DeleteWorkspaceCard({ workspace }: DeleteWorkspaceCardProps) {
     return (
         <DangerZoneCard
             entityName="Workspace"
-            description={<>Permanently delete <span className="font-semibold text-gray-700">{workspace.name}</span>, all its projects, and all the feedbacks within those projects.</>}
+            description={<>Permanently delete <span className="font-semibold text-gray-700">{workspace.name}</span>, all its projects, and all the feedback within those projects.</>}
             dialogTitle={`Delete workspace "${workspace.name}"?`}
             dialogDescription="This action cannot be undone. This will permanently delete your workspace, all projects contained within it, and all feedback inside those projects."
             onDelete={handleDeleteWorkspace}

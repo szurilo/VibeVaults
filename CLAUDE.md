@@ -151,7 +151,7 @@ tests/              # Playwright E2E tests
 |---|---|---|
 | `/api/widget` | GET/POST | Widget config + feedback submission (Bearer token required) |
 | `/api/widget/identity/exchange` | POST | Swap a `workspace_invites.id` for a per-device widget token (client bootstrap) |
-| `/api/widget/feedbacks` | GET | List feedbacks for widget (includes reply_count) |
+| `/api/widget/feedback` | GET | List feedback for widget (includes reply_count) |
 | `/api/widget/reply` | POST | Widget reply submission |
 | `/api/widget/upload` | POST | Request presigned upload URLs for widget attachments |
 | `/api/widget/upload/confirm` | POST | Confirm widget uploads + create DB records (verifies actual file size/type) |

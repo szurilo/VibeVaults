@@ -28,7 +28,7 @@ export function DeleteProjectCard({ project }: DeleteProjectCardProps) {
     return (
         <DangerZoneCard
             entityName="Project"
-            description={<>Permanently delete <span className="font-semibold text-gray-700">{project.name}</span> and all its feedbacks.</>}
+            description={<>Permanently delete <span className="font-semibold text-gray-700">{project.name}</span> and all its feedback.</>}
             dialogTitle={`Delete project "${project.name}"?`}
             dialogDescription="This action cannot be undone. This will permanently delete your project and all the feedback associated with it."
             onDelete={handleDeleteProject}

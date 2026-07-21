@@ -24,9 +24,9 @@ export default async function FeedbackListPage({ searchParams }: { searchParams:
     // Use selected project or default to the first one
     const currentProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
 
-    // Fetch feedbacks with reply and attachment counts
+    // Fetch feedback with reply and attachment counts
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let feedbacks: any[] = [];
+    let feedback: any[] = [];
     let senderAvatars: Record<string, string> = {};
     if (currentProject) {
         const { data } = await supabase
@@ -35,7 +35,7 @@ export default async function FeedbackListPage({ searchParams }: { searchParams:
             .eq('project_id', currentProject.id)
             .order('created_at', { ascending: false });
         if (data) {
-            feedbacks = data.map(f => ({
+            feedback = data.map(f => ({
                 ...f,
                 reply_count: f.feedback_replies?.[0]?.count ?? 0,
                 attachment_count: f.feedback_attachments?.[0]?.count ?? 0,
@@ -51,7 +51,7 @@ export default async function FeedbackListPage({ searchParams }: { searchParams:
             {deleted === "1" && <FeedbackDeletedToast />}
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-semibold text-gray-900 flex items-center flex-wrap gap-2">
-                    Feedbacks {currentProject && (
+                    Feedback {currentProject && (
                         <>
                             <span className="text-gray-400 font-normal">/ {currentProject.name}</span>
                         </>
@@ -68,12 +68,12 @@ export default async function FeedbackListPage({ searchParams }: { searchParams:
                 <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-12 text-center">
                     <p className="text-gray-500">Create a project first to view feedback.</p>
                 </div>
-            ) : feedbacks.length === 0 ? (
+            ) : feedback.length === 0 ? (
                 <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-12 text-center">
                     <p className="text-gray-500">No feedback received yet.</p>
                 </div>
             ) : (
-                <FeedbackList feedbacks={feedbacks} senderAvatars={senderAvatars} />
+                <FeedbackList feedbackItems={feedback} senderAvatars={senderAvatars} />
             )}
         </div>
     );

@@ -84,7 +84,7 @@ Vercel deploys are atomic and zero-downtime, so shipping while users are active 
 - **Unused-token cleanup**: nightly pg_cron job deletes `widget_identities WHERE last_used_at IS NULL AND created_at < now() - interval '30 days'`. Active sessions never touched.
 - **Screenshot functionality in replies**: Widget replies support screenshots and file attachments.
 - **Attachment support in replies**: Reply endpoint returns `replyId` for subsequent attachment uploads; allows empty text if attachments present.
-- **Completed feedbacks hidden from widget**: Only shows `open`, `in progress`, `in review` statuses.
+- **Completed feedback hidden from widget**: Only shows `open`, `in progress`, `in review` statuses.
 - **Rate limiting**: 30 req/min per IP on all widget endpoints (`src/lib/widget-helpers.ts`). Auto-cleans expired entries every 5 minutes.
 - **Content limits**: 5000 chars max for feedback/reply content.
 - **Trial gate**: `validateApiKey()` checks owner's subscription/trial status — widget returns 403 post-trial.
@@ -127,7 +127,7 @@ Vercel deploys are atomic and zero-downtime, so shipping while users are active 
 - Read-only project board sharing via tokenised links (`/share/[token]`). Managed in `ShareProjectCard` with server actions in `actions/project-sharing.ts`.
 
 ### File Attachments (Presigned URL Flow)
-- Full attachment support for feedbacks and replies. `feedback_attachments` table stores file metadata (name, URL, size, MIME type, uploader). Files stored in Supabase Storage (`feedback-attachments` bucket).
+- Full attachment support for feedback and replies. `feedback_attachments` table stores file metadata (name, URL, size, MIME type, uploader). Files stored in Supabase Storage (`feedback-attachments` bucket).
 - **Presigned URL upload flow** (bypasses Vercel's 4.5MB serverless body size limit on Hobby plan):
   1. Client sends file metadata (names, sizes, MIME types) to `/api/widget/upload` or `/api/dashboard/upload` — tiny JSON payload.
   2. API validates (auth, API key, tier/storage limits, file types/sizes) and returns presigned Supabase Storage URLs via `createSignedUploadUrl()`.
@@ -267,7 +267,7 @@ Vercel deploys are atomic and zero-downtime, so shipping while users are active 
 |---|---|---|
 | `/api/widget` | GET/POST | Widget config + feedback submission (Bearer token required) |
 | `/api/widget/identity/exchange` | POST | Swap a `workspace_invites.id` for a per-device widget token (client bootstrap) |
-| `/api/widget/feedbacks` | GET | List feedbacks for widget (includes reply_count, attachments, excludes completed) |
+| `/api/widget/feedback` | GET | List feedback for widget (includes reply_count, attachments, excludes completed) |
 | `/api/widget/reply` | POST | Submit reply from widget chat (supports attachments, returns replyId) |
 | `/api/widget/upload` | POST | Request presigned upload URLs for widget attachments |
 | `/api/widget/upload/confirm` | POST | Confirm widget uploads + create DB records (verifies actual file size/type) |
@@ -314,7 +314,7 @@ Vercel deploys are atomic and zero-downtime, so shipping while users are active 
 | `projects` | Projects within workspaces (name, `website_url`, `api_key`, `share_token`, `is_sharing_enabled`) |
 | `feedbacks` | User-submitted feedback entries with status, metadata, screenshots |
 | `feedback_replies` | Threaded replies on feedback items (real-time enabled) |
-| `feedback_attachments` | File attachments for feedbacks/replies (name, URL, size, MIME type, uploader) |
+| `feedback_attachments` | File attachments for feedback/replies (name, URL, size, MIME type, uploader) |
 | `widget_errors` | Widget-side error reports (api_key, message, stack, url, user_agent, metadata, created_at) |
 | `notifications` | In-app notification records. `project_id` is nullable for workspace-level notifications |
 | `email_preferences` | Per-user email notification preferences (keyed by email). Includes `email_frequency` (`digest`/`realtime`) |

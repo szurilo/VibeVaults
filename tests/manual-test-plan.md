@@ -18,7 +18,7 @@ Legend: **O** = Owner, **M** = Member, **C** = Client. "User A/B/C" = distinct a
 | 6 | Rename workspace — unsaved changes guard | Edit name, navigate away without saving | `beforeunload` warning appears |
 | 7 | Upload workspace logo | Upload a PNG | Logo appears in sidebar and workspace switcher |
 | 8 | Remove workspace logo | Remove uploaded logo | Default placeholder shown everywhere |
-| 9 | Delete workspace with projects | As O, delete a workspace containing projects + feedback | All projects, feedbacks, replies, attachments, invites, members cascade-deleted |
+| 9 | Delete workspace with projects | As O, delete a workspace containing projects + feedback | All projects, feedback, replies, attachments, invites, members cascade-deleted |
 | 10 | Delete only workspace | Owner with a single workspace deletes it | Blocked OR auto-creates a new one — verify behavior is consistent and user isn't stranded |
 | 11 | Member cannot rename workspace | As M, open workspace settings | Rename control hidden/disabled; API rejects if forced |
 | 12 | Client cannot see workspace settings | As C, try to open `/dashboard/settings` | Redirect or 403; no workspace admin controls |
@@ -104,7 +104,7 @@ Legend: **O** = Owner, **M** = Member, **C** = Client. "User A/B/C" = distinct a
 
 | # | Title | Steps | Expected |
 |---|---|---|---|
-| 65 | List feedbacks | Open project with mixed statuses | All items listed, default sort is stable |
+| 65 | List feedback | Open project with mixed statuses | All items listed, default sort is stable |
 | 66 | Status filter | Filter by "completed" | Only completed shown |
 | 67 | Change feedback status | Owner moves feedback new→completed | Updates optimistically; DB reflects; other users see via Realtime |
 | 68 | Reply to feedback (owner) | Post reply | Reply appears; reply count increments; widget user gets email (if real) |
@@ -125,7 +125,7 @@ Legend: **O** = Owner, **M** = Member, **C** = Client. "User A/B/C" = distinct a
 | # | Title | Steps | Expected |
 |---|---|---|---|
 | 80 | New-feedback bell | External widget submits feedback | Bell badge increments in real time for all staff |
-| 81 | Digest window | Two feedbacks within 15 min to same recipient/project | First email immediate; second queued; cron sends batched |
+| 81 | Digest window | Two feedback items within 15 min to same recipient/project | First email immediate; second queued; cron sends batched |
 | 82 | Reply cooldown | Two replies within 10 min on same thread to same recipient | First immediate; second queued |
 | 83 | Realtime frequency (future) | Set `email_frequency=realtime` | Each event emails immediately (if feature enabled) |
 | 84 | Localhost email suppression | Dev env, submit feedback | No emails sent regardless of prefs |

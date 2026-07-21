@@ -14,7 +14,7 @@
 
     const API_BASE = `${origin}/api/widget`;
     const API_REPLY = `${origin}/api/widget/reply`;
-    const API_FEEDBACKS = `${origin}/api/widget/feedbacks`;
+    const API_FEEDBACK = `${origin}/api/widget/feedback`;
     const API_STREAM = `${origin}/api/widget/stream`;
     const API_UPLOAD = `${origin}/api/widget/upload`;
     const API_UPLOAD_CONFIRM = `${origin}/api/widget/upload/confirm`;
@@ -77,7 +77,7 @@
     };
 
     let selectedFeedbackId = null;
-    let cachedFeedbacks = [];
+    let cachedFeedback = [];
     let pollInterval = null;
     let listPollInterval = null;
     let eventSource = null;
@@ -362,9 +362,9 @@
     textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; background: white; color: #1f2937; }
     .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
 
-    /* Feedbacks list */
-    .view-feedbacks { display: none; flex-direction: column; height: 100%; }
-    .feedbacks-list { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+    /* Feedback list */
+    .view-feedback { display: none; flex-direction: column; height: 100%; }
+    .feedback-list { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
     .feedback-item {
       padding: 14px 20px; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: background 0.15s;
     }
@@ -386,9 +386,9 @@
     .feedback-footer { display: flex; align-items: center; justify-content: space-between; }
     .feedback-sender { font-size: 11px; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
     .feedback-replies { font-size: 11px; color: #6b7280; display: flex; align-items: center; gap: 4px; }
-    .feedbacks-empty { padding: 40px 20px; text-align: center; color: #9ca3af; }
-    .feedbacks-empty-icon { width: 40px; height: 40px; background: #f3f4f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
-    .feedbacks-loading { padding: 40px 20px; text-align: center; color: #9ca3af; font-size: 13px; }
+    .feedback-empty { padding: 40px 20px; text-align: center; color: #9ca3af; }
+    .feedback-empty-icon { width: 40px; height: 40px; background: #f3f4f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+    .feedback-loading { padding: 40px 20px; text-align: center; color: #9ca3af; font-size: 13px; }
 
     /* Conversation detail */
     .view-detail { display: none; flex-direction: column; height: 100%; }
@@ -503,7 +503,7 @@
       </div>
       <div class="nav">
         <div class="nav-item active" data-view="form">New</div>
-        <div class="nav-item" data-view="feedbacks">Feedbacks</div>
+        <div class="nav-item" data-view="feedback">Feedback</div>
       </div>
       <div class="content">
         <div class="view-form">
@@ -531,15 +531,15 @@
             <button class="btn" id="vv-submit" style="width: 100%;">Send Feedback</button>
           </div>
         </div>
-        <div class="view-feedbacks">
-          <div class="feedbacks-list" id="vv-feedbacks-list">
-            <div class="feedbacks-loading">Loading feedbacks...</div>
+        <div class="view-feedback">
+          <div class="feedback-list" id="vv-feedback-list">
+            <div class="feedback-loading">Loading feedback...</div>
           </div>
         </div>
         <div class="view-detail">
           <button class="back-btn" id="vv-back-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            All Feedbacks
+            All Feedback
           </button>
           <div class="detail-header" id="vv-detail-header"></div>
           <div class="chat-messages" id="vv-chat"></div>
@@ -632,13 +632,13 @@
     const switchView = (v) => {
       wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === v));
       wrapper.querySelector('.view-form').style.display = v === 'form' ? 'flex' : 'none';
-      wrapper.querySelector('.view-feedbacks').style.display = v === 'feedbacks' ? 'flex' : 'none';
+      wrapper.querySelector('.view-feedback').style.display = v === 'feedback' ? 'flex' : 'none';
       wrapper.querySelector('.view-detail').style.display = v === 'detail' ? 'flex' : 'none';
       wrapper.querySelector('#vv-success').style.display = v === 'success' ? 'block' : 'none';
       const popup = wrapper.querySelector('.popup');
       popup.classList.toggle('compact', v === 'form' || v === 'success');
       popup.classList.toggle('tall', v === 'detail');
-      if (v === 'feedbacks') { fetchAllFeedbacks(); startListPolling(); } else { stopListPolling(); }
+      if (v === 'feedback') { fetchAllFeedback(); startListPolling(); } else { stopListPolling(); }
       if (v === 'detail') { startStream(); } else { stopStream(); stopPolling(); }
     };
 
@@ -652,7 +652,7 @@
       setWidgetVisible(false);
     };
 
-    // --- Feedbacks list ---
+    // --- Feedback list ---
     const getStatusClass = (status) => {
       const s = (status || 'open').toLowerCase();
       if (s === 'in progress') return 'in-progress';
@@ -665,46 +665,46 @@
       return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     };
 
-    const fetchAllFeedbacks = async () => {
-      const listEl = wrapper.querySelector('#vv-feedbacks-list');
+    const fetchAllFeedback = async () => {
+      const listEl = wrapper.querySelector('#vv-feedback-list');
       // Only show loading spinner if list is empty (first load), not on poll refreshes
       if (!listEl.querySelector('.feedback-item')) {
-        listEl.innerHTML = '<div class="feedbacks-loading">Loading feedbacks...</div>';
+        listEl.innerHTML = '<div class="feedback-loading">Loading feedback...</div>';
       }
       try {
-        const res = await fetch(`${API_FEEDBACKS}?key=${apiKey}`, { headers: authHeaders() });
+        const res = await fetch(`${API_FEEDBACK}?key=${apiKey}`, { headers: authHeaders() });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           if (res.status === 401 || res.status === 403) {
             handleAuthRevocation();
             return;
           }
-          listEl.innerHTML = `<div class="feedbacks-loading">${err.error || 'Failed to load feedbacks.'}</div>`;
+          listEl.innerHTML = `<div class="feedback-loading">${err.error || 'Failed to load feedback.'}</div>`;
           return;
         }
         const data = await res.json();
-        if (data.feedbacks && data.feedbacks.length > 0) {
-          cachedFeedbacks = data.feedbacks;
-          renderFeedbacksList(data.feedbacks);
+        if (data.feedback && data.feedback.length > 0) {
+          cachedFeedback = data.feedback;
+          renderFeedbackList(data.feedback);
         } else {
           listEl.innerHTML = `
-          <div class="feedbacks-empty">
-            <div class="feedbacks-empty-icon">
+          <div class="feedback-empty">
+            <div class="feedback-empty-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
             </div>
-            <p style="font-weight:600;margin:0 0 4px;font-size:13px;color:#6b7280">No feedbacks yet</p>
+            <p style="font-weight:600;margin:0 0 4px;font-size:13px;color:#6b7280">No feedback yet</p>
             <p style="font-size:12px;margin:0">Switch to "New" to submit your first one.</p>
           </div>
         `;
         }
       } catch (e) {
-        listEl.innerHTML = '<div class="feedbacks-loading">Failed to load feedbacks.</div>';
+        listEl.innerHTML = '<div class="feedback-loading">Failed to load feedback.</div>';
       }
     };
 
-    const renderFeedbacksList = (feedbacks) => {
-      const listEl = wrapper.querySelector('#vv-feedbacks-list');
-      const html = feedbacks.map(f => `
+    const renderFeedbackList = (feedback) => {
+      const listEl = wrapper.querySelector('#vv-feedback-list');
+      const html = feedback.map(f => `
       <div class="feedback-item" data-id="${f.id}">
         <div class="feedback-item-header">
           <span class="feedback-status ${getStatusClass(f.status)}">${f.status || 'open'}</span>
@@ -729,7 +729,7 @@
     // --- Feedback detail / conversation ---
     const openFeedbackDetail = (feedbackId) => {
       selectedFeedbackId = feedbackId;
-      const feedback = cachedFeedbacks.find(f => f.id === feedbackId);
+      const feedback = cachedFeedback.find(f => f.id === feedbackId);
 
       // Render detail header with feedback-level attachments
       const headerEl = wrapper.querySelector('#vv-detail-header');
@@ -757,11 +757,11 @@
       renderReplySection();
 
       // Switch to detail view and fetch replies
-      wrapper.querySelector('.view-feedbacks').style.display = 'none';
+      wrapper.querySelector('.view-feedback').style.display = 'none';
       wrapper.querySelector('.view-detail').style.display = 'flex';
       wrapper.querySelector('.popup').classList.add('tall');
-      // Highlight feedbacks tab in nav
-      wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === 'feedbacks'));
+      // Highlight feedback tab in nav
+      wrapper.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.view === 'feedback'));
       fetchReplies();
       startStream();
     };
@@ -815,9 +815,9 @@
       stopStream();
       stopPolling();
       wrapper.querySelector('.view-detail').style.display = 'none';
-      wrapper.querySelector('.view-feedbacks').style.display = 'flex';
+      wrapper.querySelector('.view-feedback').style.display = 'flex';
       wrapper.querySelector('.popup').classList.remove('tall');
-      fetchAllFeedbacks(); // Refresh list
+      fetchAllFeedback(); // Refresh list
       startListPolling();
     };
 
@@ -915,7 +915,7 @@
               detailStatus.textContent = status || 'open';
             }
             // Update cached feedback so going back to list reflects the change
-            const cached = cachedFeedbacks.find(f => f.id === selectedFeedbackId);
+            const cached = cachedFeedback.find(f => f.id === selectedFeedbackId);
             if (cached) cached.status = status;
           } catch (err) { console.error('[VibeVaults] Failed to parse status update:', err); }
         });
@@ -947,7 +947,7 @@
     const startPolling = () => { stopPolling(); pollInterval = setInterval(fetchReplies, 5000); };
     const stopPolling = () => { if (pollInterval) clearInterval(pollInterval); pollInterval = null; };
 
-    const startListPolling = () => { stopListPolling(); listPollInterval = setInterval(fetchAllFeedbacks, 10000); };
+    const startListPolling = () => { stopListPolling(); listPollInterval = setInterval(fetchAllFeedback, 10000); };
     const stopListPolling = () => { if (listPollInterval) clearInterval(listPollInterval); listPollInterval = null; };
 
     const stopAll = () => { stopStream(); stopPolling(); stopListPolling(); };
@@ -1393,8 +1393,8 @@
     };
     wrapper.querySelector('#vv-back-btn').onclick = goBackToList;
     wrapper.querySelectorAll('.nav-item').forEach(i => i.onclick = () => {
-      if (i.dataset.view === 'feedbacks' && selectedFeedbackId) {
-        // If user is in detail view and clicks "Feedbacks" tab, go back to list
+      if (i.dataset.view === 'feedback' && selectedFeedbackId) {
+        // If user is in detail view and clicks "Feedback" tab, go back to list
         goBackToList();
       }
       switchView(i.dataset.view);
