@@ -21,6 +21,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { issueWidgetIdentity } from '@/lib/widget-helpers';
 import { sendWidgetAccessRecoveryEmail } from '@/lib/notifications';
 import { headers } from 'next/headers';
+import { after } from 'next/server';
 
 // In-memory rate limiter for the public recovery action. Per-process,
 // resets on cold start — fine for v1, swap for Redis if abuse appears.
@@ -151,9 +152,16 @@ export async function requestWidgetAccessRecovery(email: string): Promise<Reques
         return { ok: false, reason: 'rate_limited' };
     }
 
+    const requestedAt = new Date();
+
     // From here on, log errors but always return ok:true to prevent
     // enumeration of which emails are valid invitees / members.
-    void (async () => {
+    //
+    // `after()` (not a bare fire-and-forget promise) so the runtime keeps the
+    // invocation alive until the send finishes. An un-awaited promise races
+    // the response: once the action returns, a serverless instance can be
+    // frozen mid-send and the email is silently lost.
+    after(async () => {
         try {
             const admin = createAdminClient();
 
@@ -229,12 +237,12 @@ export async function requestWidgetAccessRecovery(email: string): Promise<Reques
             }
 
             if (items.length > 0) {
-                await sendWidgetAccessRecoveryEmail({ to: normalisedEmail, items });
+                await sendWidgetAccessRecoveryEmail({ to: normalisedEmail, items, requestedAt });
             }
         } catch (e) {
             console.error('requestWidgetAccessRecovery: background failure', e);
         }
-    })();
+    });
 
     return { ok: true };
 }

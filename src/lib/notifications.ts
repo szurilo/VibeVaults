@@ -41,6 +41,7 @@ function emailRedirectUrl(params: {
 interface SendWidgetAccessRecoveryParams {
     to: string;
     items: { projectName: string; workspaceName: string; url: string }[];
+    requestedAt?: Date;
 }
 
 /**
@@ -51,8 +52,14 @@ interface SendWidgetAccessRecoveryParams {
  *
  * For privacy: this is only sent if at least one item exists; the recovery
  * page itself returns a generic response either way to prevent enumeration.
+ *
+ * `requestedAt` is rendered into the body on purpose. Client invitees get the
+ * same persistent `?vv_invite=` URL on every request, so without it two
+ * recovery emails to the same inbox are byte-identical — Gmail collapses the
+ * later copy as a duplicate of the one already in the thread and the user
+ * never sees it. The timestamp also tells the recipient which email is newest.
  */
-export async function sendWidgetAccessRecoveryEmail({ to, items }: SendWidgetAccessRecoveryParams) {
+export async function sendWidgetAccessRecoveryEmail({ to, items, requestedAt = new Date() }: SendWidgetAccessRecoveryParams) {
     if (items.length === 0) return { data: null, error: null };
 
     const itemsHtml = items.map(item => `
@@ -77,6 +84,9 @@ export async function sendWidgetAccessRecoveryEmail({ to, items }: SendWidgetAcc
                         </p>
                         ${itemsHtml}
                         <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
+                            <p style="font-size: 12px; color: #a0aec0; margin: 0 0 12px;">
+                                Requested ${esc(requestedAt.toUTCString())}
+                            </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 You received this because someone — possibly you — requested fresh widget access links for this email at <a href="${BASE_URL}/access" style="color: #209CEE; text-decoration: none;">${BASE_URL.replace(/^https?:\/\//, '')}/access</a>. If that wasn't you, you can ignore this email.<br><br>
                                 If you have questions, reach out to
