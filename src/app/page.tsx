@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Linkedin } from "lucide-react";
+import { LinkedinIcon } from "@/components/icons/linkedin-icon";
 import { CookiePreferencesLink } from "@/components/CookiePreferencesLink";
 import { ProductDemo } from "@/components/landing/product-demo";
 import { ROICalculator } from "@/components/landing/roi-calculator";
@@ -7,6 +7,7 @@ import { BentoFeatures } from "@/components/landing/bento-features";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { FounderNote } from "@/components/landing/founder-note";
 import { PricingCards } from "@/components/landing/pricing-cards";
+import { Faq } from "@/components/landing/faq";
 
 export default function Home() {
   return (
@@ -147,6 +148,9 @@ export default function Home() {
             </Link>
           </div>
         </section>
+
+        {/* FAQ */}
+        <Faq />
       </main>
 
       <footer className="py-8 w-full border-t border-gray-100 bg-white">
@@ -169,7 +173,7 @@ export default function Home() {
               aria-label="VibeVaults on LinkedIn"
               className="hover:text-primary transition-colors inline-flex items-center md:ml-4"
             >
-              <Linkedin className="w-4 h-4" />
+              <LinkedinIcon className="w-4 h-4" />
             </a>
           </div>
         </div>

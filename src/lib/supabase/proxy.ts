@@ -84,7 +84,8 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.startsWith('/share') &&
         !request.nextUrl.pathname.startsWith('/access') &&
         !request.nextUrl.pathname.includes('sitemap.xml') &&
-        !request.nextUrl.pathname.includes('robots.txt')
+        !request.nextUrl.pathname.includes('robots.txt') &&
+        !request.nextUrl.pathname.includes('llms.txt')
     ) {
         // If it's a non-GET/HEAD unauthenticated request (frequently bots), return 401 immediately
         // to avoid 405 errors caused by method-preserving redirects.
