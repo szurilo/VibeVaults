@@ -134,7 +134,23 @@
       "Bash(sed -i -e 's:| `/api/widget/feedbacks` | GET | List feedbacks for widget:| `/api/widget/feedback` | GET | List feedback for widget:' -e 's|Completed feedbacks hidden from widget|Completed feedback hidden from widget|' -e 's|Full attachment support for feedbacks and replies|Full attachment support for feedback and replies|' -e 's|File attachments for feedbacks/replies|File attachments for feedback/replies|' .agents/project_summary.md)",
       "Bash(node -e \"const s=require\\('./package.json'\\).scripts; console.log\\(JSON.stringify\\(s,null,2\\)\\)\")",
       "Bash(node --check public/widget.js)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/lucide-react/package.json'\\).version\\)\")",
+      "WebFetch(domain:dev.events)",
+      "WebFetch(domain:www.startuphungary.io)",
+      "Bash(awk '/function getMetadata/,/^    }/' /home/jozsef/repo/VibeVaults/public/widget.js)",
+      "WebFetch(domain:integralvision.hu)",
+      "WebFetch(domain:www.mndwrk.com)",
+      "WebFetch(domain:everengine.com)",
+      "WebFetch(domain:studiodd.hu)",
+      "WebFetch(domain:dpc.hu)",
+      "WebFetch(domain:www.vantgarddigital.hu)",
+      "WebFetch(domain:white-flow.webflow.io)",
+      "WebFetch(domain:fluiddesign.pro)",
+      "WebFetch(domain:www.skywwward.com)",
+      "WebFetch(domain:www.socialsee.co)",
+      "Bash(ls /c/Joco/VibeVaults/src/components/ui | head -40; echo ---; ls /c/Joco/VibeVaults/src/components/landing)",
+      "Read(//c/Joco/VibeVaults/src/components/**)"
     ]
   }
 }

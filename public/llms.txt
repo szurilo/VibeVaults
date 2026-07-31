@@ -1,0 +1,24 @@
+# VibeVaults
+
+> VibeVaults is a visual feedback widget for websites, built for web agencies, dev studios, and freelancers who build client sites. Clients click on any part of a live website and leave feedback exactly where it belongs, with a screenshot and technical metadata captured automatically. No client accounts, no browser extensions, no per-client fees.
+
+Key facts:
+
+- Setup: paste a single script tag into any website (WordPress, Webflow, Shopify, React, or plain HTML). Setup takes minutes.
+- Clients never create an account or install anything. They open an emailed invite link and the widget appears on the site.
+- Feedback includes an automatic screenshot plus browser, OS, and screen size metadata. Threads support real-time chat between the agency and the client.
+- Teams manage all feedback in a shared dashboard with role-based access (owners, members, clients). Pro and Business plans include a public read-only dashboard for stakeholders.
+- Pricing: Starter $29/month, Pro $49/month, Business $149/month. Yearly billing saves 20%. Every plan starts with a 14-day free trial, no credit card required. There is no free tier, and there are never per-client or per-feedback fees.
+- Integrations with project management tools are not available yet; all feedback lives in the VibeVaults dashboard.
+- VibeVaults is not a survey tool or an end-user bug tracker. It is a client collaboration tool for the people who build and review websites.
+
+## Pages
+
+- [Homepage](https://www.vibe-vaults.com/): product overview, features, demo video, and FAQ
+- [Pricing](https://www.vibe-vaults.com/pricing): full plan comparison and feature matrix
+- [Widget access recovery](https://www.vibe-vaults.com/access): for invited clients and team members who lost their widget access link
+
+## Legal
+
+- [Terms of Service](https://www.vibe-vaults.com/terms-of-service)
+- [Privacy Policy](https://www.vibe-vaults.com/privacy-policy)

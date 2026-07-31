@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Check, X, Linkedin } from 'lucide-react';
+import { Check, X } from 'lucide-react';
+import { LinkedinIcon } from '@/components/icons/linkedin-icon';
 import { PricingCards } from '@/components/landing/pricing-cards';
 import { CookiePreferencesLink } from '@/components/CookiePreferencesLink';
 import { FEATURE_COMPARISON } from '@/lib/tier-config';
@@ -159,7 +160,7 @@ export default function PricingPage() {
                             aria-label="VibeVaults on LinkedIn"
                             className="hover:text-primary transition-colors inline-flex items-center md:ml-4"
                         >
-                            <Linkedin className="w-4 h-4" />
+                            <LinkedinIcon className="w-4 h-4" />
                         </a>
                     </div>
                 </div>
