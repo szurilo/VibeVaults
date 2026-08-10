@@ -81,6 +81,7 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.startsWith('/privacy-policy') &&
         !request.nextUrl.pathname.startsWith('/terms-of-service') &&
         !request.nextUrl.pathname.startsWith('/pricing') &&
+        !request.nextUrl.pathname.startsWith('/compare') &&
         !request.nextUrl.pathname.startsWith('/share') &&
         !request.nextUrl.pathname.startsWith('/access') &&
         !request.nextUrl.pathname.includes('sitemap.xml') &&

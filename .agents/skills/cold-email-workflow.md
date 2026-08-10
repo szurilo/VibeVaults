@@ -10,7 +10,7 @@ Use this when József sends a batch of company URLs + Apollo contacts and asks f
 - **One ask per email.** Single offer (3-month Pro access as a reference customer), single CTA ("Worth 10 minutes to take a look?"). No menu of options.
 - **Never lead with "free".** Not in the subject, not as the opening of the deal paragraph. Premium agencies respond to value and selection, not giveaways. The free part is compensation inside the trade, stated after the reference-customer framing.
 - **Use Version B** (trade upfront) unless the user explicitly asks for Version A. Pre-agreed: case study trade has to be in the deal from day one, not introduced after they say yes.
-- **Feature accuracy (do not overstate):** screenshots are **user-initiated and annotated** (the client takes one and marks the exact issue on it), NOT auto-captured. Never write "screenshots auto-captured." Browser context / metadata **is** attached automatically, that claim is accurate and fine to use.
+- **Feature accuracy (the exact model, do not drift either way):** the single user action is **tagging the problem element on the page**. From that one action, a **screenshot is captured automatically**, and browser context (browser, console logs, viewport, URL) attaches automatically too. So avoid BOTH wrong directions: (a) never imply the user manually takes a screenshot via a button/keypress ("grab/take a screenshot"), and (b) never imply screenshots appear with zero user action, e.g. "screenshots auto-captured" as if on every submit. The accurate anchor, use this phrasing: **tag the element → screenshot + browser context + console logs auto-attach.** The Hungarian gold-standard email below (line ~89) is the correct reference: *"megjelölik a problémát a képernyőn, erről automatikusan készül egy screenshot."*
 
 ## The standard email template (Version B)
 
@@ -49,15 +49,15 @@ vibe-vaults.com
 
 **V1:**
 
-> Quick offer. I built a client feedback widget that embeds with one line of JS. Clients and UAT testers submit bugs and ideas in-context, marking the exact issue on a screenshot, with browser context captured automatically. Your team replies in real time inside the same widget. Designed for the UAT and post-launch feedback phase that usually fragments across email, Slack, and random screenshots in Teams.
+> Quick offer. I built a client feedback widget that embeds with one line of JS. Clients and UAT testers submit bugs and ideas in-context: they tag the exact issue on the page, and a screenshot plus full browser context are captured automatically. Your team replies in real time inside the same widget. Designed for the UAT and post-launch feedback phase that usually fragments across email, Slack, and random screenshots in Teams.
 
 **V2:**
 
-> Quick offer. I built VibeVaults: a feedback widget that drops onto any project with a single script tag. Clients and beta testers report bugs or ideas right inside the page, mark the issue on a screenshot, and the browser context comes attached automatically. Your team chats back in real time inside the same widget. The whole thing is built around the UAT and post-launch window, where feedback usually scatters across inboxes and Slack threads.
+> Quick offer. I built VibeVaults: a feedback widget that drops onto any project with a single script tag. Clients and beta testers report bugs or ideas right inside the page: they tag the issue, and a screenshot and browser context come attached automatically. Your team chats back in real time inside the same widget. The whole thing is built around the UAT and post-launch window, where feedback usually scatters across inboxes and Slack threads.
 
 **V3:**
 
-> Quick offer. My product, VibeVaults is a one-line embed that turns scattered client feedback into a single thread. Bugs, ideas, and annotated screenshots come in with full browser context attached, and you respond in real time inside the widget the client is already using. Built for the messy phase right before launch and the support window after it, where most agencies lose track of who reported what.
+> Quick offer. My product, VibeVaults is a one-line embed that turns scattered client feedback into a single thread. The moment a client tags the problem on the page, a screenshot and full browser context are captured automatically, and you respond in real time inside the widget the client is already using. Built for the messy phase right before launch and the support window after it, where most agencies lose track of who reported what.
 
 ## Deal paragraph variants (rotate independently)
 
@@ -83,15 +83,17 @@ József rated this his best email to date. Study its structure when drafting fut
 >
 > Kerestelek LinkedInen is, de az elkerülhette a figyelmed. Engedd meg, hogy most e-mailben raboljalak el 2 percre. József vagyok, a VibeVaults alapítója.
 >
-> Tetszett az "Egy Startup sebességével, nagyvállalati minőségben." szöveg a MindTech nyitóoldalán. Ha erre vállalkoztok, akkor gyanítom, sok, gyorsan mozgó ügyfélprojektetek van, ahol a kliensek visszajelzései könnyebben szétcsúsznak e-mailben, chatben, telefonon.
+> Tetszett az "Egy Startup sebességével, nagyvállalati minőségben." szöveg a MindTech nyitóoldalán. Ha erre vállalkoztok, akkor gyanítom, sok, gyorsan mozgó ügyfélprojektetek van, ahol a kliensek visszajelzései a fejlesztés és tesztelés alatt könnyebben szétcsúsznak e-mailben, chatben, telefonon.
 >
 > Nos, én egy visszajelző widgetet építek ügynökségeknek, ami megoldja ezt a problémát.
 > A lényeg a gyakorlatban: az ügyfeleitek vagy tesztelőitek közvetlenül a fejlesztett oldalon vagy appon hagynak visszajelzést vagy hibajelzést, megjelölik a problémát a képernyőn, erről automatikusan készül egy screenshot, a böngésző-kontextus (böngésző, console log, viewport, URL) pedig szintén automatikusan csatolódik. Így megspórolható a "melyik oldalon, melyik gombnál, milyen böngészőben?" kör. Ti valós időben, egy közös felületen válaszolhattok, és minden visszajelzés a hozzá tartozó beszélgetéssel együtt egy közös dashboardon marad. Kevesebb elkallódott feedback, gyorsabb átfutás, és az ügyfél végig azt látja, hogy ott vagytok.
 > Mindez az ügyfeleknek is nagyon kényelmes. Nincs szükségük fiókra, böngésző bővítményre. Egyszerűen csak meghívjátok őket az appból, kapnak egy emailt benne egy linkkel, kattintanak és már használhatják is a widgetet.
 >
+> Így néz ki működés közben, egy perc: https://www.youtube.com/watch?v=Zeaf79Idd-U
+>
 > Szívesen beállítom nektek ingyen 3 hónapra egy projekten, gyakorlatilag nektek nincs vele dolgotok. Cserébe alapító partnerként három apró dolgot kérnék: logó-engedély (1. hét, persze csak akkor ha elégedettek vagytok a termékkel), egy rövid vélemény (1. hónap, ha még mindig tetszik), és egy 15 perces esettanulmány-beszélgetés (3. hónap). Minden szöveget szívesen megírok, ti csak jóváhagyjátok/módosítjátok, ahogy nektek kényelmesebb. A 3. hónap végén ti döntötök, egészen addig semmi automatikus terhelés, kártya nincs a rendszerben.
 >
-> Belefér egy 10 perces demó, vagy küldjek inkább egy rövid videót?
+> Ha van most olyan projektetek, ahol ki tudnátok próbálni az nagyszerű lenne. Egy call-ban szívesen válaszolok bármilyen kérdésre, vagy írjatok bátran.
 >
 > Üdv,
 > József
@@ -103,7 +105,7 @@ József rated this his best email to date. Study its structure when drafting fut
 - **Dedicated client-convenience paragraph** that pre-empts the #1 agency objection ("clients won't adopt a tool"): no account, no extension, invite → email → click → done.
 - **Reference-customer offer with the asks softened** ("csak akkor ha elégedettek", "ha még mindig tetszik", "minden szöveget én megírok").
 - **Low-friction close** (demo or video), no card, no pressure.
-- Accurate claims throughout (screenshots user-marked, console logs genuinely captured, browser context auto).
+- Accurate claims throughout (client tags the element and the screenshot auto-captures from that, console logs genuinely captured, browser context auto).
 
 Adapt the specifics per company; reuse the *structure*.
 

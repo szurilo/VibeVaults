@@ -127,13 +127,9 @@ export default async function DashboardPage() {
                             Book a free 15-minute setup call with the founder.
                         </a>
                     </p>
-                    <h2 className="font-semibold text-sm mb-1">Regarding billing:</h2>
+                    <h2 className="font-semibold text-sm mb-1">Regarding billing and other issues:</h2>
                     <p className="text-muted-foreground mb-6">
                         Send us an email at <a href="mailto:support@vibe-vaults.com" className="text-primary hover:underline">support@vibe-vaults.com</a>
-                    </p>
-                    <h2 className="font-semibold text-sm mb-1">Regarding other issues:</h2>
-                    <p className="text-muted-foreground">
-                        Please use the widget in the bottom right corner.
                     </p>
                 </CardContent>
             </Card>
