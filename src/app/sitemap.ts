@@ -1,7 +1,23 @@
 import type { MetadataRoute } from 'next'
+import { allComparisons } from '@/lib/compare-data'
 
 export default function sitemap(): MetadataRoute.Sitemap {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL!
+
+    const compareUrls: MetadataRoute.Sitemap = [
+        {
+            url: `${baseUrl}/compare`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.7,
+        },
+        ...allComparisons.map((c) => ({
+            url: `${baseUrl}/compare/${c.slug}`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly' as const,
+            priority: 0.7,
+        })),
+    ]
 
     return [
         {
@@ -16,6 +32,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
             changeFrequency: 'monthly',
             priority: 0.8,
         },
+        ...compareUrls,
         {
             url: `${baseUrl}/terms-of-service`,
             lastModified: new Date(),

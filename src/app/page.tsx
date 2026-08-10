@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { LinkedinIcon } from "@/components/icons/linkedin-icon";
-import { CookiePreferencesLink } from "@/components/CookiePreferencesLink";
+import { SiteHeader } from "@/components/landing/site-header";
+import { SiteFooter } from "@/components/landing/site-footer";
 import { ProductDemo } from "@/components/landing/product-demo";
 import { ROICalculator } from "@/components/landing/roi-calculator";
 import { BentoFeatures } from "@/components/landing/bento-features";
@@ -23,34 +23,7 @@ export default function Home() {
         </Link>
       </div>
 
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="px-4 md:px-8 py-4 flex justify-between items-center max-w-7xl mx-auto w-full">
-          <div className="flex-1">
-            <Link href="/" className="font-bold text-xl md:text-2xl tracking-tight text-primary hover:opacity-90 transition-opacity whitespace-nowrap">
-              VibeVaults
-            </Link>
-          </div>
-          <nav className="hidden md:flex gap-8 flex-1 justify-center">
-            <Link href="#features" className="text-sm font-semibold text-gray-600 hover:text-primary transition-all duration-200">
-              Features
-            </Link>
-            <Link href="#how-it-works" className="text-sm font-semibold text-gray-600 hover:text-primary transition-all duration-200">
-              How it works
-            </Link>
-            <Link href="/pricing" className="text-sm font-semibold text-gray-600 hover:text-primary transition-all duration-200">
-              Pricing
-            </Link>
-          </nav>
-          <div className="flex gap-2 md:gap-4 items-center flex-1 justify-end">
-            <Link href="/auth/login" className="text-sm font-semibold px-3 py-2 md:px-4 text-gray-700 hover:text-gray-900 transition-colors whitespace-nowrap">
-              Sign In
-            </Link>
-            <Link href="/auth/register" className="inline-flex items-center justify-center px-4 py-2 md:px-5 md:py-2.5 rounded-full font-bold text-sm transition-all duration-300 bg-secondary text-white hover:bg-secondary/90 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap">
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="flex-1 flex flex-col items-center">
         <script
@@ -153,31 +126,7 @@ export default function Home() {
         <Faq />
       </main>
 
-      <footer className="py-8 w-full border-t border-gray-100 bg-white">
-        <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} VibeVaults. All rights reserved.
-          </div>
-          <div className="flex gap-6 text-sm font-medium text-gray-600 items-center">
-            <Link href="/terms-of-service" className="hover:text-primary transition-colors">
-              Terms of Service
-            </Link>
-            <Link href="/privacy-policy" className="hover:text-primary transition-colors">
-              Privacy Policy
-            </Link>
-            <CookiePreferencesLink />
-            <a
-              href="https://www.linkedin.com/company/vibevaults/"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="VibeVaults on LinkedIn"
-              className="hover:text-primary transition-colors inline-flex items-center md:ml-4"
-            >
-              <LinkedinIcon className="w-4 h-4" />
-            </a>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
