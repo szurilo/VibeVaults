@@ -12,9 +12,10 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { usePathname, useRouter } from "next/navigation"
+import { useState } from "react"
+import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { LayoutDashboard, MessageSquare, Settings, LogOut, Users, ExternalLink, Crown } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Settings, LogOut, Users, ExternalLink, Crown, Loader2 } from "lucide-react"
 import { isTrialExpired as isTierExpired, type TierSlug } from "@/lib/tier-config"
 import { NotificationBell } from "@/components/notification-bell"
 import { User } from "@supabase/supabase-js"
@@ -56,13 +57,29 @@ export function AppSidebar({
     user: User
     tierInfo?: { tier: TierSlug | null; isTrialing: boolean; trialStarted: boolean }
 }) {
-    const router = useRouter();
     const pathname = usePathname();
+    const [isSigningOut, setIsSigningOut] = useState(false);
 
+    // Sign-out must end in a HARD navigation to /api/auth/logout, never a
+    // router.push. The browser client clears the auth cookie via document.cookie,
+    // but a soft navigation's RSC request can still carry the old cookie — the
+    // proxy then decodes the JWT locally and bounces /auth/login back to
+    // /dashboard, so the click appears to do nothing. The route handler clears
+    // the cookies server-side (Set-Cookie) and 303s to the login page, which no
+    // client-side race can undo. Same reasoning as dashboard/layout.tsx.
     const logout = async () => {
-        const supabase = createClient();
-        await supabase.auth.signOut();
-        router.push("/auth/login");
+        if (isSigningOut) return;
+        setIsSigningOut(true);
+        try {
+            // Global scope so the refresh token is revoked server-side too.
+            // Failures here (offline, already-expired session) must not strand
+            // the user on the dashboard — the redirect below clears cookies
+            // regardless.
+            await createClient().auth.signOut();
+        } catch {
+            // Intentionally ignored; see above.
+        }
+        window.location.href = "/api/auth/logout";
     };
 
     const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
@@ -242,9 +259,20 @@ export function AppSidebar({
                                 <span>Account</span>
                             </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={logout} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 flex items-center gap-2">
-                            <LogOut className="w-4 h-4" />
-                            <span>Sign Out</span>
+                        <DropdownMenuItem
+                            onSelect={(e) => {
+                                // Keep the menu mounted while the async sign-out
+                                // runs so the pending label stays visible.
+                                e.preventDefault();
+                                logout();
+                            }}
+                            disabled={isSigningOut}
+                            className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 flex items-center gap-2"
+                        >
+                            {isSigningOut
+                                ? <Loader2 className="w-4 h-4 animate-spin" />
+                                : <LogOut className="w-4 h-4" />}
+                            <span>{isSigningOut ? "Signing out..." : "Sign Out"}</span>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

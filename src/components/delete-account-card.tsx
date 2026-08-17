@@ -1,11 +1,9 @@
 'use client';
 
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DangerZoneCard } from "@/components/danger-zone-card";
 
 export function DeleteAccountCard() {
-    const router = useRouter();
     const supabase = createClient();
 
     const handleDeleteAccount = async () => {
@@ -29,7 +27,12 @@ export function DeleteAccountCard() {
         // global logout would 403 on the revoke call. Local clears cookies
         // and localStorage without the server round-trip.
         await supabase.auth.signOut({ scope: 'local' });
-        router.push("/auth/login");
+        // Hard navigation through the logout route, not router.push: a soft
+        // navigation's RSC request can still carry the auth cookie, and the
+        // proxy decodes the JWT locally (the deleted user still decodes fine),
+        // bouncing /auth/login back to /dashboard. The route handler clears the
+        // cookies server-side before redirecting.
+        window.location.href = "/api/auth/logout";
     };
 
     return (
