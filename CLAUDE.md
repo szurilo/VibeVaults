@@ -1,7 +1,7 @@
 # VibeVaults — CLAUDE.md
 
 ## Project Overview
-**VibeVaults** is a B2B SaaS feedback widget platform. Website owners embed `public/widget.js` to collect user feedback and engage clients in real-time chat. Multi-workspace, multi-project, role-based (owner/member/client).
+**VibeVaults** is a B2B SaaS feedback widget platform. Website owners embed `public/widget.js` to collect user feedback and engage clients in real-time chat. Multi-workspace, multi-project, role-based (owner/member/client). Production domain: **vibe-vaults.com**.
 
 ## Tech Stack
 - **Framework**: Next.js 16.1.4 (App Router, Turbopack) + React 19
@@ -13,7 +13,8 @@
 - **Proxy**: `src/proxy.ts` (NOT `middleware.ts` — Next.js 16+ paradigm)
 - **Analytics**: Vercel Analytics + Speed Insights + PostHog (EU region `eu.i.posthog.com`)
 - **Error tracking**: PostHog — client (`PostHogProvider`, `capture_exceptions: true`), server (`instrumentation.ts` `onRequestError`), React boundary (`src/app/global-error.tsx`), widget (`public/widget.js` → `/api/widget/errors` → `widget_errors` table)
-- **Tests**: Playwright E2E (`tests/`) — Tests across `access-matrix`, `account-deletion-safety`, `auth-roundtrip`, `dashboard`, `feedback-flow`, `member-departure`, `stripe-checkout`, `trial-expiration` with seed fixtures in `tests/fixtures/`. **Zero retries** on CI and local — a flaky test is treated as a real bug, not noise to paper over. Any describe block that mutates shared owner state (billing, workspace membership) must save it in `beforeAll` and restore it in `afterAll`; missing restoration pollutes every subsequent test file.
+- **Tests**: Playwright E2E (`tests/`) — Tests across `access-matrix`, `account-deletion-safety`, `auth-roundtrip`, `dashboard`, `feedback-flow`, `member-departure`, `stripe-checkout`, `trial-expiration` with seed fixtures in `tests/fixtures/`. **Zero retries** on CI and local — a flaky test is treated as a real bug, not noise to paper over. Any describe block that mutates shared owner state (billing, workspace membership) must save it in `beforeAll` and restore it in `afterAll`; missing restoration pollutes every subsequent test file. `global-setup.ts` writes a `.playwright-running` flag file that `src/lib/resend.ts` checks to short-circuit email sends during E2E runs (no dev inbox noise, no Resend quota burn).
+- **CI/CD**: GitHub Actions — `deploy-migrations.yml` (DB migrations), `supabase-backup.yml` (backups), `playwright.yml` (E2E).
 
 ## Critical Rules
 1. **Never mutate production DB** (Supabase Cloud / Stripe) without explicit permission. Migrations deploy via GitHub Actions.
@@ -28,6 +29,19 @@
 10. **Use Context7 MCP** proactively for library/API docs without user asking.
 11. **Default terminal**: bash (Linux Mint dev environment).
 12. **Next.js 16**: `middleware.ts` → `src/proxy.ts`, Supabase middleware → `src/lib/supabase/proxy.ts`.
+13. **No code duplication** beyond ~5 lines — extract a shared helper instead. See the access/role helpers below for the canonical example of why.
+14. **Real users exist in production** — the live DB now has registered accounts. Migrations must be backward-compatible (expand/contract), and destructive schema changes need the two-step ship. See "Shipping Safety" below.
+
+## Shipping Safety (urgent-fix checklist)
+Vercel deploys are atomic and zero-downtime, so shipping while users are active is generally safe. Before pushing, confirm the change isn't one of these:
+
+- **DB migrations** — the only category that can actively break live traffic. Use expand/contract: add column → deploy code that writes both shapes → backfill → deploy code that reads new → drop old. Never couple a destructive migration (drop/rename/NOT NULL without default) to a single deploy. Runs via `deploy-migrations.yml`.
+- **Widget API contract (`/api/widget/*`)** — treat as a public append-only API. Old `public/widget.js` copies sit in end-users' browser caches on customer websites and keep calling the old shape for hours or days. Add fields, never remove/rename. Breaking changes need a versioned path (`/api/widget/v2/...`).
+- **Server action signatures** — Next.js hashes server-action IDs; a dashboard tab opened before the deploy can 500 on click. Self-heals on refresh. Avoid during peak if the action is hot.
+- **Stripe webhook / cron endpoints** — safe to deploy mid-run; Stripe retries, and `email_digest_queue.sent_at` makes the digest cron idempotent.
+- **SSE (`/api/widget/stream`)** — active chats reconnect onto the new build. Safe unless the stream contract changed.
+
+**For an urgent fix**: if it's scoped to a single dashboard route, component, or server-side bug with no schema or widget-API touch, ship it. If it touches `supabase/migrations/` or `/api/widget/*`, stop and plan the two-step.
 
 ## File Structure
 ```
@@ -62,7 +76,7 @@ tests/              # Playwright E2E tests
 ### Workspace / Project Hierarchy
 - Users auto-get a workspace on signup (DB trigger `handle_new_workspace_for_user`) — skipped for member-invite users
 - **14-day trial starts on first-owned-workspace creation**, not at signup. Both `handle_new_workspace_for_user` (auto-create path) and the `create_workspace` RPC (manual path) set `profiles.trial_ends_at` via `UPDATE ... WHERE trial_ends_at IS NULL`. Members who never own a workspace have `trial_ends_at = NULL` and no trial clock running.
-- `workspace_members` table: roles are `owner`, `member`, `client`
+- `workspace_members` table: roles are `owner` and `member` only. `'client'` is blocked by `CHECK (role <> 'client')` (migration `20260506000001`) — clients live in `workspace_invites` + `widget_identities` and never get an `auth.users` row. Composite key `(workspace_id, user_id)`; there is no `id` column.
 - Cookie-based state: `selectedWorkspaceId`, `selectedProjectId`
 - Invites auto-accepted in `dashboard/layout.tsx` on login. After auto-accept, workspaces are re-fetched via the **admin client** (not user-scoped) because Next.js Request Memoization would dedupe the second user-scoped query and return the pre-insert snapshot.
 
@@ -77,11 +91,29 @@ tests/              # Playwright E2E tests
 - **Workspace role checks**: use `src/lib/role-helpers.ts` — `isWorkspaceOwner(supabase, userId, workspaceId)` for async lookups (API routes, server actions) and `isOwnerInMembers(members, userId)` for pure derivations against an already-fetched members list (server components). No more inline `membership.role !== 'owner'` or `.some(m => m.role === 'owner')`.
 - Why: these gates are cross-cutting concerns. Duplicated checks drift and produce security/revenue bugs; centralising means one fix = all sites updated.
 
+### Pricing & Tiers
+- Three tiers: **Starter $29/mo, Pro $49/mo, Business $149/mo**, with yearly billing at `YEARLY_DISCOUNT = 0.20` (20% off). `profiles.subscription_tier` is `'starter' | 'pro' | 'business'` (null = trial / no subscription).
+- **`src/lib/tier-config.ts` is the single source of truth** for limits, display prices, and Stripe price/product IDs (from env vars). It has no server-only imports, so it's safe in both client and server components.
+- **`src/lib/tier-helpers.ts`** enforces limits: `getUserTier()`, `getWorkspaceOwnerTier()`, `checkWorkspaceLimit()`, `checkProjectLimit()`, `checkMemberLimit()`, `checkStorageLimit()`.
+- **Limits are account-wide, not per-workspace** — project counts sum across every workspace a user owns.
+- Error messages are context-aware: owners see "Upgrade to add more", members see "Ask the owner to upgrade".
+- Stripe Customer Portal (`/api/stripe/portal`) handles upgrade/downgrade/cancel, including subscription schedules for end-of-period downgrades. Checkout redirects there instead of creating a duplicate subscription.
+- The webhook auto-enforces limits on downgrade: disables public sharing, reverts `email_frequency` to `digest`.
+- Tier-gated features: widget branding (`showBranding` from `validateApiKey()`) and share boards (gated in both `toggleProjectSharing()` and `/share/[token]`).
+- `/dashboard/subscribe` is a server component with context-aware copy (trial expired / trial active with days left / already subscribed). Price IDs are passed from the server, never client env vars.
+
+### Onboarding
+- Role-specific checklist in `src/components/onboarding.tsx`, backed by `profiles.completed_onboarding_steps` (text array) and `has_onboarded`.
+- **Owners see 8 steps**: create project, embed widget, invite members, invite clients, create feedback, customize workspace, customize project, share board (three marked ⭐ Recommended). **Members see 1 step**: create feedback.
+- `has_onboarded = true` only when all items are checked. Steps are tracked manually — the old auto-check feature was removed.
+- Dismissible into a persistent mini-banner (collapsed state in `localStorage`) with a Resume button. "Go" links navigate to anchor-highlighted target cards via the `Highlight` component.
+- Members who create their first workspace get onboarding reset to show the owner checklist.
+
 ### RLS Security Pattern
 - Use `SECURITY DEFINER` helper functions to avoid infinite recursion (42P17):
   - `get_user_workspaces()` — workspace IDs for current user
   - `get_user_owned_workspaces()` — owned workspace IDs
-  - `get_client_project_ids()` — project IDs for invited clients
+  - (`get_client_project_ids()` was **dropped** in migration `20260506000001` along with the client RLS clauses — client-facing data now flows through the widget API using the admin client, not RLS.)
 
 ### Widget Flow (invite-only, token-based)
 - `public/widget.js` → API routes at `/api/widget/*`
@@ -95,8 +127,10 @@ tests/              # Playwright E2E tests
 - **Public recovery page at `/access`**: invitees and members who lose their localStorage can enter their email and receive an emailed list of bootstrap links across every project they have access to. Rate-limited per IP and per email; always returns a generic confirmation regardless of whether the email is on file. Action: `requestWidgetAccessRecovery()` in `src/actions/widget-access.ts`. Excluded from auth gate in `src/lib/supabase/proxy.ts`.
 - Feedback submission: `POST /api/widget`
 - Real-time replies: SSE via `/api/widget/stream` + Supabase Realtime
-- **Rate limiting**: 30 req/min per IP on all widget endpoints (`src/lib/widget-helpers.ts`)
+- **Rate limiting**: 30 req/min per IP on all widget endpoints (`src/lib/widget-helpers.ts`), auto-cleaning expired entries every 5 min
 - **Content limit**: 5000 chars max for feedback/reply content
+- **Completed feedback is hidden from the widget** — `/api/widget/feedback` applies `.neq('status', 'completed')`, so the widget only shows `open`, `in progress`, `in review`
+- **Unused-token cleanup**: nightly pg_cron job (migration `20260509000000`) deletes `widget_identities WHERE last_used_at IS NULL AND created_at < now() - interval '30 days'`. Active sessions are never touched.
 - **Trial gate**: `validateApiKey()` checks owner's subscription/trial status — widget disabled post-trial
 - **File uploads (presigned URL flow)**: Uploads bypass Vercel serverless functions entirely to avoid the 4.5MB body size limit on Hobby plan. Two-step flow: (1) `/api/widget/upload` or `/api/dashboard/upload` validates auth + returns presigned Supabase Storage URLs, (2) client uploads directly to Supabase Storage via PUT, (3) `/api/widget/upload/confirm` or `/api/dashboard/upload/confirm` verifies actual file size/type from storage metadata and creates `feedback_attachments` records. 10MB/file, 10 files/request.
 - **Email safety**: All user content in emails sanitized via `esc()` in `lib/notifications.ts`
@@ -129,12 +163,55 @@ tests/              # Playwright E2E tests
   - **Self-notification prevention**: reply emails never sent to the person who wrote the reply
   - Resend batch API used for multi-recipient digest sends
 
+### Dashboard Behaviours
+- **Notification navigation**: `src/lib/notification-navigation.ts` is the shared helper used by both the bell dropdown and toast clicks. It looks up the target project's `workspace_id`, writes both `selectedWorkspaceId` and `selectedProjectId` cookies, then routes — so sidebar context follows the notification instead of staying on the previously selected workspace.
+- **Deleted feedback doesn't 404**: `src/components/feedback-deleted-toast.tsx` renders a toast instead, driven from the feedback detail page.
+- **Project deletion**: members (not just owners) can delete projects in their workspace. `deleteProjectAction` cleans up storage via `cleanupProjectStorage()`, notifies all other members with the deleter's name attributed, and queues digest email. `email_digest_queue.project_id` is nullable so deleted projects can still be referenced.
+- **Account deletion**: also removes the user's `email_preferences` row (keyed by email, not `user_id`) to avoid orphans, and `delete-account-card.tsx` clears localStorage and all cookies before redirect so stale session data can't bleed into a later signup on the same browser.
+- **Unsaved-changes warnings**: `workspace-settings-card.tsx` and `edit-project-card.tsx` warn before navigating away. Note `beforeunload` alone does not block Next.js `<Link>` navigation.
+- **Member departure notification types**: `member_revoked` (owner revokes member) and `member_left` (member leaves), each firing both a bell notification and an email. The workspace switcher hides entirely when a member has no workspaces left.
+- **Email templates**: all transactional emails share one style, branded with `public/avatar.jpg` and a "reach out to support@vibe-vaults.com" footer. `scripts/send-welcome.ts` sends the welcome email manually.
+
+## Key Components
+| Component | Path | Purpose |
+|---|---|---|
+| `onboarding` | `src/components/onboarding.tsx` | Role-specific onboarding checklist with collapse/expand |
+| `create-project-dialog` | `src/components/create-project-dialog.tsx` | Shared project creation dialog (switcher + onboarding) |
+| `highlight` | `src/components/highlight.tsx` | Wraps cards with an ID, pulsating highlight on hash navigation |
+| `feedback-list` | `src/components/feedback-list.tsx` | Feedback grid with status filter (hides Completed by default) |
+| `feedback-card` | `src/components/feedback-card.tsx` | Feedback detail with real-time chat, status, replies, attachments |
+| `app-sidebar` | `src/components/app-sidebar.tsx` | Main dashboard sidebar; tier badge gated on `ownsAnyWorkspace` |
+| `project-switcher` / `workspace-switcher` | `src/components/` | Sidebar dropdowns with create option |
+| `user-management` | `src/components/user-management.tsx` | Users page: member list, invite form, leave/revoke |
+| `global-notification-provider` | `src/components/global-notification-provider.tsx` | Realtime notification context + unified toast |
+| `notification-bell` | `src/components/notification-bell.tsx` | Header dropdown, live updates, type icons, `clearAll()` |
+| `embed-widget-card` | `src/components/embed-widget-card.tsx` | Widget embed snippet + "Open widget on site" |
+| `share-project-card` | `src/components/share-project-card.tsx` | Public board sharing with token management |
+| `billing-card` | `src/components/billing-card.tsx` | Account billing card → Stripe Customer Portal |
+| `landing/*` | `src/components/landing/` | `bento-features`, `founder-note`, `product-demo`, `roi-calculator`, `pricing-cards`, `faq`, `how-it-works`, `site-header`, `site-footer` |
+
+> Components are **kebab-case** filenames. A few legacy files remain PascalCase (`PostHogProvider.tsx`, `CookieConsent.tsx`, `GoogleSignInButton.tsx`, `CookiePreferencesLink.tsx`).
+
+## Server Actions
+| Action | Path | Purpose |
+|---|---|---|
+| `completeOnboardingAction` / `toggleOnboardingStepAction` | `src/actions/onboarding.ts` | Complete onboarding / toggle a checklist step |
+| `createWorkspaceAction` / `leaveWorkspaceAction` | `src/actions/workspaces.ts` | Create workspace (resets member onboarding) / leave (notifies owner) |
+| `updateFeedbackStatusAction` | `src/actions/feedback.ts` | Update feedback status |
+| `toggleShareAction` | `src/actions/project-sharing.ts` | Enable/disable public board sharing (tier-gated) |
+| `updateEmailPreferencesAction` | `src/actions/preferences.ts` | Update per-project email preferences |
+| `getTierUsageAction` | `src/actions/tier.ts` | Tier, limits, and account-wide usage counts |
+| `deleteProjectAction` | `src/actions/projects.ts` | Delete project with storage cleanup, notifications, digest queuing |
+| `acceptInvite` | `src/actions/invites.ts` | Email-gated invite acceptance via admin client; rejects `role='client'`; fires `dispatchMemberWelcomeBootstrap` |
+| `issueSelfWidgetLink` | `src/actions/widget-access.ts` | Mints a `widget_identities` row for an owner/member, returns `?vv_token=` activation URL |
+| `requestWidgetAccessRecovery` | `src/actions/widget-access.ts` | Public, rate-limited action backing `/access`; anti-enumeration (always returns `ok=true`) |
+
 ## Database Tables (Current)
 | Table | Key Columns |
 |---|---|
 | `profiles` | `id`, `email`, `has_onboarded`, `completed_onboarding_steps`, `stripe_*`, `trial_ends_at` |
 | `workspaces` | `id`, `name`, `owner_id`, `logo_url` |
-| `workspace_members` | `workspace_id`, `user_id`, `role` (owner/member/client) |
+| `workspace_members` | `workspace_id`, `user_id`, `role` (owner/member — `client` blocked by CHECK). Composite PK, no `id` column |
 | `workspace_invites` | `id`, `workspace_id`, `email`, `role` |
 | `projects` | `id`, `name`, `api_key`, `workspace_id`, `website_url`, `share_token`, `is_sharing_enabled` |
 | `feedbacks` | `id`, `project_id`, `content`, `type`, `sender`, `status`, `metadata` |
@@ -160,10 +237,12 @@ tests/              # Playwright E2E tests
 | `/api/dashboard/upload/confirm` | POST | Confirm dashboard uploads + create DB records (verifies actual file size/type) |
 | `/api/projects` | POST | Create project |
 | `/api/workspaces/invites` | POST | Create workspace invite |
-| `/api/stripe/checkout` | POST | Stripe checkout |
-| `/api/stripe/webhook` | POST | Stripe webhook |
+| `/api/stripe/checkout` | POST | Stripe checkout (redirects to portal if already subscribed) |
+| `/api/stripe/portal` | POST | Stripe Customer Portal session for plan management |
+| `/api/stripe/webhook` | POST | Stripe webhook (tier sync + downgrade enforcement) |
 | `/api/auth/callback` | GET | Supabase auth callback |
 | `/api/auth/turnstile` | POST | Turnstile verification |
+| `/api/auth/delete-account` | POST | Delete account (cleans up email prefs, Stripe customer) |
 | `/api/cron/digest` | GET | Processes queued digest emails (Supabase pg_cron, every 15 min) |
 | `/api/widget/errors` | POST | Receives widget-side error reports, writes to `widget_errors` (rate-limited) |
 | `/api/widget/screenshot-event` | POST | Receives screenshot-capture telemetry beacons → PostHog `widget_screenshot_capture` event (browser, GPU, DPR, viewport, duration) |
@@ -173,4 +252,5 @@ tests/              # Playwright E2E tests
 - Unauthenticated users on protected routes → `/auth/login`
 - **Authenticated users** hitting `/auth/login` or `/auth/register` → `/dashboard` (skip duplicate sign-in screens)
 - `/pricing` excluded from auth checks (public)
+- `/compare` (and `/compare/*` SEO comparison pages) excluded from auth checks (public, must stay crawlable)
 - `/api/admin-alerts/*` excluded from auth checks (beacons fire from pre-auth pages)

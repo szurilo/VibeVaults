@@ -1,6 +1,13 @@
 ---
-name: Realtime Chat Integration
-description: Standard operating procedure for extending and maintaining the real-time chat (Subabase Channels & SSE) used in VibeVaults feedback loops.
+name: realtime-chat
+description: >-
+  Standard operating procedure for extending and maintaining the VibeVaults
+  real-time chat: Supabase Realtime channels on the dashboard side, SSE on the
+  widget side.
+
+  Use when touching the feedback reply stream, `/api/widget/stream`, Supabase
+  Realtime subscriptions or channel setup, SSE connection handling, or when
+  debugging replies that fail to appear live in the dashboard or the widget.
 ---
 
 # Realtime Chat Integration in VibeVaults
