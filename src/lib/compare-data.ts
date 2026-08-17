@@ -209,4 +209,166 @@ export const markerComparison: ComparisonData = {
     ],
 };
 
-export const allComparisons: ComparisonData[] = [bugherdComparison, markerComparison];
+export const userbackComparison: ComparisonData = {
+    slug: "userback-alternative",
+    competitorName: "Userback",
+    metaTitle: "Userback Alternative for Agencies: VibeVaults vs Userback",
+    metaDescription:
+        "Looking for a Userback alternative? VibeVaults is a simpler, real-time, invite-only feedback widget with console logs captured on every plan. See the honest comparison.",
+    hubBlurb:
+        "A kanban feedback board with a free tier vs a simpler, real-time, invite-only feedback widget. See where each fits.",
+    heroKicker: "VibeVaults vs Userback",
+    heroTitle: "A simpler Userback alternative, built for the client conversation",
+    heroSubtitle:
+        "Userback is a mature feedback-management platform with a kanban board, session replay, and a free tier. VibeVaults takes a lighter path: a clean, real-time feedback widget your clients talk to you through, private to the people you invite.",
+    tldrVibe:
+        "You want feedback to be a real-time conversation on the live site, private to invited clients, with the technical context (screenshot, browser, console logs) captured on every plan, and less tool to learn.",
+    tldrCompetitor:
+        "You want a free tier to start, a kanban board to manage feedback as a backlog, session replay, a mobile SDK, and a deep set of two-way integrations.",
+    rows: [
+        { label: "Core model", vibevaults: "Real-time chat on the live site", competitor: "Kanban feedback board + annotations" },
+        { label: "Client setup", vibevaults: "Invite link, no account, no extension", competitor: "No account; widget or browser extension" },
+        { label: "Uninvited visitors", vibevaults: "See nothing (invite-only)", competitor: "Open by default; can restrict to logged-in users" },
+        { label: "Screenshot + browser context", vibevaults: true, competitor: true },
+        { label: "Console logs captured", vibevaults: true, competitor: "Business plan and up" },
+        { label: "Works on staging / localhost / live", vibevaults: true, competitor: true },
+        { label: "Native integrations (Jira, Trello, GitHub…)", vibevaults: "On roadmap", competitor: "Jira 2-way, Slack, Zapier, ClickUp" },
+        { label: "Projects included", vibevaults: "30 on Pro (3 workspaces × 10); unlimited on Business", competitor: "2 to 50 by tier" },
+        { label: "Team members included", vibevaults: "10 on Pro ($49/mo)", competitor: "5 on Team ($39/mo); unlimited on Business" },
+        { label: "Clients / reviewers", vibevaults: "Unlimited on every plan", competitor: "Unlimited on every plan" },
+        { label: "Starting price", vibevaults: "$29/mo", competitor: "$39/mo (free tier exists)" },
+        { label: "Free trial", vibevaults: "14 days, no card", competitor: "Free tier + 14-day trial" },
+    ],
+    competitorWins: [
+        "A genuinely free Forever tier to start on.",
+        "Session replay and video feedback on higher plans.",
+        "A kanban board for managing feedback as a formal backlog.",
+        "A mobile SDK for native app feedback.",
+        "Deeper two-way integrations (Jira, ClickUp, Zapier, Slack) and more overall maturity.",
+    ],
+    vibevaultsWins: [
+        {
+            title: "A real-time conversation, not a backlog board",
+            body: "Each piece of feedback opens a live thread on the exact spot on the site, and you reply in real time in the same widget the client is already using. Userback organizes feedback into a kanban backlog; VibeVaults keeps it a conversation.",
+        },
+        {
+            title: "Invite-only out of the box",
+            body: "VibeVaults is invite-only by default: each client gets a per-device link, and nobody else can see the widget, with zero setup. Userback's widget is open to all visitors by default, and making it private means configuring a logged-in-only mode or SSO on a higher plan.",
+        },
+        {
+            title: "Console logs on every plan",
+            body: "Userback gates console logs and network data to its Business plan and up. VibeVaults captures the console logs alongside the screenshot and browser context on every plan, so bug reports arrive with developer context from day one.",
+        },
+        {
+            title: "Less to learn",
+            body: "VibeVaults is a focused feedback widget, not a feedback-management suite with boards, workflows, and surveys to configure. The screenshots above are the whole product, judge the simplicity yourself.",
+        },
+    ],
+    faqs: [
+        {
+            question: "Is VibeVaults a good Userback alternative?",
+            answer: "Yes, if you want feedback to be a real-time, invite-only conversation on the live site, with console logs captured on every plan and less tool to learn. Userback is the stronger choice if you specifically need a free tier, session replay, a kanban backlog, or a mobile SDK.",
+        },
+        {
+            question: "Do my clients need an account or a browser extension?",
+            answer: "No. Clients click a single invite link, once per device, and the widget appears on the site. They never create an account or install an extension, and uninvited visitors see nothing because VibeVaults is invite-only by design.",
+        },
+        {
+            question: "Does VibeVaults have a free tier like Userback?",
+            answer: "No, and we would rather be upfront about it. VibeVaults is paid-only, starting at $29/month with a 14-day free trial (no card). Userback has a free Forever tier, though its free plan only keeps feedback available for 7 days, while VibeVaults never limits how long your feedback stays available. If a permanent free plan is essential, Userback wins there; VibeVaults' edge is the real-time model, invite-only privacy, console logs on every plan, and feedback that never expires.",
+        },
+        {
+            question: "Does VibeVaults capture console logs?",
+            answer: "Yes, on every plan, alongside the screenshot and browser context. Userback captures console logs only on its Business plan and above.",
+        },
+        {
+            question: "Can I try VibeVaults for free?",
+            answer: "Yes. Every plan starts with a 14-day free trial and no credit card required, and you can have the widget live on a real project in about 30 seconds.",
+        },
+    ],
+};
+
+export const usersnapComparison: ComparisonData = {
+    slug: "usersnap-alternative",
+    competitorName: "Usersnap",
+    metaTitle: "Usersnap Alternative for Agencies: VibeVaults vs Usersnap",
+    metaDescription:
+        "Looking for a Usersnap alternative? VibeVaults is a simpler, real-time, invite-only feedback widget with console logs captured on every plan. See the honest comparison.",
+    hubBlurb:
+        "A feedback-management platform with a public upvote board and 50+ integrations vs a simpler, real-time, invite-only widget.",
+    heroKicker: "VibeVaults vs Usersnap",
+    heroTitle: "A simpler Usersnap alternative, focused on the client conversation",
+    heroSubtitle:
+        "Usersnap is a mature feedback-management platform with a kanban board, a public upvote portal, and 50+ integrations. VibeVaults keeps it light: a real-time feedback widget, private to the clients you invite.",
+    tldrVibe:
+        "You want a real-time conversation on the live site, private to invited clients, with console logs on every plan, and a tool with less to configure.",
+    tldrCompetitor:
+        "You want a public feature-request and upvote board, micro-surveys, a mobile SDK, and 50+ integrations for a product or QA team.",
+    rows: [
+        { label: "Core model", vibevaults: "Real-time chat on the live site", competitor: "Kanban feedback management + public board" },
+        { label: "Client setup", vibevaults: "Invite link, no account, no extension", competitor: "No account; widget or browser extension" },
+        { label: "Uninvited visitors", vibevaults: "See nothing (invite-only)", competitor: "Open by default; can restrict to logged-in users" },
+        { label: "Screenshot + browser context", vibevaults: true, competitor: true },
+        { label: "Console logs captured", vibevaults: true, competitor: "Professional plan and up" },
+        { label: "Works on staging / localhost / live", vibevaults: true, competitor: true },
+        { label: "Native integrations (Jira, Trello, GitHub…)", vibevaults: "On roadmap", competitor: "Jira/Linear 2-way, Slack, 50+" },
+        { label: "Projects included", vibevaults: "30 on Pro (3 workspaces × 10); unlimited on Business", competitor: "5 to 50 by tier" },
+        { label: "Team members included", vibevaults: "10 on Pro ($49/mo)", competitor: "5 to 50 seats by tier" },
+        { label: "Clients / reviewers", vibevaults: "Unlimited on every plan", competitor: "Unlimited on every plan" },
+        { label: "Starting price", vibevaults: "$29/mo", competitor: "€49/mo" },
+        { label: "Free trial", vibevaults: "14 days, no card", competitor: "Trial: 20 feedback items" },
+    ],
+    competitorWins: [
+        "A public feature-request portal where end users upvote and vote on ideas, not just a read-only shared board.",
+        "50+ integrations, including two-way Jira, Linear, and Azure DevOps.",
+        "Micro-surveys and a mobile SDK.",
+        "A broader, more mature feature set for product and QA teams.",
+    ],
+    vibevaultsWins: [
+        {
+            title: "A real-time conversation, not a management suite",
+            body: "Each piece of feedback opens a live thread on the exact spot on the site, and you reply in real time in the same widget the client is already using. Usersnap is built to organize and route feedback; VibeVaults keeps it a direct conversation.",
+        },
+        {
+            title: "Invite-only out of the box",
+            body: "VibeVaults is invite-only by default: each client gets a per-device link and nobody else sees the widget, with zero setup. Usersnap's widget is open to everyone by default, and restricting it to logged-in users means passing user IDs in the snippet code.",
+        },
+        {
+            title: "Console logs on every plan",
+            body: "Usersnap captures console logs only on its Professional plan and up. VibeVaults captures them alongside the screenshot and browser context on every plan, so bug reports arrive with developer context from day one.",
+        },
+        {
+            title: "Less to configure",
+            body: "VibeVaults is a focused feedback widget, not a feedback-management platform with boards, surveys, and 50+ integrations to set up. Fewer moving parts for you and your clients.",
+        },
+    ],
+    faqs: [
+        {
+            question: "Is VibeVaults a good Usersnap alternative?",
+            answer: "Yes, if you want a real-time, invite-only feedback conversation on the live site with console logs on every plan and less to configure. Usersnap is the stronger choice if you need a public upvote board, micro-surveys, or 50+ integrations for a product or QA team.",
+        },
+        {
+            question: "Do my clients need an account or a browser extension?",
+            answer: "No. Clients click a single invite link, once per device, and the widget appears on the site. They never create an account or install an extension, and uninvited visitors see nothing because VibeVaults is invite-only by design.",
+        },
+        {
+            question: "Does VibeVaults or Usersnap have a free tier?",
+            answer: "Neither has a permanent free tier. VibeVaults offers a 14-day free trial with no credit card and with no limitations. Usersnap offers a free trial that ends after 20 feedback items and deactivates the account after 90 days if you do not upgrade.",
+        },
+        {
+            question: "Does VibeVaults capture console logs?",
+            answer: "Yes, on every plan, alongside the screenshot and browser context. Usersnap captures console logs only on its Professional plan and above.",
+        },
+        {
+            question: "Can I try VibeVaults for free?",
+            answer: "Yes. Every plan starts with a 14-day free trial and no credit card required, and you can have the widget live on a real project in about 30 seconds.",
+        },
+    ],
+};
+
+export const allComparisons: ComparisonData[] = [
+    bugherdComparison,
+    markerComparison,
+    userbackComparison,
+    usersnapComparison,
+];
