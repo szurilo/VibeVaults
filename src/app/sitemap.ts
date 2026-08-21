@@ -34,6 +34,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
         },
         ...compareUrls,
         {
+            url: `${baseUrl}/docs/widget-data`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.5,
+        },
+        {
             url: `${baseUrl}/terms-of-service`,
             lastModified: new Date(),
             changeFrequency: 'yearly',

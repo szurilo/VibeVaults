@@ -20,7 +20,7 @@
     const API_UPLOAD_CONFIRM = `${origin}/api/widget/upload/confirm`;
     const API_IDENTITY_EXCHANGE = `${origin}/api/widget/identity/exchange`;
     const API_ERRORS = `${origin}/api/widget/errors`;
-    const API_SCREENSHOT_EVENT = `${origin}/api/widget/screenshot-event`;
+    const API_CAPTURE_INFO = `${origin}/api/widget/capture-info`;
 
     const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
@@ -129,6 +129,103 @@
     console.log = (...args) => { captureLog('log', args); originalConsole.log.apply(console, args); };
     console.warn = (...args) => { captureLog('warn', args); originalConsole.warn.apply(console, args); };
     console.error = (...args) => { captureLog('error', args); originalConsole.error.apply(console, args); };
+
+    // --- Failed-request capture ---
+    // Network failures are the most common cause of "I clicked it and nothing
+    // happened" bug reports, and they never reach console.* — the browser writes
+    // them straight to DevTools. We patch fetch/XHR so they land in the same
+    // buffer the console logs use.
+    //
+    // Privacy: only origin + pathname is recorded. Query strings are dropped
+    // wholesale because they routinely carry access tokens, password-reset
+    // tokens, and email addresses belonging to the host site's end users — data
+    // we have no business storing. Email-shaped path segments are redacted for
+    // the same reason. Documented for customers at /docs/widget-data.
+    const MAX_NETWORK_LOGS = 15;
+    const EMAIL_SEGMENT = /^[^@\s/]+@[^@\s/]+\.[^@\s/]+$/;
+    const NETWORK_ERROR_REASON = 'network error (blocked, offline, CORS, or DNS)';
+    const seenNetworkFailures = new Set();
+
+    const sanitizeRequestUrl = (raw) => {
+      const u = new URL(raw, window.location.href);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+      // Never record our own traffic — widget noise is useless in a bug report,
+      // and a blocked telemetry call is not the customer's problem.
+      if (u.origin === origin && u.pathname.startsWith('/api/widget')) return null;
+      const path = u.pathname
+        .split('/')
+        .map((seg) => (EMAIL_SEGMENT.test(seg) ? '[redacted]' : seg.length > 64 ? seg.slice(0, 64) + '...' : seg))
+        .join('/');
+      return `${u.origin}${path}`.slice(0, 300);
+    };
+
+    const recordNetworkFailure = (method, rawUrl, outcome) => {
+      try {
+        if (seenNetworkFailures.size >= MAX_NETWORK_LOGS) return;
+        const url = sanitizeRequestUrl(rawUrl);
+        if (!url) return;
+        // One entry per distinct failure per session, so a retry loop can't
+        // evict every console log from the buffer.
+        const key = `${method} ${url} failed: ${outcome}`;
+        if (seenNetworkFailures.has(key)) return;
+        seenNetworkFailures.add(key);
+        logs.push({ type: 'network', time: new Date().toLocaleTimeString(), content: key });
+        if (logs.length > MAX_LOGS) logs.shift();
+      } catch (e) { /* never break a host page request over a log line */ }
+    };
+
+    // Guarded so a page embedding widget.js twice doesn't double-wrap fetch.
+    if (!window.__vvNetworkPatched) {
+      window.__vvNetworkPatched = true;
+
+      if (window.fetch) {
+        const originalFetch = window.fetch;
+        window.fetch = function (...args) {
+          let method = 'GET';
+          let rawUrl = '';
+          try {
+            const [input, opts] = args;
+            rawUrl = typeof input === 'string' ? input : (input && input.url) ? input.url : String(input || '');
+            method = String((opts && opts.method) || (input && input.method) || 'GET').toUpperCase();
+          } catch (e) { /* fall through with defaults */ }
+          return originalFetch.apply(this, args).then(
+            (res) => {
+              if (!res.ok) recordNetworkFailure(method, rawUrl, `${res.status} ${res.statusText || ''}`.trim());
+              return res;
+            },
+            (err) => {
+              recordNetworkFailure(method, rawUrl, NETWORK_ERROR_REASON);
+              throw err;
+            }
+          );
+        };
+      }
+
+      const XHR = window.XMLHttpRequest;
+      if (XHR && XHR.prototype) {
+        const originalOpen = XHR.prototype.open;
+        const originalSend = XHR.prototype.send;
+        XHR.prototype.open = function (method, url, ...rest) {
+          try {
+            this.__vvMethod = String(method || 'GET').toUpperCase();
+            this.__vvUrl = url;
+          } catch (e) { /* frozen instance — skip capture, never block the request */ }
+          return originalOpen.call(this, method, url, ...rest);
+        };
+        XHR.prototype.send = function (...args) {
+          try {
+            const method = this.__vvMethod || 'GET';
+            const url = this.__vvUrl || '';
+            this.addEventListener('load', () => {
+              if (this.status >= 400) recordNetworkFailure(method, url, `${this.status} ${this.statusText || ''}`.trim());
+            });
+            this.addEventListener('error', () => recordNetworkFailure(method, url, NETWORK_ERROR_REASON));
+            this.addEventListener('timeout', () => recordNetworkFailure(method, url, 'timeout'));
+          } catch (e) { /* capture is best-effort */ }
+          return originalSend.apply(this, args);
+        };
+      }
+    }
 
     const getMetadata = () => ({
       url: window.location.href,
@@ -1224,11 +1321,11 @@
               viewportHeight: window.innerHeight,
               durationMs: Date.now() - captureStartedAt,
             });
-            if (navigator.sendBeacon) {
-              navigator.sendBeacon(API_SCREENSHOT_EVENT, new Blob([payload], { type: 'application/json' }));
-            } else {
-              fetch(API_SCREENSHOT_EVENT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {});
-            }
+            // Plain fetch, not navigator.sendBeacon: ad blockers drop third-party
+            // beacon/ping requests by default, which spams the host site's console
+            // with ERR_BLOCKED_BY_CLIENT. Blocked fetches are equally noisy, so the
+            // endpoint is also named to avoid analytics-shaped filter matches.
+            fetch(API_CAPTURE_INFO, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {});
           } catch (_) { /* never break capture for telemetry */ }
         };
 
