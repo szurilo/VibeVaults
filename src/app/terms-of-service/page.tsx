@@ -1,17 +1,11 @@
 
-import Link from "next/link";
-import { CookiePreferencesLink } from "@/components/CookiePreferencesLink";
+import { SiteHeader } from "@/components/landing/site-header";
+import { SiteFooter } from "@/components/landing/site-footer";
 
 export default function TermsOfService() {
     return (
         <div className="min-h-screen bg-white">
-            <header className="border-b border-gray-100">
-                <div className="max-w-3xl mx-auto px-8 py-6">
-                    <Link href="/" className="font-bold text-xl tracking-tight text-primary hover:opacity-90 transition-opacity">
-                        VibeVaults
-                    </Link>
-                </div>
-            </header>
+            <SiteHeader />
 
             <main className="max-w-3xl mx-auto px-8 py-12">
                 <h1 className="text-4xl font-extrabold mb-4 text-gray-900">Terms of Service</h1>
@@ -170,13 +164,7 @@ export default function TermsOfService() {
                 </div>
             </main>
 
-            <footer className="py-8 w-full border-t border-gray-100 bg-gray-50 mt-12">
-                <div className="max-w-3xl mx-auto px-8 flex flex-col sm:flex-row justify-center items-center gap-3 text-sm text-gray-500">
-                    <span>© {new Date().getFullYear()} VibeVaults. All rights reserved.</span>
-                    <span className="hidden sm:inline">·</span>
-                    <CookiePreferencesLink />
-                </div>
-            </footer>
+            <SiteFooter />
         </div>
     );
 }

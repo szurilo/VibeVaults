@@ -2,63 +2,105 @@ import Link from "next/link";
 import { LinkedinIcon } from "@/components/icons/linkedin-icon";
 import { CookiePreferencesLink } from "@/components/CookiePreferencesLink";
 import { allComparisons } from "@/lib/compare-data";
+import { docsPages } from "@/lib/docs-data";
 
 /**
- * Main Responsibility: Shared site footer used by the landing page and the
- * /compare marketing pages. Includes a Compare section that links the hub and
- * every comparison page for internal linking / SEO discovery.
+ * Main Responsibility: Shared site footer used by the landing page, the
+ * /compare marketing pages and /docs. Four-column link layout (Product,
+ * Documentation, Compare, Legal) over a brand/copyright bar, which is the
+ * convention across this category and keeps every internal link crawlable.
  * Sensitive Dependencies: CookiePreferencesLink is a client component; the
- * comparison links are derived from allComparisons (lib/compare-data.ts) so new
- * comparisons appear automatically.
+ * Compare links derive from allComparisons (lib/compare-data.ts) and the docs
+ * links from docsPages (lib/docs-data.ts), so new entries appear automatically.
  */
+
+const productLinks = [
+    { href: "/#features", label: "Features" },
+    { href: "/#how-it-works", label: "How it works" },
+    { href: "/pricing", label: "Pricing" },
+    { href: "/compare", label: "Compare" },
+];
+
+function FooterColumn({ title, href, children }: { title: string; href?: string; children: React.ReactNode }) {
+    return (
+        <div>
+            {href ? (
+                <Link
+                    href={href}
+                    className="inline-block text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-primary transition-colors mb-4"
+                >
+                    {title}
+                </Link>
+            ) : (
+                <div className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">{title}</div>
+            )}
+            <ul className="flex flex-col gap-2.5">{children}</ul>
+        </div>
+    );
+}
+
+function FooterLink({ href, label }: { href: string; label: string }) {
+    return (
+        <li>
+            <Link href={href} className="text-sm text-gray-500 hover:text-primary transition-colors">
+                {label}
+            </Link>
+        </li>
+    );
+}
+
 export function SiteFooter() {
     return (
-        <footer className="py-8 w-full border-t border-gray-100 bg-white">
+        <footer className="pt-12 pb-8 w-full border-t border-gray-100 bg-white">
             <div className="max-w-7xl mx-auto px-8">
-                {/* Compare section */}
-                <div className="pb-8 mb-6 border-b border-gray-100 text-center">
-                    <Link
-                        href="/compare"
-                        className="inline-block text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-primary transition-colors mb-3"
-                    >
-                        Compare
-                    </Link>
-                    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+                {/* Link columns */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 pb-10 mb-8 border-b border-gray-100">
+                    <FooterColumn title="Product">
+                        {productLinks.map((l) => (
+                            <FooterLink key={l.href} href={l.href} label={l.label} />
+                        ))}
+                    </FooterColumn>
+
+                    <FooterColumn title="Documentation" href="/docs">
+                        {docsPages.map((page) => (
+                            <FooterLink key={page.slug} href={`/docs/${page.slug}`} label={page.title} />
+                        ))}
+                    </FooterColumn>
+
+                    <FooterColumn title="Compare" href="/compare">
                         {allComparisons.map((c) => (
-                            <Link
+                            <FooterLink
                                 key={c.slug}
                                 href={`/compare/${c.slug}`}
-                                className="text-sm text-gray-500 hover:text-primary transition-colors"
-                            >
-                                VibeVaults vs {c.competitorName}
-                            </Link>
+                                label={`VibeVaults vs ${c.competitorName}`}
+                            />
                         ))}
-                    </div>
+                    </FooterColumn>
+
+                    <FooterColumn title="Legal">
+                        <FooterLink href="/terms-of-service" label="Terms of Service" />
+                        <FooterLink href="/privacy-policy" label="Privacy Policy" />
+                        <li>
+                            <CookiePreferencesLink className="text-sm text-gray-500 hover:text-primary transition-colors cursor-pointer" />
+                        </li>
+                        <FooterLink href="/access" label="Lost widget access?" />
+                    </FooterColumn>
                 </div>
 
-                {/* Legal / social row */}
+                {/* Brand / social row */}
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="text-sm text-gray-500">
                         &copy; {new Date().getFullYear()} VibeVaults. All rights reserved.
                     </div>
-                    <div className="flex gap-6 text-sm font-medium text-gray-600 items-center">
-                        <Link href="/terms-of-service" className="hover:text-primary transition-colors">
-                            Terms of Service
-                        </Link>
-                        <Link href="/privacy-policy" className="hover:text-primary transition-colors">
-                            Privacy Policy
-                        </Link>
-                        <CookiePreferencesLink />
-                        <a
-                            href="https://www.linkedin.com/company/vibevaults/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label="VibeVaults on LinkedIn"
-                            className="hover:text-primary transition-colors inline-flex items-center md:ml-4"
-                        >
-                            <LinkedinIcon className="w-4 h-4" />
-                        </a>
-                    </div>
+                    <a
+                        href="https://www.linkedin.com/company/vibevaults/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="VibeVaults on LinkedIn"
+                        className="text-gray-600 hover:text-primary transition-colors inline-flex items-center"
+                    >
+                        <LinkedinIcon className="w-4 h-4" />
+                    </a>
                 </div>
             </div>
         </footer>

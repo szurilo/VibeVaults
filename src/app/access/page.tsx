@@ -10,7 +10,7 @@
  *   email enumeration; the form below renders a generic confirmation in
  *   either case.
  */
-import Link from 'next/link';
+import { SiteHeader } from '@/components/landing/site-header';
 import { AccessForm } from './AccessForm';
 
 export const metadata = {
@@ -21,16 +21,7 @@ export const metadata = {
 export default function AccessPage() {
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
-            <header className="bg-white/80 backdrop-blur-md border-b border-gray-100">
-                <div className="px-8 py-4 max-w-7xl mx-auto w-full">
-                    <Link
-                        href="/"
-                        className="font-bold text-2xl tracking-tight text-primary hover:opacity-90 transition-opacity"
-                    >
-                        VibeVaults
-                    </Link>
-                </div>
-            </header>
+            <SiteHeader minimal />
 
             <main className="flex-1 flex items-center justify-center p-4">
                 <div className="w-full max-w-[440px] bg-white border border-gray-200 rounded-lg shadow-sm p-6">

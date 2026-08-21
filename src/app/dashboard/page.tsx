@@ -121,6 +121,15 @@ export default async function DashboardPage() {
                     <CardTitle className="text-lg">Questions or Problems?</CardTitle>
                 </CardHeader>
                 <CardContent>
+                    <h2 className="font-semibold text-sm mb-1">Regarding how things work:</h2>
+                    <p className="text-muted-foreground mb-6">
+                        Read the{" "}
+                        <a href="/docs" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                            documentation
+                        </a>
+                        {" "}— embedding the widget, client access, what gets captured with a report, and fixes for the
+                        questions that come up most.
+                    </p>
                     <h2 className="font-semibold text-sm mb-1">Regarding setup:</h2>
                     <p className="text-muted-foreground mb-6">
                         <a href="https://calendly.com/szurilo/30min" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
