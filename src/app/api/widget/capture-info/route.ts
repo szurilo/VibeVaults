@@ -1,11 +1,15 @@
 /**
- * Main Responsibility: Receives screenshot-capture telemetry beacons from the
- * embeddable widget and forwards them to PostHog. Used to size the impact of
- * the known Firefox+GPU foreignObject rasterization bug — once we have enough
- * data points to know whether it affects 0.1% or 30% of Firefox users, we can
- * decide whether the canvas-substitute workaround is worth shipping.
+ * Main Responsibility: Receives screenshot-capture telemetry from the embeddable
+ * widget and forwards it to PostHog. Used to size the impact of the known
+ * Firefox+GPU foreignObject rasterization bug — once we have enough data points
+ * to know whether it affects 0.1% or 30% of Firefox users, we can decide whether
+ * the canvas-substitute workaround is worth shipping.
  *
  * Sensitive Dependencies:
+ * - Path is deliberately free of analytics-shaped words (`event`, `track`,
+ *   `telemetry`): the previous `/api/widget/screenshot-event` was dropped by ad
+ *   blockers, printing ERR_BLOCKED_BY_CLIENT in the host site's console. For the
+ *   same reason widget.js POSTs here with fetch, not navigator.sendBeacon.
  * - posthog-node for server-side capture (separate SDK from posthog-js).
  * - @/lib/widget-helpers for CORS headers and rate limiting.
  */
@@ -19,7 +23,7 @@ export async function OPTIONS() {
 export async function POST(request: NextRequest) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
-    if (isRateLimited(ip, "widget-screenshot-event")) {
+    if (isRateLimited(ip, "widget-capture-info")) {
         return corsError("Too many requests", 429);
     }
 

@@ -30,6 +30,7 @@ import { createPortal } from "react-dom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Send } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { sendAgencyReplyAction, deleteFeedback } from "@/actions/feedback"
@@ -507,6 +508,12 @@ export function FeedbackDetail({ feedback, mode, senderAvatarUrl }: FeedbackDeta
                                                 </SheetTitle>
                                                 <SheetDescription>
                                                     Recorded during the feedback session on {feedback.metadata.url}
+                                                    <span className="block mt-1.5 text-[11px] text-gray-400">
+                                                        <span className="font-semibold text-violet-500">network</span> entries are failed requests. Their query strings are stripped on purpose.{" "}
+                                                        <Link href="/docs/widget-data" target="_blank" className="underline hover:text-gray-600 transition-colors">
+                                                            Why
+                                                        </Link>
+                                                    </span>
                                                 </SheetDescription>
                                             </SheetHeader>
                                         </div>
@@ -521,7 +528,8 @@ export function FeedbackDetail({ feedback, mode, senderAvatarUrl }: FeedbackDeta
                                                                 "shrink-0 font-bold uppercase tracking-tighter text-[9px] px-1.5 py-0.5 rounded h-fit self-start",
                                                                 log.type === 'error' ? "bg-red-500/20 text-red-400 border border-red-500/20" :
                                                                     log.type === 'warn' ? "bg-amber-500/20 text-amber-400 border border-amber-500/20" :
-                                                                        "bg-blue-500/20 text-blue-400 border border-blue-500/20"
+                                                                        log.type === 'network' ? "bg-violet-500/20 text-violet-300 border border-violet-500/20" :
+                                                                            "bg-blue-500/20 text-blue-400 border border-blue-500/20"
                                                             )}>
                                                                 {log.type}
                                                             </span>
