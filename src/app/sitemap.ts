@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { allComparisons } from '@/lib/compare-data'
+import { docsPages } from '@/lib/docs-data'
 
 export default function sitemap(): MetadataRoute.Sitemap {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL!
@@ -19,6 +20,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
         })),
     ]
 
+    const docUrls: MetadataRoute.Sitemap = [
+        {
+            url: `${baseUrl}/docs`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.6,
+        },
+        ...docsPages.map((d) => ({
+            url: `${baseUrl}/docs/${d.slug}`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly' as const,
+            priority: 0.5,
+        })),
+    ]
+
     return [
         {
             url: baseUrl,
@@ -33,12 +49,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
             priority: 0.8,
         },
         ...compareUrls,
-        {
-            url: `${baseUrl}/docs/widget-data`,
-            lastModified: new Date(),
-            changeFrequency: 'monthly',
-            priority: 0.5,
-        },
+        ...docUrls,
         {
             url: `${baseUrl}/terms-of-service`,
             lastModified: new Date(),

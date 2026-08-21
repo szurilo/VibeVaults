@@ -11,10 +11,16 @@
  */
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 
-const faqs = [
+/**
+ * `link` makes one substring of the answer clickable. The JSON-LD below still
+ * uses the raw `answer` string, so the structured data mirrors the visible text
+ * exactly, as Google requires.
+ */
+const faqs: { question: string; answer: string; link?: { match: string; href: string } }[] = [
     {
         question: "What is VibeVaults?",
         answer: "VibeVaults is a visual feedback widget for websites. It lets your clients click on any part of a live website and leave feedback exactly where it belongs, with a screenshot and technical details captured automatically. Agencies use it to replace scattered email threads, vague screenshots, and endless revision calls with one clear feedback stream.",
@@ -40,10 +46,35 @@ const faqs = [
         answer: "VibeVaults starts at $29/month for the Starter plan, $49/month for Pro, and $149/month for Business. Yearly billing saves 20%. Every plan starts with a 14-day free trial, no credit card required. There is no free tier, and there are never per-client or per-feedback fees.",
     },
     {
+        question: "What does the widget collect from my client's site?",
+        answer: "With each report the widget attaches the page URL, browser and screen details, a screenshot, the last 50 console log entries, and any failed network requests, so a bug arrives with the context a developer needs. Query strings are stripped from recorded request URLs before anything leaves the browser, because they often carry access tokens and email addresses. The widget never records keystrokes, form contents, request bodies, or a session replay. The full detail is documented at vibe-vaults.com/docs/widget-data.",
+        link: { match: "vibe-vaults.com/docs/widget-data", href: "/docs/widget-data" },
+    },
+    {
         question: "Can I integrate VibeVaults with my project management tools?",
         answer: "Not yet. Today, all feedback lives in the VibeVaults dashboard, where your whole team can view, discuss, and resolve it. Direct integrations with project management tools are on our roadmap. As a founding member you can tell us which integration to build first.",
     },
 ];
+
+/**
+ * Renders an answer, turning `link.match` into an internal link when present.
+ * Splits on the literal substring so the surrounding copy — and therefore the
+ * JSON-LD text — stays byte-identical to what a reader sees.
+ */
+function renderAnswer(faq: (typeof faqs)[number]) {
+    if (!faq.link) return faq.answer;
+    const [before, ...rest] = faq.answer.split(faq.link.match);
+    if (rest.length === 0) return faq.answer;
+    return (
+        <>
+            {before}
+            <Link href={faq.link.href} className="text-primary underline underline-offset-2 hover:opacity-80 transition-opacity">
+                {faq.link.match}
+            </Link>
+            {rest.join(faq.link.match)}
+        </>
+    );
+}
 
 const faqJsonLd = {
     "@context": "https://schema.org",
@@ -120,7 +151,7 @@ export const Faq = () => {
                                     className="overflow-hidden"
                                 >
                                     <p className="px-6 pb-6 text-gray-500 leading-relaxed">
-                                        {faq.answer}
+                                        {renderAnswer(faq)}
                                     </p>
                                 </motion.div>
                             </motion.div>

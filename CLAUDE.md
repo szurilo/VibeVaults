@@ -13,7 +13,7 @@
 - **Proxy**: `src/proxy.ts` (NOT `middleware.ts` — Next.js 16+ paradigm)
 - **Analytics**: Vercel Analytics + Speed Insights + PostHog (EU region `eu.i.posthog.com`)
 - **Error tracking**: PostHog — client (`PostHogProvider`, `capture_exceptions: true`), server (`instrumentation.ts` `onRequestError`), React boundary (`src/app/global-error.tsx`), widget (`public/widget.js` → `/api/widget/errors` → `widget_errors` table)
-- **Tests**: Playwright E2E (`tests/`) — Tests across `access-matrix`, `account-deletion-safety`, `auth-roundtrip`, `dashboard`, `feedback-flow`, `member-departure`, `stripe-checkout`, `trial-expiration` with seed fixtures in `tests/fixtures/`. **Zero retries** on CI and local — a flaky test is treated as a real bug, not noise to paper over. Any describe block that mutates shared owner state (billing, workspace membership) must save it in `beforeAll` and restore it in `afterAll`; missing restoration pollutes every subsequent test file. `global-setup.ts` writes a `.playwright-running` flag file that `src/lib/resend.ts` checks to short-circuit email sends during E2E runs (no dev inbox noise, no Resend quota burn).
+- **Tests**: Playwright E2E (`tests/`) — Tests across `access-matrix`, `account-deletion-safety`, `auth-roundtrip`, `dashboard`, `feedback-flow`, `member-departure`, `stripe-checkout`, `trial-expiration` with seed fixtures in `tests/fixtures/`. `marketing-header.spec.ts` pins the auth-aware chrome across all public pages (a break in the "signed in" direction would silently strip both conversion CTAs from logged-out visitors). `widget-network-capture.spec.ts` is the odd one out: a pure logic test that extracts the failed-request capture block straight out of `public/widget.js` and runs it against a stubbed window (no browser/DB/server), so the privacy guarantees on `/docs/widget-data` can't silently regress. **Zero retries** on CI and local — a flaky test is treated as a real bug, not noise to paper over. Any describe block that mutates shared owner state (billing, workspace membership) must save it in `beforeAll` and restore it in `afterAll`; missing restoration pollutes every subsequent test file. `global-setup.ts` writes a `.playwright-running` flag file that `src/lib/resend.ts` checks to short-circuit email sends during E2E runs (no dev inbox noise, no Resend quota burn).
 - **CI/CD**: GitHub Actions — `deploy-migrations.yml` (DB migrations), `supabase-backup.yml` (backups), `playwright.yml` (E2E).
 
 ## Critical Rules
@@ -53,6 +53,7 @@ src/
     api/            # API routes (widget/, stripe/, auth/, workspaces/, projects/)
     auth/           # Auth pages (login, register, callback, confirm)
     dashboard/      # Dashboard pages (feedback, project-settings, settings, account, subscribe)
+    docs/           # Public customer documentation (index + 6 pages, driven by lib/docs-data.ts)
     share/          # Public read-only board sharing
     page.tsx        # Landing page
   components/       # React components (feedback-card, AppSidebar, Onboarding, etc.)
@@ -169,6 +170,18 @@ tests/              # Playwright E2E tests
   - **Self-notification prevention**: reply emails never sent to the person who wrote the reply
   - Resend batch API used for multi-recipient digest sends
 
+### Public Documentation (`/docs`)
+- Customer-facing docs at `/docs`: `quick-start`, `widget-access`, `screenshots`, `widget-data`, `roles-and-sharing`, `troubleshooting`.
+- **`src/lib/docs-data.ts` is the single source of truth** for the page list, titles, and order. It drives the docs index, the sidebar nav (`components/docs/docs-nav.tsx`), the "next page" card (`docs-page-footer.tsx`), the footer's Docs column, and `sitemap.ts`. Adding a page = add a slug there + create `src/app/docs/<slug>/page.tsx`. A slug with no matching directory ships a 404 into the nav and the sitemap — there is no runtime check.
+- Shared chrome lives in `src/app/docs/layout.tsx` (SiteHeader + sticky sidebar + SiteFooter); prose styling is the `.docs-prose` class in `globals.css`, so pages stay semantic HTML with no repeated Tailwind strings.
+- Pages assert real product behaviour and go stale silently, so anything derivable is derived: `roles-and-sharing` **reads** `TIER_DISPLAY`/`TIER_LIMITS`/`YEARLY_DISCOUNT` from `tier-config.ts` and never restates a price or limit in prose. The remaining hand-written couplings: `screenshots` mirrors the Firefox foreignObject bug entry; `widget-data` mirrors what `getMetadata()` captures; `quick-start` mirrors the embed snippet from `embed-widget-card.tsx`.
+- Deep links from the product: the feedback detail console-logs sheet links `/docs/widget-data#query-strings`, and troubleshooting links `/docs/screenshots#firefox-bug`. Keep those anchors stable.
+- **`SiteHeader` / `SiteFooter` are the shared chrome for every public page** — landing, `/pricing`, `/compare/*`, `/docs/*`, `/privacy-policy`, `/terms-of-service`. Do not hand-copy a header into a new page; `/pricing` carried a near-duplicate for months and that is exactly why signed-in customers were still shown "Get Started" there.
+- **`SiteHeader` is auth-aware** (`src/components/landing/site-header.tsx`): an async server component that resolves the session with `getClaims()` and renders a **Dashboard** button instead of Sign In / Get Started, so signed-in customers are not asked to register again. `<SiteHeader minimal />` renders the wordmark alone and is used on `/access`, whose audience is largely invited clients who by design never get an account — a Sign In button there points them at a signup that cannot solve their problem. Server-side resolution costs nothing because **every route is already dynamic** — the root layout reads `headers()` for the GDPR country check (`layout.tsx`). If that ever changes and marketing pages become statically generated, this header must move to a client-side session check or it will pin them dynamic.
+- Dashboard users reach the docs from the **"Questions or Problems?"** card on `/dashboard` (opens `/docs` in a new tab), not from the sidebar.
+- **Docs are deliberately NOT in the top nav.** Landing-page nav is conversion real estate (Features / How it works / Pricing / Sign in / Get started) and competitors in this category keep docs out of it too. Discovery is via the footer's Documentation column, the landing FAQ, and in-product deep links.
+- The landing FAQ ("What does the widget collect from my client's site?") summarises `widget-data` and links to it. FAQ answers feed the FAQPage JSON-LD from the same array, so edit the array, never the schema separately.
+
 ### Dashboard Behaviours
 - **Notification navigation**: `src/lib/notification-navigation.ts` is the shared helper used by both the bell dropdown and toast clicks. It looks up the target project's `workspace_id`, writes both `selectedWorkspaceId` and `selectedProjectId` cookies, then routes — so sidebar context follows the notification instead of staying on the previously selected workspace.
 - **Deleted feedback doesn't 404**: `src/components/feedback-deleted-toast.tsx` renders a toast instead, driven from the feedback detail page.
@@ -194,6 +207,7 @@ tests/              # Playwright E2E tests
 | `embed-widget-card` | `src/components/embed-widget-card.tsx` | Widget embed snippet + "Open widget on site" |
 | `share-project-card` | `src/components/share-project-card.tsx` | Public board sharing with token management |
 | `billing-card` | `src/components/billing-card.tsx` | Account billing card → Stripe Customer Portal |
+| `docs/*` | `src/components/docs/` | `docs-nav` (sidebar, active state), `docs-page-header`, `docs-page-footer` (next-page card) |
 | `landing/*` | `src/components/landing/` | `bento-features`, `founder-note`, `product-demo`, `roi-calculator`, `pricing-cards`, `faq`, `how-it-works`, `site-header`, `site-footer` |
 
 > Components are **kebab-case** filenames. A few legacy files remain PascalCase (`PostHogProvider.tsx`, `CookieConsent.tsx`, `GoogleSignInButton.tsx`, `CookiePreferencesLink.tsx`).
