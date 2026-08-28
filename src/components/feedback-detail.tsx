@@ -12,7 +12,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { FeedbackStatusSelect } from "./feedback-status-select"
 import { cn } from "@/lib/utils"
-import { Trash2, Globe, Monitor, Terminal, ChevronRight, Activity, Cpu, MousePointer2, Paperclip, FileText, Image as ImageIcon, AlertCircle, Maximize2 } from "lucide-react"
+import { Trash2, Globe, Monitor, Terminal, ChevronRight, Activity, Cpu, MousePointer2, MapPin, Paperclip, FileText, Image as ImageIcon, AlertCircle, Maximize2 } from "lucide-react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -45,7 +45,7 @@ import {
     SheetTrigger,
 } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
-import { type FeedbackData, getStatusStyles, parseUA, isImageFile } from "@/lib/feedback-utils"
+import { type FeedbackData, getStatusStyles, parseUA, isImageFile, describeAnchorOffset, describeAnchorConfidence } from "@/lib/feedback-utils"
 
 interface Attachment {
     id: string;
@@ -271,6 +271,9 @@ export function FeedbackDetail({ feedback, mode, senderAvatarUrl }: FeedbackDeta
     }
 
     const { browser, os } = parseUA(feedback.metadata?.userAgent)
+    const pinAnchor = feedback.metadata?.anchor
+    const pinOffset = describeAnchorOffset(pinAnchor)
+    const pinConfidence = describeAnchorConfidence(pinAnchor)
 
     return (<>
         <Card className="hover:shadow-lg transition-all duration-300 border-gray-200/60 overflow-hidden flex flex-col bg-white/50 backdrop-blur-sm @container">
@@ -470,7 +473,55 @@ export function FeedbackDetail({ feedback, mode, senderAvatarUrl }: FeedbackDeta
                                 </div>
                             </div>
 
-                            {feedback.metadata.dom_selector && (
+                            {/* Pinned reports carry an anchor; a plain dom_selector means the
+                                report predates pinning or came from the old element picker. */}
+                            {pinAnchor?.selector ? (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="flex items-center gap-2.5 min-w-0 cursor-help">
+                                                <div className={cn(
+                                                    "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+                                                    pinConfidence?.tone === 'warn' ? "bg-amber-50 text-amber-500" : "bg-blue-50 text-blue-500"
+                                                )}>
+                                                    <MapPin className="w-3.5 h-3.5" />
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
+                                                        Pinned On
+                                                    </span>
+                                                    <span className="text-[11px] text-gray-600 font-medium truncate">
+                                                        {pinAnchor.selector}
+                                                        {pinOffset && pinOffset !== 'inside' && (
+                                                            <span className="text-gray-400"> · {pinOffset}</span>
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-xs">
+                                            <p className="font-mono text-[11px] break-all">{pinAnchor.selector}</p>
+                                            {pinOffset && (
+                                                <p className="mt-1 text-[11px]">
+                                                    Pin sits {pinOffset === 'inside' ? 'inside this element' : `${pinOffset} of this element`}.
+                                                </p>
+                                            )}
+                                            {pinConfidence && (
+                                                <p className="mt-1 text-[11px]">
+                                                    <strong>{pinConfidence.label}.</strong> {pinConfidence.detail}
+                                                </p>
+                                            )}
+                                            {/* opacity, not a muted-foreground token: the tooltip surface is
+                                                dark, so the light-theme muted colour is nearly invisible on it. */}
+                                            {pinAnchor.viewportW && (
+                                                <p className="mt-1 text-[11px] opacity-70">
+                                                    Reported at {pinAnchor.viewportW}px wide.
+                                                </p>
+                                            )}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            ) : feedback.metadata.dom_selector ? (
                                 <div className="flex items-center gap-2.5 min-w-0">
                                     <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
                                         <MousePointer2 className="w-3.5 h-3.5 text-gray-400" />
@@ -482,7 +533,7 @@ export function FeedbackDetail({ feedback, mode, senderAvatarUrl }: FeedbackDeta
                                         </span>
                                     </div>
                                 </div>
-                            )}
+                            ) : null}
 
                             {feedback.metadata.logs && feedback.metadata.logs.length > 0 && (
                                 <Sheet>

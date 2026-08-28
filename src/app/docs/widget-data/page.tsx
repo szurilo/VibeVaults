@@ -1,7 +1,8 @@
 /**
  * Main Responsibility: Public reference explaining exactly what the embedded
- * widget records with each feedback report — console logs, failed requests,
- * browser context — and why query strings are stripped from captured URLs.
+ * widget records with each feedback report — the pin position, console logs,
+ * failed requests, browser context — and why query strings are stripped from
+ * captured URLs.
  * Written for customers who need to answer their own users' questions, and for
  * us when we forget the reasoning.
  *
@@ -42,12 +43,34 @@ export default function WidgetDataDoc() {
                     <li><strong>Screen and viewport size</strong>, and the browser language</li>
                     <li><strong>Console logs</strong> — the last 50 entries</li>
                     <li><strong>Failed requests</strong> — up to 15 entries</li>
-                    <li><strong>The selected element</strong>, if the reporter pointed at something specific</li>
+                    <li><strong>The pin</strong> — where on the page the feedback was placed, and the element it was anchored to</li>
                     <li><strong>A screenshot and any files</strong> the reporter chose to attach</li>
                 </ul>
                 <p>
                     All of it is visible to you in the dashboard on the feedback detail view. Nothing is hidden from the account
                     that receives the report.
+                </p>
+
+                <h2 id="pin-position">The pin</h2>
+                <p>
+                    Feedback written in the widget is attached to a point on the page, so each report also carries the
+                    information needed to put that pin back where it belongs. That is:
+                </p>
+                <ul>
+                    <li>a CSS selector for the element the pin was placed on or beside, such as <code>#pricing-cta</code></li>
+                    <li>the pin&apos;s position relative to that element, as an offset or a percentage</li>
+                    <li>the page address, without its query string</li>
+                    <li>the viewport width and pixel ratio the feedback was written at</li>
+                </ul>
+                <p>
+                    This is structural information about your own markup, not anything about the person reporting. The selector
+                    is built from ids and test attributes you already wrote, or from the shape of the document. No text content
+                    is read out of the element.
+                </p>
+                <p>
+                    The page address recorded for a pin is stripped to the origin and path, for the same reason described{" "}
+                    <a href="#query-strings">below</a>. A pin on <code>/orders?customer=jane@example.com</code> is stored
+                    against <code>/orders</code>.
                 </p>
 
                 <h2 id="console-logs">Console logs</h2>
