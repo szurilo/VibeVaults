@@ -297,6 +297,87 @@ test.describe('on-page pin layer', () => {
         expect(await armed()).toBe(false);
     });
 
+    test('the composer stays on screen for a pin placed near the bottom', async ({ page }) => {
+        await mountWidget(page, { body: LAYOUT });
+        await dropPin(page, 640, 780);
+
+        const box = () => page.evaluate(() => {
+            const r = document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!
+                .querySelector('#vv-composer')!.getBoundingClientRect();
+            return { top: Math.round(r.top), bottom: Math.round(r.bottom), limit: window.innerHeight };
+        });
+
+        const onOpen = await box();
+        expect(onOpen.bottom).toBeLessThanOrEqual(onOpen.limit);
+        expect(onOpen.top).toBeGreaterThanOrEqual(0);
+
+        // The composer grows after it opens: the screenshot shimmer is prepended,
+        // then swapped for a thumbnail. Positioning only on open left the submit
+        // button hanging off the bottom of the screen.
+        await page.evaluate(() => {
+            const previews = document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!
+                .querySelector('#vv-composer-previews')!;
+            const filler = document.createElement('div');
+            filler.style.height = '160px';
+            previews.appendChild(filler);
+        });
+        await expect.poll(() => box().then((b) => b.bottom <= b.limit)).toBe(true);
+        expect((await box()).top).toBeGreaterThanOrEqual(0);
+    });
+
+    test('placing hides the widget chrome so it cannot block the page', async ({ page }) => {
+        await mountWidget(page, { body: LAYOUT, feedback: PINS });
+        await openWidget(page);
+
+        const chrome = () => page.evaluate(() => {
+            const root = document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!;
+            return {
+                launcher: getComputedStyle(root.querySelector('.launcher')!).display !== 'none',
+                popup: getComputedStyle(root.querySelector('.popup')!).display !== 'none',
+            };
+        });
+
+        expect(await chrome()).toEqual({ launcher: true, popup: true });
+        await clickAction(page, '#vv-action-pin');
+        expect(await chrome()).toEqual({ launcher: false, popup: false });
+
+        // Existing pins stay: they are context for where the new one goes.
+        await expect.poll(() => page.evaluate(() =>
+            document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!
+                .querySelectorAll('.pin-marker:not(.pending)').length)).toBeGreaterThan(0);
+
+        // Cancel lives on the overlay, because the panel is not reachable.
+        await page.evaluate(() => {
+            (document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!
+                .querySelector('#vv-pin-cancel') as HTMLElement).click();
+        });
+        expect(await chrome()).toEqual({ launcher: true, popup: true });
+    });
+
+    test('the chrome stays hidden until the composer is done', async ({ page }) => {
+        await mountWidget(page, { body: LAYOUT, feedback: PINS });
+        await openWidget(page);
+
+        const chrome = () => page.evaluate(() => {
+            const root = document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!;
+            return {
+                launcher: getComputedStyle(root.querySelector('.launcher')!).display !== 'none',
+                popup: getComputedStyle(root.querySelector('.popup')!).display !== 'none',
+            };
+        });
+
+        // Bottom-right: the one spot where the reappearing panel would sit
+        // directly underneath the composer that just opened.
+        await dropPin(page, 1180, 720);
+        expect(await chrome()).toEqual({ launcher: false, popup: false });
+
+        await page.evaluate(() => {
+            (document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!
+                .querySelector('#vv-composer-close') as HTMLElement).click();
+        });
+        expect(await chrome()).toEqual({ launcher: true, popup: true });
+    });
+
     test('a freshly submitted pin stays visible without waiting for the next poll', async ({ page }) => {
         // The stub list never returns the new row, so anything still drawn here
         // is the optimistic insert surviving the immediate refetch.
@@ -316,6 +397,12 @@ test.describe('on-page pin layer', () => {
         await expect.poll(() => widget.markers().then((m) => m.length)).toBe(3);
         expect(await page.evaluate(() =>
             !!document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!.querySelector('.pin-marker.pending'))).toBe(false);
+
+        // A successful send has to hand the chrome back too, not just a discard.
+        expect(await page.evaluate(() => {
+            const root = document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!;
+            return getComputedStyle(root.querySelector('.launcher')!).display !== 'none';
+        })).toBe(true);
 
         const body = widget.submitted()!;
         const metadata = body.metadata as Record<string, unknown>;

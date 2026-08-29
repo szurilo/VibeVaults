@@ -187,5 +187,6 @@
       "WebFetch(domain:www.usepastel.com)",
       "WebFetch(domain:usepastel.com)"
     ]
-  }
+  },
+  "outputStyle": "Concise"
 }

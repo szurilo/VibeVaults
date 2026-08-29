@@ -478,7 +478,12 @@
        until someone asks for it. */
     .popup:not(.list-open) { height: auto; }
     .popup:not(.list-open) .content { display: none; }
-    .mode-hint { padding: 0 20px 8px; font-size: 11px; color: #94a3b8; line-height: 1.4; flex-shrink: 0; }
+    /* The widget's own chrome is in the way of the page it is asking the user
+       to click, and once the pin lands the composer can sit anywhere on screen
+       including directly over the panel. So it stays hidden for the whole
+       flow, not just while armed. The pins remain: they are context for where
+       the new one should go. */
+    .chrome-hidden .launcher, .chrome-hidden .popup { display: none !important; }
     .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
     textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; resize: none; font-family: inherit; background: white; color: #1f2937; }
     .sender-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: white; color: #1f2937; }
@@ -716,7 +721,6 @@
           Feedback
         </button>
       </div>
-      <div class="mode-hint" id="vv-mode-hint"></div>
       <div class="content">
         <div class="view-feedback">
           <div class="feedback-list" id="vv-feedback-list">
@@ -1852,6 +1856,24 @@
       el.style.top = top + 'px';
     };
 
+    // The composer changes height after it opens: the screenshot shimmer is
+    // prepended, then swapped for a thumbnail, and attachments can be added.
+    // Positioning once on open therefore leaves the submit button hanging off
+    // the bottom of the screen for any pin placed low on the page. Observing
+    // the box re-clamps it every time it grows. Repositioning only moves it, so
+    // this cannot feed back into itself.
+    let composerResizeObserver = null;
+    const watchComposerSize = () => {
+      if (composerResizeObserver || typeof ResizeObserver === 'undefined') return;
+      composerResizeObserver = new ResizeObserver(() => repositionPendingPin());
+      composerResizeObserver.observe(wrapper.querySelector('#vv-composer'));
+    };
+    const unwatchComposerSize = () => {
+      if (!composerResizeObserver) return;
+      composerResizeObserver.disconnect();
+      composerResizeObserver = null;
+    };
+
     // The pin is anchored to an element, so scrolling or a layout shift has to
     // move both the marker and the composer with it.
     const repositionPendingPin = () => {
@@ -1876,6 +1898,8 @@
     const closeComposer = () => {
       const el = wrapper.querySelector('#vv-composer');
       if (el) el.classList.remove('open');
+      syncChromeVisibility();
+      unwatchComposerSize();
       clearPendingPin();
       pendingAnchor = null;
       pinAttachments = [];
@@ -1929,7 +1953,9 @@
 
       renderPendingPin(x, y);
       composer.classList.add('open');
+      syncChromeVisibility();
       positionComposer(x, y);
+      watchComposerSize();
       composer.querySelector('#vv-composer-text').focus();
       capturePinScreenshot(x, y);
     };
@@ -2004,13 +2030,6 @@
 
     const PIN_CLUSTER_RADIUS = 30;
     const CLUSTER_FAN_RADIUS = 34;
-
-    const setModeHint = () => {
-      const hint = wrapper.querySelector('#vv-mode-hint');
-      if (!hint) return;
-      hint.textContent = pinArmed ? 'Click anywhere on the page to place your pin.' : '';
-      hint.style.display = pinArmed ? '' : 'none';
-    };
 
     // Pins belong to the page they were left on. Anything without an anchor
     // (reported from the dashboard, or before pinning existed) stays list-only.
@@ -2160,11 +2179,23 @@
       const crosshair = document.createElement('div');
       crosshair.className = 'capture-crosshair';
       crosshair.style.display = 'none';
+      // The panel is hidden while placing, so the instruction and the way out
+      // have to travel with the overlay.
+      const banner = document.createElement('div');
+      banner.className = 'capture-banner';
+      banner.innerHTML = '<span>Click anywhere on the page to place your pin</span>'
+        + '<button type="button" id="vv-pin-cancel">Cancel</button>';
       wrapper.appendChild(overlay);
       wrapper.appendChild(highlight);
       wrapper.appendChild(crosshair);
+      wrapper.appendChild(banner);
+      banner.querySelector('#vv-pin-cancel').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        disarmPin();
+      });
 
-      const state = { nodes: [overlay, highlight, crosshair], frame: null, last: null, onKeyDown: null };
+      const state = { nodes: [overlay, highlight, crosshair, banner], frame: null, last: null, onKeyDown: null };
 
       // The outline follows the element under the cursor, including a big empty
       // layout div, because that is the region being pointed at. The element the
@@ -2216,11 +2247,20 @@
     // Arming covers exactly one placement. The overlay swallows page clicks
     // while it is up, so leaving it armed would make the customer's own site
     // permanently unusable, which is why the composer disarms on open.
+    // Hidden while placement is armed *and* while the composer is open, since a
+    // pin dropped in the bottom-right corner puts the composer exactly where the
+    // panel would reappear. Chrome returns once the feedback is sent or discarded.
+    const syncChromeVisibility = () => {
+      const composer = wrapper.querySelector('#vv-composer');
+      const composing = !!composer && composer.classList.contains('open');
+      wrapper.classList.toggle('chrome-hidden', pinArmed || composing);
+    };
+
     const armPin = () => {
       if (pinArmed) return;
       pinArmed = true;
       wrapper.querySelector('#vv-action-pin').classList.add('active');
-      setModeHint();
+      syncChromeVisibility();
       buildPinOverlay();
       if (!cachedFeedback.length) fetchAllFeedback();
       rebuildLivePins();
@@ -2231,7 +2271,7 @@
       pinArmed = false;
       const btn = wrapper.querySelector('#vv-action-pin');
       if (btn) btn.classList.remove('active');
-      setModeHint();
+      syncChromeVisibility();
       teardownPinOverlay();
       expandedCluster = null;
       paintLivePins();
