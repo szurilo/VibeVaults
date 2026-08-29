@@ -1,12 +1,12 @@
 /**
  * Main Responsibility: Customer-facing explanation of screenshot capture and
- * element tagging, including the known Firefox hardware-acceleration rendering
+ * pinning, including the known Firefox hardware-acceleration rendering
  * bug and its workaround. This is the page to send someone whose screenshot
  * came out with ghosted pill-shaped elements.
  *
  * Sensitive Dependencies:
  * - Mirrors the capture implementation in `public/widget.js` (snapdom, viewport
- *   crop, element highlight, JPEG encoding).
+ *   crop, pin marker, JPEG encoding).
  * - The Firefox bug section must stay in sync with the "Known browser bug"
  *   entry in CLAUDE.md.
  */
@@ -41,14 +41,16 @@ export default function ScreenshotsDoc() {
                     they had the page in.
                 </p>
 
-                <h2 id="element-tagging">Pointing at an element</h2>
+                <h2 id="pointing">Pointing at the problem</h2>
                 <p>
-                    Before capturing, the reporter can hover the page and click the exact element they are talking about. That
-                    element is outlined in the screenshot, and the report records which element it was.
+                    The reporter clicks the exact spot they are talking about and a pin lands there. The screenshot is captured
+                    with that pin drawn onto it, so the image arrives already showing what they meant.
                 </p>
                 <p>
-                    This is the difference between &quot;the button is broken&quot; and a picture with the button circled. Ask
-                    your clients to use it; it removes most of the back and forth about which thing on the page they meant.
+                    This is the difference between &quot;the button is broken&quot; and a picture with the button circled, and
+                    it works for things that are not elements at all, such as the gap between two sections. The pin also stays
+                    on the live page for everyone else to see, which is covered in{" "}
+                    <Link href="/docs/pinning">Pinning feedback</Link>.
                 </p>
 
                 <h2 id="what-is-in-the-image">What ends up in the image</h2>

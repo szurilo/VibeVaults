@@ -111,7 +111,7 @@ export default function TroubleshootingDoc() {
                 <p>
                     If small rounded buttons or badges appear hollow, that is a known Firefox rendering issue with a
                     one-setting workaround, described in{" "}
-                    <Link href="/docs/screenshots#firefox-bug">Screenshots and element tagging</Link>.
+                    <Link href="/docs/screenshots#firefox-bug">Screenshots</Link>.
                 </p>
 
                 <h2 id="still-stuck">Still stuck</h2>

@@ -87,8 +87,12 @@ export default function QuickStartDoc() {
                 <ul>
                     <li>They click the <strong>Feedback</strong> button in the corner of the site.</li>
                     <li>
-                        They describe the problem, optionally point at the exact element on the page, and the widget captures a
-                        screenshot plus the technical context automatically.
+                        They click the spot on the page they mean, a pin lands there, and they type the problem into the dialog
+                        that opens beside it. The widget captures a screenshot plus the technical context automatically.
+                    </li>
+                    <li>
+                        The pin stays on the page, so everyone reviewing the site sees it in context rather than only in the
+                        dashboard. See <strong>Pinning feedback</strong> for the details.
                     </li>
                     <li>The report lands in your dashboard, and you get a notification and an email.</li>
                     <li>

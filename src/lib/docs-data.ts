@@ -24,14 +24,19 @@ export const docsPages: DocPage[] = [
         summary: "Create a project, embed one script tag, invite your client, and collect the first piece of feedback.",
     },
     {
+        slug: "pinning",
+        title: "Pinning feedback",
+        summary: "Drop a pin anywhere on the page, switch between browsing and commenting, and see everyone's pins in context.",
+    },
+    {
         slug: "widget-access",
         title: "How widget access works",
         summary: "Invite-only access, per-device links, and what to do when someone loses theirs.",
     },
     {
         slug: "screenshots",
-        title: "Screenshots and element tagging",
-        summary: "How capture works, what a tagged element is, and the known Firefox rendering issue.",
+        title: "Screenshots",
+        summary: "How capture works, what ends up in the image, and the known Firefox rendering issue.",
     },
     {
         slug: "widget-data",

@@ -3,8 +3,12 @@
  *
  * Tests the core product loop end-to-end:
  *   1. Widget loads on an external page bootstrapped with a per-device token
- *   2. Client submits feedback via widget
+ *   2. Client places a pin and submits feedback from the composer beside it
  *   3. Feedback appears in the dashboard
+ *
+ * This is the only test that drives the widget against the real API, real
+ * database and real dashboard. `widget-pinning.spec.ts` stubs the endpoints to
+ * test anchoring logic, so it cannot catch a server-side break; this one can.
  *
  * Auth model: the legacy email-prompt flow was removed in slice C2. The widget
  * is now invisible to anonymous visitors and only renders after a per-device
@@ -48,7 +52,7 @@ test.describe('Widget feedback flow (real API)', () => {
 
     const feedbackContent = `E2E feedback ${Date.now()}`;
 
-    test('client submits feedback via widget → visible in dashboard', async ({ page, context }) => {
+    test('client submits pinned feedback via widget → visible in dashboard', async ({ page, context }) => {
         const seed = getSeedResult();
 
         // ── Step 1: Bootstrap the widget with the seeded client's token ──
@@ -59,14 +63,24 @@ test.describe('Widget feedback flow (real API)', () => {
         await page.locator('.trigger-btn').click();
         await expect(page.locator('.popup')).toBeVisible({ timeout: 5_000 });
 
-        // ── Step 3: Submit feedback ──
-        // No email prompt anymore — the bearer-token identity is server-authoritative.
-        await expect(page.locator('#vv-textarea')).toBeVisible({ timeout: 5_000 });
-        await page.locator('#vv-textarea').fill(feedbackContent);
-        await page.locator('#vv-submit').click();
+        // ── Step 3: Place a pin, then submit from the composer beside it ──
+        // Every widget report is pinned now; the unpinned form is gone.
+        await page.locator('#vv-action-pin').click();
+        await expect(page.locator('.capture-overlay')).toBeVisible({ timeout: 5_000 });
 
-        // Success view should appear
-        await expect(page.locator('.success-view')).toBeVisible({ timeout: 10_000 });
+        // Clicked via page.mouse, not a locator: the placement overlay covers
+        // the page on purpose, so a locator click would be reported as
+        // intercepted rather than landing on the overlay that reads the point.
+        const target = (await page.locator('h1').boundingBox())!;
+        await page.mouse.click(Math.round(target.x + target.width / 2), Math.round(target.y + target.height / 2));
+
+        await expect(page.locator('#vv-composer')).toBeVisible({ timeout: 5_000 });
+        await page.locator('#vv-composer-text').fill(feedbackContent);
+        await page.locator('#vv-composer-submit').click();
+
+        // Success closes the composer; there is no success view any more.
+        // Generous timeout: a screenshot may still be uploading behind this.
+        await expect(page.locator('#vv-composer')).toBeHidden({ timeout: 20_000 });
 
         // ── Step 4: Verify feedback appears in the dashboard ──
         const dashboardPage = await context.newPage();
@@ -92,9 +106,8 @@ test.describe('Widget feedback flow (real API)', () => {
         await page.locator('.trigger-btn').click();
         await expect(page.locator('.popup')).toBeVisible({ timeout: 5_000 });
 
-        // Switch directly to the feedback tab (no email prompt to clear first)
-        await expect(page.locator('#vv-textarea')).toBeVisible({ timeout: 5_000 });
-        await page.locator('.nav-item[data-view="feedback"]').click();
+        // The list is a toggle on the action bar now, not a tab.
+        await page.locator('#vv-action-list').click();
 
         // Should see at least one feedback item
         await expect(page.locator('.feedback-item').first()).toBeVisible({ timeout: 10_000 });
