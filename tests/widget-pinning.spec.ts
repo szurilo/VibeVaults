@@ -378,6 +378,36 @@ test.describe('on-page pin layer', () => {
         expect(await chrome()).toEqual({ launcher: true, popup: true });
     });
 
+    test('pins realign after a layout shift that fires no scroll or resize', async ({ page }) => {
+        // The real-world trigger is a lazy image, a font swap or a scroll-driven
+        // reveal moving every anchor. None of those fire scroll or resize, so
+        // pins kept their old positions and looked uniformly offset until the
+        // next scroll nudged them back.
+        const widget = await mountWidget(page, { body: LAYOUT, feedback: PINS });
+        await openWidget(page);
+        await expect.poll(() => widget.markers().then((m) => m.length)).toBe(2);
+
+        const drift = () => page.evaluate(() => {
+            const root = document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!;
+            const marker = root.querySelector('.pin-marker.cluster') as HTMLElement;
+            const card = document.querySelector('#c1')!.getBoundingClientRect();
+            const r = marker.getBoundingClientRect();
+            // Both stub pins sit vertically centred inside #c1.
+            return Math.round(r.bottom - (card.top + card.height * 0.5));
+        });
+
+        expect(Math.abs(await drift())).toBeLessThanOrEqual(2);
+
+        // Push everything down without touching the scroll position.
+        await page.evaluate(() => {
+            const spacer = document.createElement('div');
+            spacer.style.height = '50px';
+            document.body.insertBefore(spacer, document.body.firstChild);
+        });
+
+        await expect.poll(() => drift().then((d) => Math.abs(d) <= 2), { timeout: 5_000 }).toBe(true);
+    });
+
     test('a freshly submitted pin stays visible without waiting for the next poll', async ({ page }) => {
         // The stub list never returns the new row, so anything still drawn here
         // is the optimistic insert surviving the immediate refetch.

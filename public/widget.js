@@ -1886,13 +1886,57 @@
 
     // A single rAF-throttled loop drives both the pin being composed and every
     // saved pin, so a scroll does not schedule two independent passes.
+    const syncPins = () => {
+      repositionPendingPin();
+      paintLivePins();
+    };
+
     const onPinTrackingEvent = () => {
-      if (pinTrackingFrame) return;
-      pinTrackingFrame = requestAnimationFrame(() => {
-        pinTrackingFrame = null;
-        repositionPendingPin();
-        paintLivePins();
-      });
+      if (!pinTrackingFrame) {
+        pinTrackingFrame = requestAnimationFrame(() => {
+          pinTrackingFrame = null;
+          syncPins();
+        });
+      }
+      // Trailing pass. The host page's own scroll handler runs alongside ours
+      // and may collapse a sticky header or trigger a reveal animation *after*
+      // we measured, moving every anchor. Without this the pins keep their
+      // pre-shift positions until the next scroll event, which is why they
+      // looked uniformly offset after scrolling up and snapped back on the
+      // next scroll down.
+      if (pinSettleTimer) clearTimeout(pinSettleTimer);
+      pinSettleTimer = setTimeout(() => { pinSettleTimer = null; syncPins(); }, 200);
+    };
+
+    // Cheap fingerprint of where every pin currently resolves to, so the
+    // reconcile pass can skip repainting when nothing actually moved.
+    const pinSignature = () => livePins.map((p) => {
+      const pos = positionOf(p);
+      return pos ? p.id + ':' + Math.round(pos.x) + ',' + Math.round(pos.y) : p.id + ':-';
+    }).join('|');
+
+    // Lazy-loaded images, web-font swaps and scroll-triggered reveal animations
+    // all move anchors without firing scroll or resize. The observer catches
+    // anything that changes the document box; the interval is the backstop for
+    // shifts inside a fixed-height section, which change nothing observable.
+    const startPinLayoutWatch = () => {
+      if (typeof ResizeObserver !== 'undefined' && !pinLayoutObserver) {
+        pinLayoutObserver = new ResizeObserver(() => onPinTrackingEvent());
+        pinLayoutObserver.observe(document.documentElement);
+        if (document.body) pinLayoutObserver.observe(document.body);
+      }
+      if (!pinReconcileInterval) {
+        pinReconcileInterval = setInterval(() => {
+          repositionPendingPin();
+          if (pinSignature() !== lastPinSignature) paintLivePins();
+        }, 1000);
+      }
+    };
+
+    const stopPinLayoutWatch = () => {
+      if (pinLayoutObserver) { pinLayoutObserver.disconnect(); pinLayoutObserver = null; }
+      if (pinReconcileInterval) { clearInterval(pinReconcileInterval); pinReconcileInterval = null; }
+      if (pinSettleTimer) { clearTimeout(pinSettleTimer); pinSettleTimer = null; }
     };
 
     const closeComposer = () => {
@@ -2025,6 +2069,10 @@
     let livePins = [];
     let expandedCluster = null;
     let livePinFrame = null;
+    let pinSettleTimer = null;
+    let pinReconcileInterval = null;
+    let pinLayoutObserver = null;
+    let lastPinSignature = '';
     // Ids submitted from this device that the list endpoint may not return yet.
     const optimisticIds = new Set();
 
@@ -2086,6 +2134,7 @@
       if (!layer) return;
       // The pending pin belongs to the composer, not the saved set.
       layer.querySelectorAll('.pin-marker:not(.pending)').forEach((n) => n.remove());
+      lastPinSignature = isOpen ? pinSignature() : '';
       if (!isOpen) return;
 
       const placed = [];
@@ -2366,7 +2415,9 @@
         wrapper.querySelector('.badge').style.display = 'none';
         if (!cachedFeedback.length) fetchAllFeedback();
         rebuildLivePins();
+        startPinLayoutWatch();
       } else {
+        stopPinLayoutWatch();
         disarmPin();
         setListOpen(false);
         closeComposer();
