@@ -5,9 +5,12 @@
  *
  * Sensitive Dependencies:
  * - Must match the token flow in `public/widget.js` and
- *   `src/actions/widget-access.ts` (`?vv_invite=`, `?vv_token=`, localStorage).
+ *   `src/actions/widget-access.ts` (`?vv_invite=`, `?vv_token=`, `?vv_review=`,
+ *   localStorage).
  * - The /access recovery page it points at must stay public in
  *   `src/lib/supabase/proxy.ts`.
+ * - The review-link section mirrors `review-link-card.tsx` and the pause
+ *   behaviour enforced in `src/lib/widget-helpers.ts`.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -36,7 +39,8 @@ export default function WidgetAccessDoc() {
                 </p>
                 <p>
                     This is the core difference from a public feedback tool. You are running a review round with named people,
-                    not collecting opinions from the internet, so access is by invitation only.
+                    not collecting opinions from the internet, so everyone who sees the widget got there through a link you
+                    chose to share: a personal invite, or the project&apos;s review link.
                 </p>
 
                 <h2 id="access-links">How someone gets access</h2>
@@ -49,6 +53,26 @@ export default function WidgetAccessDoc() {
                 <p>
                     From then on, the widget simply appears whenever that person visits the site in that browser. There is
                     nothing to install, no account to create, and no password.
+                </p>
+
+                <h2 id="review-link">The review link: guest access without invites</h2>
+                <p>
+                    Every project also has a <strong>shareable review link</strong>, found in the project&apos;s settings. It is
+                    the same website address with an unguessable code attached, and anyone who opens it can activate the widget
+                    as a <strong>guest</strong> after entering their name and email. No invite, no waiting for an email to
+                    arrive: paste it into a chat, a ticket, or a kickoff email and the whole stakeholder group can start
+                    pinning feedback. How guests differ from invited clients is covered in{" "}
+                    <Link href="/docs/roles-and-sharing#roles">Roles, plans, and sharing</Link>.
+                </p>
+                <p>
+                    The name and email a guest enters is how their feedback is labelled and where reply notifications go. The
+                    link itself is permanent: it never expires and never changes, so the copy in your client&apos;s bookmarks
+                    keeps working for round two.
+                </p>
+                <p>
+                    When a review round is over, you can <strong>pause review feedback</strong> from the same settings card.
+                    Paused guests still see the widget and every existing thread, but new pins and replies are blocked with
+                    a clear notice until you resume. Invited clients and your own team are never affected by the pause.
                 </p>
 
                 <h2 id="per-device">Access is per device, on purpose</h2>

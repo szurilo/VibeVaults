@@ -13,6 +13,7 @@ import { DeleteProjectCard } from "@/components/delete-project-card";
 import { EditProjectCard } from "@/components/edit-project-card";
 
 import { ShareProjectCard } from "@/components/share-project-card";
+import { ReviewLinkCard } from "@/components/review-link-card";
 import { EmbedWidgetCard } from "@/components/embed-widget-card";
 import { Highlight } from "@/components/highlight";
 
@@ -52,8 +53,14 @@ export default async function SettingsPage() {
                             <Highlight id="edit-project" className="rounded-xl">
                                 <EditProjectCard project={currentProject} />
                             </Highlight>
-                            <Highlight id="embed-widget" className="rounded-xl">
-                                <EmbedWidgetCard project={currentProject} />
+                            {/* One Highlight around both distribution cards: the
+                                'Share or embed project' onboarding step points here
+                                and should spotlight them together. */}
+                            <Highlight id="share-or-embed" className="rounded-xl">
+                                <div className="space-y-6">
+                                    <ReviewLinkCard project={currentProject} />
+                                    <EmbedWidgetCard project={currentProject} />
+                                </div>
                             </Highlight>
                             <Highlight id="share-board" className="rounded-xl">
                                 <ShareProjectCard project={currentProject} />

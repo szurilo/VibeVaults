@@ -35,6 +35,11 @@ test.describe('Onboarding flow', () => {
         await page.locator('#createWebsiteUrl').fill('https://example.com');
         await page.getByRole('dialog').getByRole('button', { name: /^create$/i }).click();
 
+        // Post-create success step: shows the shareable review link, closes on Done
+        await expect(page.getByRole('dialog')).toContainText('My Test Project is ready');
+        await expect(page.getByRole('dialog').locator('input[readonly]')).toHaveValue(/vv_review=/);
+        await page.getByRole('dialog').getByRole('button', { name: /^done$/i }).click();
+
         await expect(page.getByRole('dialog')).toBeHidden();
 
         // Dismiss onboarding

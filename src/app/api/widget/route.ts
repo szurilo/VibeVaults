@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest, reviewPausedError } from "@/lib/widget-helpers";
 import { getTierLimits } from "@/lib/tier-config";
 import { sendFeedbackNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
         return corsError("Missing API Key", 400);
     }
 
-    const { project, ownerTier, identity, error, status } = await authenticateWidgetRequest(request, apiKey);
+    const { project, ownerTier, identity, reviewPaused, error, status } = await authenticateWidgetRequest(request, apiKey);
     if (error || !project || !identity) {
         return corsError(error ?? "Unauthorized", status);
     }
@@ -44,6 +44,7 @@ export async function GET(request: Request) {
         identity: { email: identity.email },
         notifyReplies,
         showBranding: limits.showBranding,
+        reviewPaused,
     });
 }
 
@@ -65,14 +66,23 @@ export async function POST(request: Request) {
         return corsError("Feedback content is too long (max 5000 characters).", 400);
     }
 
-    const { project, identity, error, status } = await authenticateWidgetRequest(request, apiKey);
+    const { project, identity, reviewPaused, error, status } = await authenticateWidgetRequest(request, apiKey);
     if (error || !project || !identity) {
         return corsError(error ?? "Unauthorized", status);
+    }
+    if (reviewPaused) {
+        return reviewPausedError();
     }
 
     // Identity email is server-authoritative — clients can no longer claim
     // an arbitrary sender by passing it in the body.
     const sender = identity.email;
+
+    // Review-link identities carry a self-declared name; surface it alongside
+    // the email so the dashboard can tell reviewers apart.
+    const feedbackMetadata = identity.display_name
+        ? { ...(metadata || {}), sender_name: identity.display_name }
+        : (metadata || {});
 
     // Generate the ID upfront so we don't need .select() after insert.
     const feedbackId = crypto.randomUUID();
@@ -97,7 +107,7 @@ export async function POST(request: Request) {
         type: type || 'Feature',
         sender,
         project_id: project.id,
-        metadata: metadata || {}
+        metadata: feedbackMetadata
     });
 
     if (insertError) {
@@ -121,7 +131,7 @@ export async function POST(request: Request) {
                 .in('id', memberIds);
 
             if (profiles) {
-                const emailPayload = { content, sender, metadata, projectName: project.name, workspaceId: project.workspace_id, projectId: project.id, feedbackId };
+                const emailPayload = { content, sender, metadata: feedbackMetadata, projectName: project.name, workspaceId: project.workspace_id, projectId: project.id, feedbackId };
 
                 for (const p of profiles) {
                     const email = p.email;
@@ -138,7 +148,7 @@ export async function POST(request: Request) {
                             projectName: project.name,
                             content,
                             sender,
-                            metadata,
+                            metadata: feedbackMetadata,
                             unsubscribeToken: prefs.unsubscribeToken,
                             workspaceId: project.workspace_id,
                             projectId: project.id,
