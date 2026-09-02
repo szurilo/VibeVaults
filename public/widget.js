@@ -47,23 +47,31 @@
     // the time. Collapsing the widget is what hides the pins.
     let pinArmed = false;
     let listOpen = false;
+    // Review-link pause: reads stay open, writes are blocked server-side; the
+    // widget mirrors that so reviewers see why nothing can be submitted.
+    let reviewPaused = false;
 
     let widgetToken = localStorage.getItem(tokenKey) || '';
     let clientEmail = localStorage.getItem(emailKey) || '';
     let notifyRepliesSetting = localStorage.getItem(prefsKey) !== 'false';
 
-    // Two bootstrap URL params, both stripped before render so they don't leak
+    // Three bootstrap URL params, all stripped before render so they don't leak
     // via referrer/share:
     //   * vv_invite : workspace_invites.id — exchanged for a token by the server
     //                (client-invitee flow)
     //   * vv_token  : raw widget token — planted directly into localStorage
     //                (owner/member self-issued flow from the dashboard)
+    //   * vv_review : projects.review_token — permanent shareable review link;
+    //                the visitor self-identifies (name + email) before the
+    //                exchange, no per-person invite exists
     const urlParams = new URLSearchParams(window.location.search);
     const inviteToken = urlParams.get('vv_invite');
     const directToken = urlParams.get('vv_token');
-    if (inviteToken || directToken) {
+    const reviewToken = urlParams.get('vv_review');
+    if (inviteToken || directToken || reviewToken) {
       urlParams.delete('vv_invite');
       urlParams.delete('vv_token');
+      urlParams.delete('vv_review');
       const newParams = urlParams.toString();
       const cleanUrl = window.location.pathname + (newParams ? '?' + newParams : '') + window.location.hash;
       window.history.replaceState({}, '', cleanUrl);
@@ -685,6 +693,40 @@
       border: 2px solid #209CEE; background: rgba(32,156,238,0.25); pointer-events: none;
     }
 
+    /* --- Review-link identity gate ----------------------------------------- */
+    .review-gate {
+      position: fixed; inset: 0; z-index: 6; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(15, 23, 42, 0.45); pointer-events: auto;
+    }
+    .review-gate.open { display: flex; }
+    .review-gate-card {
+      background: white; border-radius: 16px; width: 360px; max-width: calc(100vw - 32px);
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); overflow: hidden;
+      animation: slideUp 0.16s ease-out;
+    }
+    .review-gate-header { background: #209CEE; color: white; padding: 16px 20px; }
+    .review-gate-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
+    .review-gate-header p { margin: 4px 0 0; font-size: 12px; opacity: 0.9; }
+    .review-gate-body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .review-gate-body label { font-size: 12px; font-weight: 600; color: #374151; }
+    .review-gate-body input {
+      width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 9px 12px;
+      font-size: 13px; font-family: inherit; outline: none; box-sizing: border-box;
+    }
+    .review-gate-body input:focus { border-color: #209CEE; box-shadow: 0 0 0 3px rgba(32,156,238,0.15); }
+    .review-gate-error { color: #dc2626; font-size: 12px; display: none; }
+    .review-gate-hint { color: #6b7280; font-size: 11px; margin: 0; }
+
+    /* --- Review-paused state ------------------------------------------------ */
+    .paused-note {
+      display: none; align-items: flex-start; gap: 8px;
+      background: #fffbeb; border-bottom: 1px solid #fde68a; color: #92400e;
+      font-size: 12px; line-height: 1.45; padding: 10px 16px;
+    }
+    .review-paused .paused-note { display: flex; }
+    .review-paused #vv-action-pin { opacity: 0.45; cursor: not-allowed; }
+
     /* Mobile responsive */
     @media (max-width: 480px) {
       .launcher { bottom: 12px; right: 12px; }
@@ -710,6 +752,10 @@
       <div class="header">
         <h3>Feedback</h3><p>Pin anything on this page</p>
         <button class="close-btn" aria-label="Minimize"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+      </div>
+      <div class="paused-note" id="vv-paused-note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="10" y1="15" x2="10" y2="9"></line><line x1="14" y1="15" x2="14" y2="9"></line></svg>
+        <span>Feedback is paused by the project team. You can still browse existing feedback.</span>
       </div>
       <div class="nav">
         <button type="button" class="nav-item" id="vv-action-pin" title="Click the page to place a pin">
@@ -738,6 +784,23 @@
         </div>
       </div>
       <div class="branding">Powered by <a href="https://vibe-vaults.com" target="_blank">VibeVaults</a></div>
+    </div>
+    <div class="review-gate" id="vv-review-gate">
+      <div class="review-gate-card">
+        <div class="review-gate-header">
+          <h3>Leave feedback on this site</h3>
+          <p>Tell us who you are so the team knows who the feedback is from.</p>
+        </div>
+        <div class="review-gate-body">
+          <label for="vv-review-name">Your name</label>
+          <input type="text" id="vv-review-name" maxlength="100" placeholder="Jane Doe" autocomplete="name" />
+          <label for="vv-review-email">Your email</label>
+          <input type="email" id="vv-review-email" maxlength="254" placeholder="jane@example.com" autocomplete="email" />
+          <div class="review-gate-error" id="vv-review-error"></div>
+          <button type="button" class="btn" id="vv-review-start">Start reviewing</button>
+          <p class="review-gate-hint">Used only to label your feedback and send you reply notifications.</p>
+        </div>
+      </div>
     </div>
     <div class="pin-layer" id="vv-pin-layer"></div>
     <div class="composer" id="vv-composer">
@@ -1056,15 +1119,99 @@
             const brandingEl = wrapper.querySelector('.branding');
             if (brandingEl) brandingEl.style.display = 'none';
           }
+          setReviewPaused(data.reviewPaused === true);
           setWidgetVisible(true);
           return true;
         })
         .catch(() => false);
     };
 
+    // Mirrors the server-side pause for review-link identities: pin placement
+    // is refused, the reply input becomes a note, and a banner explains why.
+    // Reads stay open so paused reviewers can still browse existing threads.
+    const setReviewPaused = (paused) => {
+      if (reviewPaused === paused) return;
+      reviewPaused = paused;
+      wrapper.classList.toggle('review-paused', paused);
+      if (paused) disarmPin();
+      // Re-render the reply input if a thread is open so the paused note
+      // appears (or disappears) without reopening the thread.
+      if (selectedFeedbackId) renderReplySection();
+    };
+
+    // --- Review-link identity gate -----------------------------------------
+    // A `?vv_review=` visitor has no invite, so they self-identify (name +
+    // email) before the exchange. Shown only when there is no working token
+    // already on this device — a returning reviewer skips it entirely.
+    const reviewGate = wrapper.querySelector('#vv-review-gate');
+
+    const showReviewGate = () => {
+      setWidgetVisible(true);
+      reviewGate.classList.add('open');
+      setTimeout(() => { const el = reviewGate.querySelector('#vv-review-name'); if (el) el.focus(); }, 0);
+    };
+
+    const hideReviewGate = () => reviewGate.classList.remove('open');
+
+    const showReviewGateError = (msg) => {
+      const errEl = reviewGate.querySelector('#vv-review-error');
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+    };
+
+    const submitReviewGate = async () => {
+      const name = reviewGate.querySelector('#vv-review-name').value.trim();
+      const email = reviewGate.querySelector('#vv-review-email').value.trim();
+      if (!name) { showReviewGateError('Please enter your name.'); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showReviewGateError('Please enter a valid email.'); return; }
+
+      const btn = reviewGate.querySelector('#vv-review-start');
+      btn.disabled = true;
+      try {
+        const res = await fetch(API_IDENTITY_EXCHANGE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey, reviewToken, email, name }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.token) {
+          showReviewGateError(data.error || 'Could not start the review. Please try again.');
+          return;
+        }
+        widgetToken = data.token;
+        localStorage.setItem(tokenKey, widgetToken);
+        if (data.email) {
+          clientEmail = data.email;
+          localStorage.setItem(emailKey, clientEmail);
+        }
+        hideReviewGate();
+        const ok = await loadConfig();
+        // Auto-open so the first thing a reviewer sees is the pin bar, not a
+        // launcher they have to discover.
+        if (ok) setWidgetOpen(true);
+      } catch (_) {
+        showReviewGateError('Network error. Please try again.');
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    reviewGate.querySelector('#vv-review-start').onclick = submitReviewGate;
+    reviewGate.querySelectorAll('input').forEach((el) => {
+      el.onkeydown = (e) => { if (e.key === 'Enter') submitReviewGate(); };
+    });
+    // Backdrop click dismisses: the gate must never hold the customer's site
+    // hostage. Reopening the review link brings it back.
+    reviewGate.onclick = (e) => {
+      if (e.target !== reviewGate) return;
+      hideReviewGate();
+      if (!widgetToken) setWidgetVisible(false);
+    };
+
     // Bootstrap path: if the URL had `?vv_invite=...`, swap it for a long-lived
-    // widget token, persist it on this origin, then load config. Otherwise just
-    // try config with whatever token is already in localStorage.
+    // widget token, persist it on this origin, then load config. A `?vv_review=`
+    // link falls back to the identity gate when no stored token works. Otherwise
+    // just try config with whatever token is already in localStorage.
     const bootstrapIdentity = async () => {
       if (inviteToken) {
         try {
@@ -1087,8 +1234,10 @@
         } catch (_) { /* fall through to config fetch */ }
       }
       if (widgetToken) {
-        await loadConfig();
+        const ok = await loadConfig();
+        if (ok || !reviewToken) return;
       }
+      if (reviewToken) showReviewGate();
     };
 
     bootstrapIdentity();
@@ -1239,6 +1388,13 @@
     const renderReplySection = () => {
       const section = wrapper.querySelector('#vv-reply-section');
       replyAttachments = [];
+      if (reviewPaused) {
+        section.innerHTML = `
+        <div style="padding: 10px 20px; font-size: 12px; color: #92400e; background: #fffbeb; border-top: 1px solid #fde68a;">
+          Feedback is paused by the project team, so replies are disabled for now.
+        </div>`;
+        return;
+      }
       // The widget is only mounted when the user has a valid token, so the
       // reply input is always available — there's no longer a "you must be
       // invited" branch since unidentified visitors never see this UI.
@@ -1452,6 +1608,13 @@
         body: JSON.stringify({ apiKey, content: text, metadata, notifyReplies })
       });
       if (res.status === 401 || res.status === 403) {
+        // A paused review link is a 403 too, but it must not be treated as a
+        // revoked token — that would silently log the reviewer out.
+        const err = await res.json().catch(() => ({}));
+        if (err.code === 'review_paused') {
+          setReviewPaused(true);
+          return { error: err.error || 'Feedback is paused by the project team.' };
+        }
         handleAuthRevocation();
         return { revoked: true };
       }
@@ -2367,11 +2530,16 @@
           if (replyPreviewsEl) replyPreviewsEl.innerHTML = '';
           fetchReplies();
         } else {
+          const err = await res.json().catch(() => ({}));
+          if (err.code === 'review_paused') {
+            setReviewPaused(true);
+            showWidgetToast(err.error || 'Feedback is paused by the project team.');
+            return;
+          }
           if (res.status === 401 || res.status === 403) {
             handleAuthRevocation();
             return;
           }
-          const err = await res.json();
           showWidgetToast(err.error || 'Failed to send reply.');
         }
       } catch (e) {
@@ -2436,6 +2604,10 @@
 
     wrapper.querySelector('#vv-action-pin').onclick = (e) => {
       e.stopPropagation();
+      if (reviewPaused) {
+        showWidgetToast('Feedback is paused by the project team.');
+        return;
+      }
       if (pinArmed) disarmPin(); else armPin();
     };
     wrapper.querySelector('#vv-action-list').onclick = (e) => {

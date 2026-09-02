@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest, reviewPausedError } from "@/lib/widget-helpers";
 import { sendAgencyReplyNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { shouldSendReplyImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
@@ -47,9 +47,12 @@ export async function POST(request: Request) {
         return corsError("Reply content is too long (max 5000 characters).", 400);
     }
 
-    const { project, identity, error, status } = await authenticateWidgetRequest(request, apiKey);
+    const { project, identity, reviewPaused, error, status } = await authenticateWidgetRequest(request, apiKey);
     if (error || !project || !identity) {
         return corsError(error ?? "Unauthorized", status);
+    }
+    if (reviewPaused) {
+        return reviewPausedError();
     }
 
     const feedbackCheckError = await verifyFeedbackForProject(project.id, feedbackId);

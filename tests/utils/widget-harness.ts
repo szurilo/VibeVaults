@@ -48,14 +48,27 @@ export interface Harness {
     body: string;
     /** Rows the stubbed list endpoint returns. */
     feedback?: StubFeedback[];
+    /**
+     * Mount via `?vv_review=` (shareable review link) instead of `?vv_token=`.
+     * No token is pre-planted; the widget must show the identity gate.
+     */
+    reviewBootstrap?: boolean;
+    /** Value of `reviewPaused` in the stubbed config response. */
+    reviewPaused?: boolean;
+    /** Override for the stubbed POST /api/widget response (default: success). */
+    submitResponse?: { status: number; body: string };
 }
 
 export interface MountedWidget {
     /** The most recent POST body the widget sent to /api/widget, if any. */
     submitted: () => Record<string, unknown> | null;
+    /** The most recent POST body sent to /api/widget/identity/exchange, if any. */
+    exchanged: () => Record<string, unknown> | null;
     /** Saved pin markers currently painted, in DOM order. */
     markers: () => Promise<{ label: string; cluster: boolean; approximate: boolean }[]>;
 }
+
+export const REVIEW_TOKEN = 'harness-review-token';
 
 export async function mountWidget(page: Page, opts: Harness): Promise<MountedWidget> {
     const widgetJs = readFileSync(path.join(process.cwd(), 'public', 'widget.js'), 'utf8');
@@ -65,6 +78,7 @@ export async function mountWidget(page: Page, opts: Harness): Promise<MountedWid
       <script src="${HOST}/widget.js" data-key="${API_KEY}"></script></body></html>`;
 
     let submitted: Record<string, unknown> | null = null;
+    let exchanged: Record<string, unknown> | null = null;
 
     await page.route('**', async (route: Route) => {
         const url = route.request().url();
@@ -74,6 +88,15 @@ export async function mountWidget(page: Page, opts: Harness): Promise<MountedWid
         if (url.includes('/api/widget/capture-info')) return route.fulfill({ status: 200, body: '{}' });
         if (url.includes('/api/widget/stream')) return route.abort();
         if (url.includes('/api/widget/errors')) return route.fulfill({ status: 200, body: '{}' });
+        if (url.includes('/api/widget/identity/exchange')) {
+            const body = JSON.parse(route.request().postData() || '{}') as Record<string, unknown>;
+            exchanged = body;
+            return route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ token: 'harness-token', email: body.email ?? 'client@example.com' }),
+            });
+        }
         if (url.includes('/api/widget/reply')) {
             return route.fulfill({ status: 200, contentType: 'application/json', body: '{"replies":[]}' });
         }
@@ -88,9 +111,9 @@ export async function mountWidget(page: Page, opts: Harness): Promise<MountedWid
             if (route.request().method() === 'POST') {
                 submitted = JSON.parse(route.request().postData() || '{}');
                 return route.fulfill({
-                    status: 200,
+                    status: opts.submitResponse?.status ?? 200,
                     contentType: 'application/json',
-                    body: '{"success":true,"feedback_id":"harness-new"}',
+                    body: opts.submitResponse?.body ?? '{"success":true,"feedback_id":"harness-new"}',
                 });
             }
             return route.fulfill({
@@ -100,6 +123,7 @@ export async function mountWidget(page: Page, opts: Harness): Promise<MountedWid
                     identity: { email: 'client@example.com' },
                     notifyReplies: true,
                     showBranding: false,
+                    reviewPaused: opts.reviewPaused ?? false,
                 }),
             });
         }
@@ -114,7 +138,11 @@ export async function mountWidget(page: Page, opts: Harness): Promise<MountedWid
 
     // `?vv_token=` is the owner/member bootstrap path: the widget plants the raw
     // token in localStorage and renders without an invite exchange.
-    await page.goto(`${HOST}/?vv_token=harness-token`);
+    // `?vv_review=` is the shareable review link: no token exists yet, and the
+    // widget becomes visible only to show the identity gate.
+    await page.goto(opts.reviewBootstrap
+        ? `${HOST}/?vv_review=${REVIEW_TOKEN}`
+        : `${HOST}/?vv_token=harness-token`);
     await page.waitForFunction(() => {
         const host = document.querySelector('#vibe-vaults-widget-host') as HTMLElement | null;
         return !!host && host.style.display !== 'none';
@@ -122,6 +150,7 @@ export async function mountWidget(page: Page, opts: Harness): Promise<MountedWid
 
     return {
         submitted: () => submitted,
+        exchanged: () => exchanged,
         markers: () =>
             page.evaluate(() => {
                 const root = document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!;

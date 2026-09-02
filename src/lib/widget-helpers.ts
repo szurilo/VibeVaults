@@ -125,6 +125,10 @@ export type IssueWidgetIdentityArgs = {
     inviteId?: string | null;
     /** Set when the identity is provisioned for an owner/member. */
     userId?: string | null;
+    /** Set when the identity is provisioned via the shareable review link. */
+    viaReview?: boolean;
+    /** Self-declared reviewer name (review-link identities only). */
+    displayName?: string | null;
 };
 
 /**
@@ -133,8 +137,8 @@ export type IssueWidgetIdentityArgs = {
  * for delivering it to the client (URL param on bootstrap link, etc.).
  */
 export async function issueWidgetIdentity(args: IssueWidgetIdentityArgs): Promise<string> {
-    if (!args.inviteId && !args.userId) {
-        throw new Error("issueWidgetIdentity requires either inviteId or userId");
+    if (!args.inviteId && !args.userId && !args.viaReview) {
+        throw new Error("issueWidgetIdentity requires inviteId, userId, or viaReview");
     }
 
     const adminSupabase = createAdminClient();
@@ -146,6 +150,8 @@ export async function issueWidgetIdentity(args: IssueWidgetIdentityArgs): Promis
         email: args.email,
         invite_id: args.inviteId ?? null,
         user_id: args.userId ?? null,
+        via_review: args.viaReview ?? false,
+        display_name: args.displayName ?? null,
         token_hash: tokenHash,
     });
 
@@ -162,6 +168,8 @@ export type WidgetIdentity = {
     email: string;
     invite_id: string | null;
     user_id: string | null;
+    via_review: boolean;
+    display_name: string | null;
 };
 
 /**
@@ -177,7 +185,7 @@ export async function verifyWidgetToken(rawToken: string | null | undefined, pro
 
     const { data, error } = await adminSupabase
         .from("widget_identities")
-        .select("id, project_id, email, invite_id, user_id")
+        .select("id, project_id, email, invite_id, user_id, via_review, display_name")
         .eq("token_hash", tokenHash)
         .eq("project_id", projectId)
         .maybeSingle();
@@ -215,18 +223,47 @@ export function readBearerToken(request: Request): string | null {
  * error+status the caller should pass to `corsError`. SSE routes that can't
  * send custom headers should compose `validateApiKey` + `verifyWidgetToken`
  * directly, reading the token from a query parameter.
+ *
+ * `reviewPaused` is true only for review-link identities on a project whose
+ * owner paused review feedback — write routes must reject with
+ * `reviewPausedError()`, read routes stay open (paused reviewers can still
+ * see existing threads, Huddlekit-style).
  */
 export async function authenticateWidgetRequest(request: Request, apiKey: string) {
     const { project, ownerTier, error: keyError, status } = await validateApiKey(apiKey);
     if (keyError || !project) {
-        return { project: null, ownerTier: null, identity: null, error: keyError ?? "Invalid project.", status };
+        return { project: null, ownerTier: null, identity: null, reviewPaused: false, error: keyError ?? "Invalid project.", status };
     }
 
     const token = readBearerToken(request);
     const identity = await verifyWidgetToken(token, project.id);
     if (!identity) {
-        return { project: null, ownerTier: null, identity: null, error: "Widget access not authorized. Request a new access link.", status: 401 };
+        return { project: null, ownerTier: null, identity: null, reviewPaused: false, error: "Widget access not authorized. Request a new access link.", status: 401 };
     }
 
-    return { project, ownerTier, identity, error: null, status: 200 };
+    // Extra lookup only for review identities; invited clients and members
+    // are never affected by the pause toggle.
+    let reviewPaused = false;
+    if (identity.via_review) {
+        const { data: row } = await createAdminClient()
+            .from("projects")
+            .select("review_feedback_paused")
+            .eq("id", identity.project_id)
+            .maybeSingle();
+        reviewPaused = row?.review_feedback_paused === true;
+    }
+
+    return { project, ownerTier, identity, reviewPaused, error: null, status: 200 };
+}
+
+/**
+ * The 403 body write routes return when a paused review identity tries to
+ * submit. The `code` is contractual: widget.js matches on it to flip into
+ * its paused UI mid-session, so treat it as append-only widget API surface.
+ */
+export function reviewPausedError() {
+    return NextResponse.json(
+        { error: "Feedback is paused for this review link.", code: "review_paused" },
+        { status: 403, headers: corsHeaders },
+    );
 }

@@ -9,7 +9,8 @@
 - **Backend/DB**: Supabase (PostgreSQL, Auth, Realtime) — Docker locally, Supabase Cloud in prod
 - **Auth**: Magic Link (OTP) + Google OAuth + Cloudflare Turnstile for anti-bot
 - **Emails**: Resend (transactional + notifications)
-- **Payments**: Stripe — mandatory 14-day paid trial, NO free tier
+- **Payments**: Stripe — 14-day free trial (no card, no Stripe `trial_period_days`; the clock is app-side `profiles.trial_ends_at`), then paid. NO free tier after the trial.
+- **Hosting**: Vercel **Pro** plan (since ~Aug 2026). Pro is mandatory, not a nicety: Hobby is "restricted to non-commercial personal use only" and taking Stripe payments is explicitly commercial, and Vercel's DPA covers **Pro and Enterprise only**, so Hobby would leave us with no Art. 28 contract with the host that processes every request. Never downgrade.
 - **Proxy**: `src/proxy.ts` (NOT `middleware.ts` — Next.js 16+ paradigm)
 - **Analytics**: Vercel Analytics + Speed Insights + PostHog (EU region `eu.i.posthog.com`)
 - **Error tracking**: PostHog — client (`PostHogProvider`, `capture_exceptions: true`), server (`instrumentation.ts` `onRequestError`), React boundary (`src/app/global-error.tsx`), widget (`public/widget.js` → `/api/widget/errors` → `widget_errors` table)
@@ -20,7 +21,7 @@
 1. **Never mutate production DB** (Supabase Cloud / Stripe) without explicit permission. Migrations deploy via GitHub Actions.
 2. **Never delete local Supabase data** without permission.
 3. **Always write a short plan before coding**, ask clarifying questions when needed.
-4. **No free tier** — always paid, 14-day trial only.
+4. **No permanent free tier** — a 14-day free trial with no card required, then paid. Do not describe the trial as "paid": nothing is charged during it.
 5. **Premium aesthetics required** — never "minimal viable". Polished, vibrant, well-lit UI.
 6. **Shadcn cards** should look consistent. All dialogs use the same `AlertDialog` design.
 7. **All emails** share the same styling template.
@@ -31,6 +32,7 @@
 12. **Next.js 16**: `middleware.ts` → `src/proxy.ts`, Supabase middleware → `src/lib/supabase/proxy.ts`.
 13. **No code duplication** beyond ~5 lines — extract a shared helper instead. See the access/role helpers below for the canonical example of why.
 14. **Real users exist in production** — the live DB now has registered accounts. Migrations must be backward-compatible (expand/contract), and destructive schema changes need the two-step ship. See "Shipping Safety" below.
+15. **Adding a vendor that touches personal data is a stop-and-check.** Before wiring up any new third party that stores, receives, or processes user or end-user data (a queue, a CDN for uploads, a support tool, an AI API, a monitoring service), you MUST warn the user that it is a new **sub-processor** and that three things have to happen *before* it goes live: (a) give existing customers advance notice so they can object, which is promised in ToS section 8, (b) add it to the sub-processor list in `/privacy-policy` section 7, (c) add it to `/terms-of-service` section 11. Do not silently add the dependency and mention it afterwards. The user has explicitly asked to be warned about this because it is easy to forget.
 
 ## Shipping Safety (urgent-fix checklist)
 Vercel deploys are atomic and zero-downtime, so shipping while users are active is generally safe. Before pushing, confirm the change isn't one of these:
@@ -44,6 +46,16 @@ Vercel deploys are atomic and zero-downtime, so shipping while users are active 
 - **SSE (`/api/widget/stream`)** — active chats reconnect onto the new build. Safe unless the stream contract changed.
 
 **For an urgent fix**: if it's scoped to a single dashboard route, component, or server-side bug with no schema or widget-API touch, ship it. If it touches `supabase/migrations/` or `/api/widget/*`, stop and plan the two-step.
+
+## Legal & Compliance
+Operator is a Hungarian sole trader (egyéni vállalkozó, "e.v."), so the legal entity is a natural person, not a company. Never sign or name "VibeVaults" as the contracting entity.
+
+- **`src/lib/legal-entity.ts`** is the single source of truth for the operator's identity (name, legal form, registration number, tax number, seat). It is rendered by **both** `/privacy-policy` section 1 and `/terms-of-service` section 1. Never hand-copy these values into a third place.
+- **`/privacy-policy`** doubles as the GDPR Art. 13 notice. Section 3.2 must mirror what `getMetadata()` in `public/widget.js` actually captures, and `/docs/widget-data` must mirror it too. Those three move together.
+- **`/terms-of-service` section 8** carries the Art. 28 processor terms. `/privacy-policy` section 4 points at it and calls it half of the DPA, so that section cannot be removed or renumbered without breaking the claim.
+- **`docs/records-of-processing.md`** — Art. 30 ROPA. Internal, never published. Update when a new data category, sub-processor, or retention period appears.
+- **`docs/dpa-checklist.md`** — evidence that every sub-processor is actually under a DPA, as both public policies assert.
+- **`docs/data-breach-response.md`** — the 72-hour procedure. Key fork: for **feedback** data we are the processor, so we notify the affected customer, not NAIH.
 
 ## File Structure
 ```
@@ -107,7 +119,8 @@ tests/              # Playwright E2E tests
 
 ### Onboarding
 - Role-specific checklist in `src/components/onboarding.tsx`, backed by `profiles.completed_onboarding_steps` (text array) and `has_onboarded`.
-- **Owners see 8 steps**: create project, embed widget, invite members, invite clients, create feedback, customize workspace, customize project, share board (three marked ⭐ Recommended). **Members see 1 step**: create feedback.
+- **Owners see 8 steps**: create project, share or embed project (spotlights the review-link + embed cards together via `#share-or-embed`), invite members, invite clients, create feedback, customize workspace, customize project, share board. **Members see 5 steps** (same minus the workspace-level ones). Step definitions live in `src/lib/onboarding-steps.ts`.
+- **Create Project dialog** (`create-project-dialog.tsx`) doesn't close on create: it shows a success step with the project's shareable review link (copy button) and a pointer to the embed snippet.
 - `has_onboarded = true` only when all items are checked. Steps are tracked manually — the old auto-check feature was removed.
 - Dismissible into a persistent mini-banner (collapsed state in `localStorage`) with a Resume button. "Go" links navigate to anchor-highlighted target cards via the `Highlight` component.
 - Members who create their first workspace get onboarding reset to show the owner checklist.
@@ -122,6 +135,8 @@ tests/              # Playwright E2E tests
 - `public/widget.js` → API routes at `/api/widget/*`
 - **Visibility**: anonymous visitors see *nothing* — `host.style.display = 'none'` until a valid widget identity is loaded. The legacy "type your email" prompt is gone.
 - **Bootstrap (clients)**: invite emails point at `${project.website_url}?vv_invite=<workspace_invites.id>`. On first load, widget.js POSTs the invite ID to `/api/widget/identity/exchange`, receives a per-device opaque token, and stores it in first-party `localStorage[vv_token_${apiKey}]`. The URL param is stripped via `history.replaceState` so it doesn't leak via referrer/share. Multi-device by design — multiple `widget_identities` rows per (project, email) are allowed.
+- **Terminology (Atarim-style, used in docs and UI copy)**: **Guests** are people who self-identify via the shareable review link (`via_review = true`); **Clients** are individually email-invited from the dashboard (`workspace_invites` role `client`). Same widget experience; guests are pause-managed as a group, clients are revocable per person. Members always require an auth account; today they are email-invited only. (Atarim additionally offers a shareable member-invite link that routes to registration and consumes seats — a candidate feature for us, see "share this link to invite new members" in their invite modal.)
+- **Bootstrap (review link, no invite)**: every project has a permanent `projects.review_token` (minted by DB default, **never rotated or disabled** — category standard, see Atarim/Huddlekit/Pastel). The `ReviewLinkCard` in project settings surfaces `${website_url}?vv_review=<review_token>`. Opening it shows an identity gate in the widget (name + email, backdrop-dismissable so it can't hold the host site hostage); `/api/widget/identity/exchange` accepts `{ reviewToken, email, name }` and mints a `widget_identities` row with `via_review = true` + `display_name`. Reviewer email is self-declared/unverified (same trust level as a comment form); their name is injected server-side into `feedbacks.metadata.sender_name`. The one management control is **pause** (`projects.review_feedback_paused`, action `setReviewFeedbackPaused`): paused review identities can still read everything but every write route returns 403 `{ code: 'review_paused' }` — widget.js matches on that `code` (contractual, append-only) to flip into its paused UI **instead of treating the 403 as token revocation**, which would wipe the reviewer's identity. Invited clients and members are never affected by the pause. Harness spec: `tests/widget-review-link.spec.ts`.
 - **Bootstrap (owners/members)**: dashboard's `EmbedWidgetCard` has an "Open widget on site" button. Click → server action `issueSelfWidgetLink()` → fresh `widget_identities` row tied to `user_id` → returns `${project.website_url}?vv_token=<rawToken>`. Widget.js plants the raw token directly (no exchange round-trip).
 - **Authorization on every API call**: `Authorization: Bearer <token>` header (or `?token=` query param for SSE which can't send custom headers). `authenticateWidgetRequest()` in `widget-helpers.ts` resolves API key + Bearer in one shot, returning `{ project, ownerTier, identity }`. `identity.email` is the source of truth — clients can't claim arbitrary senders.
 - **Revocation**: deleting a `workspace_invites` row cascade-deletes all client `widget_identities`; removing a `workspace_members` row triggers `revoke_widget_identities_on_member_removal()` which clears the user's identities for that workspace's projects. Widget self-hides + clears localStorage on any 401/403.
@@ -145,7 +160,7 @@ tests/              # Playwright E2E tests
 - **Completed feedback is hidden from the widget** — `/api/widget/feedback` applies `.neq('status', 'completed')`, so the widget only shows `open`, `in progress`, `in review`
 - **Unused-token cleanup**: nightly pg_cron job (migration `20260509000000`) deletes `widget_identities WHERE last_used_at IS NULL AND created_at < now() - interval '30 days'`. Active sessions are never touched.
 - **Trial gate**: `validateApiKey()` checks owner's subscription/trial status — widget disabled post-trial
-- **File uploads (presigned URL flow)**: Uploads bypass Vercel serverless functions entirely to avoid the 4.5MB body size limit on Hobby plan. Two-step flow: (1) `/api/widget/upload` or `/api/dashboard/upload` validates auth + returns presigned Supabase Storage URLs, (2) client uploads directly to Supabase Storage via PUT, (3) `/api/widget/upload/confirm` or `/api/dashboard/upload/confirm` verifies actual file size/type from storage metadata and creates `feedback_attachments` records. 10MB/file, 10 files/request.
+- **File uploads (presigned URL flow)**: Uploads bypass Vercel serverless functions entirely to avoid Vercel's 4.5MB serverless function request body limit (a platform limit on every plan, not a Hobby restriction). Two-step flow: (1) `/api/widget/upload` or `/api/dashboard/upload` validates auth + returns presigned Supabase Storage URLs, (2) client uploads directly to Supabase Storage via PUT, (3) `/api/widget/upload/confirm` or `/api/dashboard/upload/confirm` verifies actual file size/type from storage metadata and creates `feedback_attachments` records. 10MB/file, 10 files/request.
 - **Email safety**: All user content in emails sanitized via `esc()` in `lib/notifications.ts`
 
 ### Auth Cookie Size & Realtime
@@ -213,6 +228,7 @@ tests/              # Playwright E2E tests
 | `notification-bell` | `src/components/notification-bell.tsx` | Header dropdown, live updates, type icons, `clearAll()` |
 | `embed-widget-card` | `src/components/embed-widget-card.tsx` | Widget embed snippet + "Open widget on site" |
 | `share-project-card` | `src/components/share-project-card.tsx` | Public board sharing with token management |
+| `review-link-card` | `src/components/review-link-card.tsx` | Permanent shareable review link (`?vv_review=`) + pause toggle |
 | `billing-card` | `src/components/billing-card.tsx` | Account billing card → Stripe Customer Portal |
 | `docs/*` | `src/components/docs/` | `docs-nav` (sidebar, active state), `docs-page-header`, `docs-page-footer` (next-page card) |
 | `landing/*` | `src/components/landing/` | `bento-features`, `founder-note`, `product-demo`, `roi-calculator`, `pricing-cards`, `faq`, `how-it-works`, `site-header`, `site-footer` |
@@ -232,6 +248,7 @@ tests/              # Playwright E2E tests
 | `acceptInvite` | `src/actions/invites.ts` | Email-gated invite acceptance via admin client; rejects `role='client'`; fires `dispatchMemberWelcomeBootstrap` |
 | `issueSelfWidgetLink` | `src/actions/widget-access.ts` | Mints a `widget_identities` row for an owner/member, returns `?vv_token=` activation URL |
 | `requestWidgetAccessRecovery` | `src/actions/widget-access.ts` | Public, rate-limited action backing `/access`; anti-enumeration (always returns `ok=true`) |
+| `setReviewFeedbackPaused` | `src/actions/review-link.ts` | Pause/resume review-link feedback (user-scoped update, RLS-enforced) |
 
 ## Database Tables (Current)
 | Table | Key Columns |
@@ -240,7 +257,7 @@ tests/              # Playwright E2E tests
 | `workspaces` | `id`, `name`, `owner_id`, `logo_url` |
 | `workspace_members` | `workspace_id`, `user_id`, `role` (owner/member — `client` blocked by CHECK). Composite PK, no `id` column |
 | `workspace_invites` | `id`, `workspace_id`, `email`, `role` |
-| `projects` | `id`, `name`, `api_key`, `workspace_id`, `website_url`, `share_token`, `is_sharing_enabled` |
+| `projects` | `id`, `name`, `api_key`, `workspace_id`, `website_url`, `share_token`, `is_sharing_enabled`, `review_token` (permanent, unique), `review_feedback_paused` |
 | `feedbacks` | `id`, `project_id`, `content`, `type`, `sender`, `status`, `metadata` |
 | `feedback_replies` | `id`, `feedback_id`, `content`, `author_role`, `author_name` |
 | `notifications` | `id`, `user_id`, `project_id`, `feedback_id`, `type`, `title`, `message`, `read` |
@@ -248,13 +265,13 @@ tests/              # Playwright E2E tests
 | `email_digest_queue` | `id`, `recipient_email`, `notification_type`, `project_id`, `feedback_id`, `payload`, `sent_at`, `created_at` |
 | `feedback_attachments` | `id`, `feedback_id`, `reply_id`, `project_id`, `file_name`, `file_url`, `file_size`, `mime_type`, `uploaded_by` |
 | `widget_errors` | `id`, `api_key`, `error_message`, `error_stack`, `url`, `user_agent`, `metadata`, `created_at` |
-| `widget_identities` | `id`, `project_id`, `invite_id` (nullable), `user_id` (nullable), `email`, `token_hash`, `created_at`, `last_used_at` — per-device widget auth tokens |
+| `widget_identities` | `id`, `project_id`, `invite_id` (nullable), `user_id` (nullable), `email`, `token_hash`, `via_review`, `display_name`, `created_at`, `last_used_at` — per-device widget auth tokens |
 
 ## API Routes
 | Route | Method | Purpose |
 |---|---|---|
 | `/api/widget` | GET/POST | Widget config + feedback submission (Bearer token required) |
-| `/api/widget/identity/exchange` | POST | Swap a `workspace_invites.id` for a per-device widget token (client bootstrap) |
+| `/api/widget/identity/exchange` | POST | Swap a `workspace_invites.id` (client bootstrap) or `projects.review_token` + name/email (review link) for a per-device widget token |
 | `/api/widget/feedback` | GET | List feedback for widget (includes reply_count, plus `anchor` + `page_key` projected out of `metadata` for on-page pins) |
 | `/api/widget/reply` | POST | Widget reply submission |
 | `/api/widget/upload` | POST | Request presigned upload URLs for widget attachments |

@@ -1,6 +1,6 @@
 /**
  * Main Responsibility: Explains the workspace/project hierarchy, the three
- * roles (owner, member, client), plan limits, and public share boards.
+ * roles (owner, member, client, guest), plan limits, and public share boards.
  *
  * Sensitive Dependencies:
  * - Plan names, prices and limits are READ from `src/lib/tier-config.ts`
@@ -57,7 +57,7 @@ export default function RolesAndSharingDoc() {
                     several projects is simpler and works fine.
                 </p>
 
-                <h2 id="roles">The three roles</h2>
+                <h2 id="roles">The four roles</h2>
                 <h3>Owner</h3>
                 <p>
                     The person who created the workspace. Owners do everything members can do, plus invite and remove people,
@@ -71,15 +71,28 @@ export default function RolesAndSharingDoc() {
                 </p>
                 <h3>Client</h3>
                 <p>
-                    The people reviewing the website. Clients only ever see the widget on the site itself. They have no
-                    account, no password, and no dashboard access, and they cannot see who else was invited. Clients are
-                    unlimited on every plan and never affect your bill.
+                    The people reviewing the website, invited by email from your dashboard. Clients only ever see the widget
+                    on the site itself. They have no account, no password, and no dashboard access, and they cannot see who
+                    else was invited. Clients are unlimited on every plan and never affect your bill.
+                </p>
+                <h3>Guest</h3>
+                <p>
+                    Anyone who opens your project&apos;s shareable review link and enters a name and email. Guests get the
+                    same widget experience as clients — pinning, threads, reply notifications — but you never invited them
+                    individually, so their email is self-declared and access is managed for the whole group at once: pause
+                    review feedback and every guest is paused, while clients and members are unaffected. Guests are also
+                    unlimited and free.
+                </p>
+                <p>
+                    The practical difference: invite someone as a <strong>client</strong> when you have an ongoing
+                    relationship and may want to revoke exactly that person later; hand out the <strong>guest</strong> review
+                    link when you want a whole stakeholder group commenting five minutes from now.
                 </p>
                 <div className="docs-callout">
                     <p>
-                        A client is not a lesser dashboard user, it is a different thing entirely. If you want someone to see
-                        the dashboard, invite them as a member instead. How each kind gets access to the widget is covered in{" "}
-                        <Link href="/docs/widget-access">How widget access works</Link>.
+                        A client or guest is not a lesser dashboard user, it is a different thing entirely. If you want
+                        someone to see the dashboard, invite them as a member instead. How each kind gets access to the
+                        widget is covered in <Link href="/docs/widget-access">How widget access works</Link>.
                     </p>
                 </div>
 
