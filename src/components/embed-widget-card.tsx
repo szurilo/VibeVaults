@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -27,6 +27,12 @@ export function EmbedWidgetCard({ project }: EmbedWidgetCardProps) {
     const [copied, setCopied] = useState(false)
     const [openingWidget, setOpeningWidget] = useState(false)
     const [openError, setOpenError] = useState<string | null>(null)
+    // Opening the widget needs a real click handler (window.open must run
+    // synchronously or the popup blocker eats it), so the button cannot work
+    // before hydration. Staying disabled until mounted makes that visible
+    // instead of swallowing the click silently.
+    const [hydrated, setHydrated] = useState(false)
+    useEffect(() => { setHydrated(true) }, [])
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL!
     const scriptTag = `<script src="${baseUrl}/widget.js" data-key="${project.api_key}" async></script>`
 
@@ -127,7 +133,7 @@ export function EmbedWidgetCard({ project }: EmbedWidgetCardProps) {
                         type="button"
                         variant="outline"
                         onClick={openWidgetOnSite}
-                        disabled={openingWidget || !project.website_url}
+                        disabled={!hydrated || openingWidget || !project.website_url}
                         className="bg-white hover:bg-blue-50 border-blue-100 cursor-pointer"
                     >
                         {openingWidget ? (

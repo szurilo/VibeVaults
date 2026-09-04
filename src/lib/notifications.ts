@@ -11,6 +11,29 @@ import { resend } from './resend';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
+/**
+ * Footer opt-out link. Wording says "or unsubscribe" on purpose: guests and
+ * invited clients have no account, and "manage preferences" alone reads like
+ * something that needs a login. The page behind it is token-authenticated.
+ */
+function unsubscribeFooterLink(unsubscribeToken?: string): string {
+    if (!unsubscribeToken) return '';
+    return `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences or unsubscribe</a>`;
+}
+
+/**
+ * RFC 8058 one-click unsubscribe headers, required by Gmail/Yahoo for bulk
+ * senders and good for deliverability regardless. The URL must answer POST
+ * with 2xx — see src/app/api/unsubscribe/route.ts.
+ */
+function unsubscribeHeaders(unsubscribeToken?: string): Record<string, string> | undefined {
+    if (!unsubscribeToken) return undefined;
+    return {
+        'List-Unsubscribe': `<${BASE_URL}/api/unsubscribe?token=${unsubscribeToken}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    };
+}
+
 function esc(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -134,6 +157,7 @@ export async function sendFeedbackNotification({
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            headers: unsubscribeHeaders(unsubscribeToken),
             to,
             subject: `New Feedback for ${projectName}`,
             html: `
@@ -177,7 +201,7 @@ export async function sendFeedbackNotification({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
-                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${unsubscribeFooterLink(unsubscribeToken)}
                                 ${RECOVERY_FOOTER_LINE}
                             </p>
 
@@ -260,6 +284,7 @@ export async function sendProjectCreatedNotification({
 
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            headers: unsubscribeHeaders(unsubscribeToken),
             to,
             subject: `New Project: ${projectName} in ${workspaceName}`,
             html: `
@@ -279,7 +304,7 @@ export async function sendProjectCreatedNotification({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
-                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${unsubscribeFooterLink(unsubscribeToken)}
                                 ${RECOVERY_FOOTER_LINE}
                             </p>
 
@@ -327,6 +352,7 @@ export async function sendProjectDeletedNotification({
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            headers: unsubscribeHeaders(unsubscribeToken),
             to,
             subject: `Project Deleted: ${projectName} from ${workspaceName}`,
             html: `
@@ -353,7 +379,7 @@ export async function sendProjectDeletedNotification({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
-                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${unsubscribeFooterLink(unsubscribeToken)}
                                 ${RECOVERY_FOOTER_LINE}
                             </p>
 
@@ -405,6 +431,7 @@ export async function sendReplyNotification({
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            headers: unsubscribeHeaders(unsubscribeToken),
             to,
             subject: `New response for your feedback on ${projectName}`,
             html: `
@@ -430,7 +457,7 @@ export async function sendReplyNotification({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
-                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${unsubscribeFooterLink(unsubscribeToken)}
                                 ${RECOVERY_FOOTER_LINE}
                             </p>
 
@@ -464,6 +491,7 @@ export async function sendAgencyReplyNotification({
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            headers: unsubscribeHeaders(unsubscribeToken),
             to,
             subject: `New reply from ${sender} (${projectName})`,
             html: `
@@ -491,7 +519,7 @@ export async function sendAgencyReplyNotification({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
-                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${unsubscribeFooterLink(unsubscribeToken)}
                                 ${RECOVERY_FOOTER_LINE}
                             </p>
 
@@ -537,6 +565,7 @@ export async function sendClientInviteNotification({
 
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            headers: unsubscribeHeaders(unsubscribeToken),
             to,
             subject: `You've been invited to provide feedback for ${workspaceName}`,
             html: `
@@ -575,7 +604,7 @@ export async function sendClientInviteNotification({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
-                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${unsubscribeFooterLink(unsubscribeToken)}
                                 ${RECOVERY_FOOTER_LINE}
                             </p>
 
@@ -640,6 +669,7 @@ export async function sendMemberWelcomeNotification({
 
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            headers: unsubscribeHeaders(unsubscribeToken),
             to,
             subject: `Welcome to ${workspaceName} on VibeVaults`,
             html: `
@@ -677,7 +707,7 @@ export async function sendMemberWelcomeNotification({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you accepted an invitation.
-                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${unsubscribeFooterLink(unsubscribeToken)}
                                 ${RECOVERY_FOOTER_LINE}
                             </p>
 
@@ -709,6 +739,7 @@ export async function sendWorkspaceInviteNotification({
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            headers: unsubscribeHeaders(unsubscribeToken),
             to,
             subject: `You've been invited to join ${workspaceName} on VibeVaults`,
             html: `
@@ -735,7 +766,7 @@ export async function sendWorkspaceInviteNotification({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
-                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${unsubscribeFooterLink(unsubscribeToken)}
                                 ${RECOVERY_FOOTER_LINE}
                             </p>
 
@@ -960,6 +991,7 @@ export async function sendFeedbackDigestEmail({
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            headers: unsubscribeHeaders(unsubscribeToken),
             to,
             subject: `${count} new feedback${count > 1 ? 's' : ''} for ${projectLabel}`,
             html: `
@@ -983,7 +1015,7 @@ export async function sendFeedbackDigestEmail({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
-                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${unsubscribeFooterLink(unsubscribeToken)}
                                 ${RECOVERY_FOOTER_LINE}
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
@@ -1035,6 +1067,7 @@ export async function sendReplyDigestEmail({
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            headers: unsubscribeHeaders(unsubscribeToken),
             to,
             subject: `${count} new repl${count > 1 ? 'ies' : 'y'} on your feedback`,
             html: `
@@ -1058,7 +1091,7 @@ export async function sendReplyDigestEmail({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
-                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${unsubscribeFooterLink(unsubscribeToken)}
                                 ${RECOVERY_FOOTER_LINE}
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
@@ -1117,6 +1150,7 @@ export async function sendProjectEventDigestEmail({
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
+            headers: unsubscribeHeaders(unsubscribeToken),
             to,
             subject: `${count} project update${count > 1 ? 's' : ''} in your workspace`,
             html: `
@@ -1140,7 +1174,7 @@ export async function sendProjectEventDigestEmail({
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
-                                ${unsubscribeToken ? `<br><a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color: #718096; text-decoration: underline;">Manage email preferences</a>` : ''}
+                                ${unsubscribeFooterLink(unsubscribeToken)}
                                 ${RECOVERY_FOOTER_LINE}
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">

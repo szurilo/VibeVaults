@@ -1,9 +1,14 @@
 /**
- * Main Responsibility: Manages the shareable review link's one control — the
- * pause toggle. The link itself is permanent (projects.review_token is minted
- * by the DB and never rotated), so there is nothing to create or revoke here;
- * pausing blocks new feedback/replies from review-link identities while
- * leaving existing threads visible, Huddlekit-style.
+ * Main Responsibility: The shareable review link's one management control —
+ * the pause toggle. The link itself is permanent (projects.review_token is
+ * minted by the DB and never rotated), so there is nothing to create or
+ * revoke here; pausing blocks new feedback/replies from review-link
+ * identities while leaving existing threads visible, Huddlekit-style.
+ *
+ * Guest redemption lives elsewhere on purpose: `src/lib/review-redeem.ts`
+ * behind the `/api/review/redeem` route handler, because Next.js blocks
+ * server-action redirects to external hosts and the guest has to end up on
+ * the customer's own domain.
  *
  * Sensitive Dependencies:
  * - Supabase Server Client: the update runs user-scoped, so RLS enforces that

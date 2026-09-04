@@ -346,11 +346,8 @@ test.describe('on-page pin layer', () => {
             document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!
                 .querySelectorAll('.pin-marker:not(.pending)').length)).toBeGreaterThan(0);
 
-        // Cancel lives on the overlay, because the panel is not reachable.
-        await page.evaluate(() => {
-            (document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!
-                .querySelector('#vv-pin-cancel') as HTMLElement).click();
-        });
+        // The panel is not reachable while armed, so Escape is the way out.
+        await page.keyboard.press('Escape');
         expect(await chrome()).toEqual({ launcher: true, popup: true });
     });
 

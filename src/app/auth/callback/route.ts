@@ -27,6 +27,13 @@ export async function GET(request: NextRequest) {
             process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
             {
                 cookies: {
+                    // MUST match client.ts / server.ts / proxy.ts. Without it
+                    // this route writes the full-user cookie (user_metadata,
+                    // identities, provider_token), which bloats the auth
+                    // cookie past what Realtime's WebSocket upgrade accepts —
+                    // so a Google sign-in would start every session with the
+                    // oversized cookie until something else rewrote it.
+                    encode: 'tokens-only',
                     getAll() {
                         return request.cookies.getAll()
                     },

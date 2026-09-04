@@ -22,14 +22,18 @@
     const API_ERRORS = `${origin}/api/widget/errors`;
     const API_CAPTURE_INFO = `${origin}/api/widget/capture-info`;
 
-    const apiKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
+    // The key baked into the customer's embed snippet. Can go stale (project
+    // deleted and recreated, snippet never updated), so it is only the
+    // starting point: a successful review-link exchange returns the project's
+    // real key and the widget adopts it (persisted per embed key below).
+    const embedKey = scriptTag ? scriptTag.getAttribute('data-key') : null;
 
-    if (!apiKey) {
+    if (!embedKey) {
       console.warn('VibeVaults: Missing data-key attribute on script tag.');
       return;
     }
 
-    const isVibeVaults = apiKey === 'e3917e214418009aea8b7a2712cb0059';
+    const isVibeVaults = embedKey === 'e3917e214418009aea8b7a2712cb0059';
 
     // --- State Management ---
     // Auth model: per-device opaque token issued by /api/widget/identity/exchange
@@ -38,9 +42,14 @@
     // Bearer header on every widget API call. Anonymous visitors (no token) get no
     // widget UI at all.
     let isOpen = false;
-    const tokenKey = `vv_token_${apiKey}`;
-    const emailKey = `vv_email_${apiKey}`; // cached only for "self vs other" message styling
-    const prefsKey = `vv_prefs_${apiKey}`;
+    // Storage keys are derived from the embed key (stable per site), while
+    // `apiKey` below is the effective key used on the wire — usually the same,
+    // but remapped when a review-link exchange reveals the embed key is stale.
+    const tokenKey = `vv_token_${embedKey}`;
+    const emailKey = `vv_email_${embedKey}`; // cached only for "self vs other" message styling
+    const prefsKey = `vv_prefs_${embedKey}`;
+    const keyMapKey = `vv_apikey_${embedKey}`;
+    let apiKey = localStorage.getItem(keyMapKey) || embedKey;
 
     // Pin is a one-shot action rather than a mode: arming it places exactly one
     // pin and then disarms, so the customer's site stays clickable the rest of
@@ -55,23 +64,24 @@
     let clientEmail = localStorage.getItem(emailKey) || '';
     let notifyRepliesSetting = localStorage.getItem(prefsKey) !== 'false';
 
-    // Three bootstrap URL params, all stripped before render so they don't leak
+    // Bootstrap URL params, all stripped before render so they don't leak
     // via referrer/share:
     //   * vv_invite : workspace_invites.id — exchanged for a token by the server
     //                (client-invitee flow)
     //   * vv_token  : raw widget token — planted directly into localStorage
-    //                (owner/member self-issued flow from the dashboard)
-    //   * vv_review : projects.review_token — permanent shareable review link;
-    //                the visitor self-identifies (name + email) before the
-    //                exchange, no per-person invite exists
+    //                (dashboard "Open widget on site", and the hosted review
+    //                page's redirect after the guest identifies themselves)
+    //   * vv_key    : the project's real API key, sent alongside vv_token by
+    //                the hosted review page so a stale embed-snippet key
+    //                cannot strand the session
     const urlParams = new URLSearchParams(window.location.search);
     const inviteToken = urlParams.get('vv_invite');
     const directToken = urlParams.get('vv_token');
-    const reviewToken = urlParams.get('vv_review');
-    if (inviteToken || directToken || reviewToken) {
+    const directKey = urlParams.get('vv_key');
+    if (inviteToken || directToken || directKey) {
       urlParams.delete('vv_invite');
       urlParams.delete('vv_token');
-      urlParams.delete('vv_review');
+      urlParams.delete('vv_key');
       const newParams = urlParams.toString();
       const cleanUrl = window.location.pathname + (newParams ? '?' + newParams : '') + window.location.hash;
       window.history.replaceState({}, '', cleanUrl);
@@ -79,6 +89,15 @@
     if (directToken) {
       widgetToken = directToken;
       localStorage.setItem(tokenKey, widgetToken);
+      if (directKey && directKey !== embedKey) {
+        apiKey = directKey;
+        localStorage.setItem(keyMapKey, directKey);
+      } else {
+        // Token issued for the embed key's own project — drop any stale
+        // remap so the fresh token isn't sent to the wrong project.
+        localStorage.removeItem(keyMapKey);
+        apiKey = embedKey;
+      }
     }
 
     const authHeaders = () => widgetToken ? { 'Authorization': `Bearer ${widgetToken}` } : {};
@@ -88,6 +107,10 @@
       clientEmail = '';
       localStorage.removeItem(tokenKey);
       localStorage.removeItem(emailKey);
+      // Drop any stale key remap too, so the next bootstrap starts from the
+      // embed snippet's key instead of a mapping that may itself be dead.
+      localStorage.removeItem(keyMapKey);
+      apiKey = embedKey;
     };
 
     let selectedFeedbackId = null;
@@ -383,13 +406,9 @@
       toast = document.createElement('div');
       toast.className = 'vv-toast';
       toast.textContent = msg;
-      // The composer is often the only thing open (the panel is hidden during
-      // pin mode), so a toast parented to the panel would be invisible.
-      const composerEl = wrapper.querySelector('#vv-composer');
-      const target = composerEl && composerEl.classList.contains('open')
-        ? composerEl
-        : wrapper.querySelector('.popup');
-      target.appendChild(toast);
+      // Parented to the wrapper, never to the panel or composer: both of them
+      // get hidden mid-flow, and a toast inside a hidden node is a silent no-op.
+      wrapper.appendChild(toast);
       setTimeout(() => { toast.style.opacity = '0'; }, 4500);
       setTimeout(() => { toast.remove(); }, 5000);
     };
@@ -471,16 +490,43 @@
     .header { padding: 12px 20px; background: #209CEE; color: white; position: relative; }
     .header h3 { margin: 0; font-size: 15px; font-weight: 700; }
     .header p { margin: 2px 0 0; font-size: 12px; opacity: 0.8; }
-    .nav { display: flex; background: #f1f5f9; padding: 4px; margin: 8px 20px 8px; border-radius: 8px; gap: 4px; flex-shrink: 0; }
-    .nav-item {
-      flex: 1; padding: 8px 12px; font-size: 13px; font-weight: 600; color: #4a5568;
-      cursor: pointer; border-radius: 6px; transition: all 0.15s;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      background: transparent; border: none; font-family: inherit;
+    /* Action bar: a primary button plus a real on/off switch. The old
+       segmented pair read as "pick one of two tabs", which they are not: one
+       arms a placement, the other shows or hides a panel. */
+    .nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 20px; flex-shrink: 0; }
+    .pin-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px 14px; font-size: 13px; font-weight: 700; font-family: inherit; color: white;
+      background: linear-gradient(135deg, #209CEE 0%, #1a8ad4 100%);
+      border: none; border-radius: 10px; cursor: pointer;
+      box-shadow: 0 2px 6px rgba(32,156,238,0.35);
+      transition: transform 0.12s, box-shadow 0.15s, filter 0.15s;
     }
-    .nav-item:hover { color: #0f172a; background: rgba(255,255,255,0.6); }
-    .nav-item.active { color: #0f172a; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    #vv-action-pin.active { background: #209CEE; color: white; box-shadow: none; }
+    .pin-btn:hover { filter: brightness(1.06); box-shadow: 0 4px 12px rgba(32,156,238,0.45); }
+    .pin-btn:active { transform: translateY(1px); box-shadow: 0 1px 4px rgba(32,156,238,0.4); }
+    .pin-btn.active {
+      background: linear-gradient(135deg, #0f172a 0%, #1f2937 100%);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.35);
+    }
+    .list-toggle {
+      display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px;
+      font-size: 13px; font-weight: 600; font-family: inherit; color: #4a5568;
+      background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 999px; cursor: pointer;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
+    }
+    .list-toggle:hover { color: #0f172a; background: #e2e8f0; }
+    .list-toggle.active { color: #0f172a; background: #eaf6fe; border-color: #bae0fb; }
+    .toggle-track {
+      position: relative; width: 32px; height: 18px; border-radius: 999px;
+      background: #cbd5e1; flex-shrink: 0; transition: background 0.15s;
+    }
+    .toggle-track::after {
+      content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+      border-radius: 50%; background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      transition: transform 0.15s ease-out;
+    }
+    .list-toggle.active .toggle-track { background: #209CEE; }
+    .list-toggle.active .toggle-track::after { transform: translateX(14px); }
 
     /* The list is a toggle, so the panel is only as tall as the action bar
        until someone asks for it. */
@@ -604,11 +650,15 @@
     .msg-attachment img { width: 100%; height: 100%; object-fit: cover; }
     .msg-attachment-file { display: flex; align-items: center; gap: 4px; font-size: 11px; color: inherit; opacity: 0.8; text-decoration: underline; margin-top: 4px; }
 
-    /* Toast notification */
+    /* Toast notification. Parented to the wrapper and pinned just left of the
+       launcher, so it survives the panel and composer being hidden mid-flow
+       (which is exactly when "Feedback pinned" needs to be readable). */
     .vv-toast {
-      position: absolute; bottom: 48px; left: 16px; right: 16px; background: #1f2937; color: white;
-      font-size: 12px; line-height: 1.4; padding: 10px 14px; border-radius: 8px; z-index: 10;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: opacity 0.3s; opacity: 1;
+      position: fixed; bottom: 20px; right: 110px; max-width: 280px;
+      background: white; color: #1f2937; border: 1px solid #e5e7eb; pointer-events: none;
+      font-size: 12px; line-height: 1.4; padding: 10px 14px; border-radius: 14px; z-index: 6;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.18); transition: opacity 0.3s; opacity: 1;
+      animation: slideUp 0.16s ease-out;
     }
 
     /* --- Pin layer ---------------------------------------------------------
@@ -678,45 +728,10 @@
       position: fixed; border: 2px solid #209CEE; background: rgba(32, 156, 238, 0.08);
       pointer-events: none; transition: all 0.1s ease-out;
     }
-    .capture-banner {
-      position: fixed; top: 20px; left: 50%; transform: translateX(-50%); pointer-events: auto;
-      background: #1f2937; color: white; padding: 12px 20px; font-size: 14px; font-weight: 500;
-      border-radius: 8px; display: flex; align-items: center; gap: 16px;
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
-    }
-    .capture-banner button {
-      background: rgba(255,255,255,0.12); border: none; color: white; padding: 6px 12px;
-      border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit;
-    }
     .capture-crosshair {
       position: fixed; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
       border: 2px solid #209CEE; background: rgba(32,156,238,0.25); pointer-events: none;
     }
-
-    /* --- Review-link identity gate ----------------------------------------- */
-    .review-gate {
-      position: fixed; inset: 0; z-index: 6; display: none;
-      align-items: center; justify-content: center;
-      background: rgba(15, 23, 42, 0.45); pointer-events: auto;
-    }
-    .review-gate.open { display: flex; }
-    .review-gate-card {
-      background: white; border-radius: 16px; width: 360px; max-width: calc(100vw - 32px);
-      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); overflow: hidden;
-      animation: slideUp 0.16s ease-out;
-    }
-    .review-gate-header { background: #209CEE; color: white; padding: 16px 20px; }
-    .review-gate-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
-    .review-gate-header p { margin: 4px 0 0; font-size: 12px; opacity: 0.9; }
-    .review-gate-body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
-    .review-gate-body label { font-size: 12px; font-weight: 600; color: #374151; }
-    .review-gate-body input {
-      width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 9px 12px;
-      font-size: 13px; font-family: inherit; outline: none; box-sizing: border-box;
-    }
-    .review-gate-body input:focus { border-color: #209CEE; box-shadow: 0 0 0 3px rgba(32,156,238,0.15); }
-    .review-gate-error { color: #dc2626; font-size: 12px; display: none; }
-    .review-gate-hint { color: #6b7280; font-size: 11px; margin: 0; }
 
     /* --- Review-paused state ------------------------------------------------ */
     .paused-note {
@@ -731,6 +746,7 @@
     @media (max-width: 480px) {
       .launcher { bottom: 12px; right: 12px; }
       .popup { bottom: 112px; right: 12px; }
+      .vv-toast { bottom: 12px; right: 88px; left: 12px; max-width: none; }
       .composer { width: calc(100vw - 24px); }
       .trigger-btn { width: 64px; height: 64px; border-radius: 14px; padding: 6px; overflow: hidden; }
       .trigger-btn .top-text { font-size: 5.5px; margin-bottom: 2px; letter-spacing: 0.2px; }
@@ -758,13 +774,13 @@
         <span>Feedback is paused by the project team. You can still browse existing feedback.</span>
       </div>
       <div class="nav">
-        <button type="button" class="nav-item" id="vv-action-pin" title="Click the page to place a pin">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z"></path><circle cx="12" cy="11" r="2"></circle></svg>
+        <button type="button" class="pin-btn" id="vv-action-pin" title="Click the page to place a pin">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z"></path><circle cx="12" cy="11" r="2"></circle></svg>
           Pin
         </button>
-        <button type="button" class="nav-item" id="vv-action-list" title="Show or hide the feedback list">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <button type="button" class="list-toggle" id="vv-action-list" role="switch" aria-pressed="false" title="Show or hide the feedback list">
           Feedback
+          <span class="toggle-track" aria-hidden="true"></span>
         </button>
       </div>
       <div class="content">
@@ -784,23 +800,6 @@
         </div>
       </div>
       <div class="branding">Powered by <a href="https://vibe-vaults.com" target="_blank">VibeVaults</a></div>
-    </div>
-    <div class="review-gate" id="vv-review-gate">
-      <div class="review-gate-card">
-        <div class="review-gate-header">
-          <h3>Leave feedback on this site</h3>
-          <p>Tell us who you are so the team knows who the feedback is from.</p>
-        </div>
-        <div class="review-gate-body">
-          <label for="vv-review-name">Your name</label>
-          <input type="text" id="vv-review-name" maxlength="100" placeholder="Jane Doe" autocomplete="name" />
-          <label for="vv-review-email">Your email</label>
-          <input type="email" id="vv-review-email" maxlength="254" placeholder="jane@example.com" autocomplete="email" />
-          <div class="review-gate-error" id="vv-review-error"></div>
-          <button type="button" class="btn" id="vv-review-start">Start reviewing</button>
-          <p class="review-gate-hint">Used only to label your feedback and send you reply notifications.</p>
-        </div>
-      </div>
     </div>
     <div class="pin-layer" id="vv-pin-layer"></div>
     <div class="composer" id="vv-composer">
@@ -1139,79 +1138,11 @@
       if (selectedFeedbackId) renderReplySection();
     };
 
-    // --- Review-link identity gate -----------------------------------------
-    // A `?vv_review=` visitor has no invite, so they self-identify (name +
-    // email) before the exchange. Shown only when there is no working token
-    // already on this device — a returning reviewer skips it entirely.
-    const reviewGate = wrapper.querySelector('#vv-review-gate');
-
-    const showReviewGate = () => {
-      setWidgetVisible(true);
-      reviewGate.classList.add('open');
-      setTimeout(() => { const el = reviewGate.querySelector('#vv-review-name'); if (el) el.focus(); }, 0);
-    };
-
-    const hideReviewGate = () => reviewGate.classList.remove('open');
-
-    const showReviewGateError = (msg) => {
-      const errEl = reviewGate.querySelector('#vv-review-error');
-      errEl.textContent = msg;
-      errEl.style.display = 'block';
-    };
-
-    const submitReviewGate = async () => {
-      const name = reviewGate.querySelector('#vv-review-name').value.trim();
-      const email = reviewGate.querySelector('#vv-review-email').value.trim();
-      if (!name) { showReviewGateError('Please enter your name.'); return; }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showReviewGateError('Please enter a valid email.'); return; }
-
-      const btn = reviewGate.querySelector('#vv-review-start');
-      btn.disabled = true;
-      try {
-        const res = await fetch(API_IDENTITY_EXCHANGE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey, reviewToken, email, name }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.token) {
-          showReviewGateError(data.error || 'Could not start the review. Please try again.');
-          return;
-        }
-        widgetToken = data.token;
-        localStorage.setItem(tokenKey, widgetToken);
-        if (data.email) {
-          clientEmail = data.email;
-          localStorage.setItem(emailKey, clientEmail);
-        }
-        hideReviewGate();
-        const ok = await loadConfig();
-        // Auto-open so the first thing a reviewer sees is the pin bar, not a
-        // launcher they have to discover.
-        if (ok) setWidgetOpen(true);
-      } catch (_) {
-        showReviewGateError('Network error. Please try again.');
-      } finally {
-        btn.disabled = false;
-      }
-    };
-
-    reviewGate.querySelector('#vv-review-start').onclick = submitReviewGate;
-    reviewGate.querySelectorAll('input').forEach((el) => {
-      el.onkeydown = (e) => { if (e.key === 'Enter') submitReviewGate(); };
-    });
-    // Backdrop click dismisses: the gate must never hold the customer's site
-    // hostage. Reopening the review link brings it back.
-    reviewGate.onclick = (e) => {
-      if (e.target !== reviewGate) return;
-      hideReviewGate();
-      if (!widgetToken) setWidgetVisible(false);
-    };
-
     // Bootstrap path: if the URL had `?vv_invite=...`, swap it for a long-lived
-    // widget token, persist it on this origin, then load config. A `?vv_review=`
-    // link falls back to the identity gate when no stored token works. Otherwise
-    // just try config with whatever token is already in localStorage.
+    // widget token, persist it on this origin, then load config. Otherwise
+    // just try config with whatever token is already in localStorage. (Guests
+    // arrive with `?vv_token=` + `?vv_key=` planted by the hosted /review
+    // page, handled above.)
     const bootstrapIdentity = async () => {
       if (inviteToken) {
         try {
@@ -1234,10 +1165,8 @@
         } catch (_) { /* fall through to config fetch */ }
       }
       if (widgetToken) {
-        const ok = await loadConfig();
-        if (ok || !reviewToken) return;
+        await loadConfig();
       }
-      if (reviewToken) showReviewGate();
     };
 
     bootstrapIdentity();
@@ -2391,23 +2320,14 @@
       const crosshair = document.createElement('div');
       crosshair.className = 'capture-crosshair';
       crosshair.style.display = 'none';
-      // The panel is hidden while placing, so the instruction and the way out
-      // have to travel with the overlay.
-      const banner = document.createElement('div');
-      banner.className = 'capture-banner';
-      banner.innerHTML = '<span>Click anywhere on the page to place your pin</span>'
-        + '<button type="button" id="vv-pin-cancel">Cancel</button>';
       wrapper.appendChild(overlay);
       wrapper.appendChild(highlight);
       wrapper.appendChild(crosshair);
-      wrapper.appendChild(banner);
-      banner.querySelector('#vv-pin-cancel').addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        disarmPin();
-      });
 
-      const state = { nodes: [overlay, highlight, crosshair, banner], frame: null, last: null, onKeyDown: null };
+      // No instruction banner: the crosshair and the element outline already
+      // say what a click will do, and a fixed bar at the top of the page covers
+      // whatever the user came to pin. Escape is the way out.
+      const state = { nodes: [overlay, highlight, crosshair], frame: null, last: null, onKeyDown: null };
 
       // The outline follows the element under the cursor, including a big empty
       // layout div, because that is the region being pointed at. The element the
@@ -2493,7 +2413,9 @@
       listOpen = open;
       const popupEl = wrapper.querySelector('.popup');
       popupEl.classList.toggle('list-open', open);
-      wrapper.querySelector('#vv-action-list').classList.toggle('active', open);
+      const listBtn = wrapper.querySelector('#vv-action-list');
+      listBtn.classList.toggle('active', open);
+      listBtn.setAttribute('aria-pressed', open ? 'true' : 'false');
       if (open) switchView(selectedFeedbackId ? 'detail' : 'feedback');
       else { stopAll(); popupEl.classList.remove('tall'); }
     };

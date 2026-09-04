@@ -57,6 +57,34 @@ export function isRateLimited(ip: string, endpoint?: string): boolean {
 }
 
 /**
+ * Checks the workspace owner's subscription/trial status.
+ * Returns `{ ok: true, ownerTier }` when the widget may operate, or
+ * `{ ok: false }` when the owner's access has lapsed (post-trial, unpaid).
+ */
+export async function checkOwnerAccess(workspaceId: string): Promise<{ ok: boolean; ownerTier: TierSlug | null }> {
+    const adminSupabase = createAdminClient();
+    const { data: workspace } = await adminSupabase
+        .from('workspaces')
+        .select('owner_id')
+        .eq('id', workspaceId)
+        .single();
+
+    if (!workspace?.owner_id) return { ok: true, ownerTier: null };
+
+    const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('subscription_status, trial_ends_at, subscription_tier')
+        .eq('id', workspace.owner_id)
+        .single();
+
+    if (!hasActiveAccess(profile)) {
+        return { ok: false, ownerTier: null };
+    }
+
+    return { ok: true, ownerTier: (profile?.subscription_tier as TierSlug | null) ?? null };
+}
+
+/**
  * Validates a widget API key and returns the project row.
  * Also checks that the workspace owner has an active subscription or trial.
  * Returns `{ project }` on success or `{ error, status }` on failure.
@@ -74,30 +102,12 @@ export async function validateApiKey(apiKey: string) {
 
     const project = projects[0];
 
-    // Check workspace owner's subscription/trial status
-    const adminSupabase = createAdminClient();
-    const { data: workspace } = await adminSupabase
-        .from('workspaces')
-        .select('owner_id')
-        .eq('id', project.workspace_id)
-        .single();
-
-    if (workspace?.owner_id) {
-        const { data: profile } = await adminSupabase
-            .from('profiles')
-            .select('subscription_status, trial_ends_at, subscription_tier')
-            .eq('id', workspace.owner_id)
-            .single();
-
-        if (!hasActiveAccess(profile)) {
-            return { project: null, ownerTier: null, error: "This widget is currently inactive. Please contact the site owner.", status: 403 };
-        }
-
-        const ownerTier = (profile?.subscription_tier as TierSlug | null) ?? null;
-        return { project, ownerTier, error: null, status: 200 };
+    const access = await checkOwnerAccess(project.workspace_id);
+    if (!access.ok) {
+        return { project: null, ownerTier: null, error: "This widget is currently inactive. Please contact the site owner.", status: 403 };
     }
 
-    return { project, ownerTier: null, error: null, status: 200 };
+    return { project, ownerTier: access.ownerTier, error: null, status: 200 };
 }
 
 // ---------------------------------------------------------------------------

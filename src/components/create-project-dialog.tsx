@@ -7,8 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Check, Copy, PartyPopper } from 'lucide-react';
-import { buildReviewUrl } from '@/lib/review-url';
+import { PartyPopper } from 'lucide-react';
 
 interface CreateProjectDialogProps {
     open: boolean;
@@ -19,8 +18,6 @@ interface CreateProjectDialogProps {
 interface CreatedProject {
     id: string;
     name: string;
-    website_url?: string | null;
-    review_token?: string | null;
 }
 
 export function CreateProjectDialog({ open, onOpenChange, workspaceId }: CreateProjectDialogProps) {
@@ -32,11 +29,9 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: CreateP
     // When set, the dialog shows the post-create success step with the
     // project's shareable review link instead of the form.
     const [created, setCreated] = useState<CreatedProject | null>(null);
-    const [copied, setCopied] = useState(false);
-
     // Clear error + any previous success step whenever the dialog opens
     useEffect(() => {
-        if (open) { setError(''); setCreated(null); setCopied(false); }
+        if (open) { setError(''); setCreated(null); }
     }, [open]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -82,17 +77,6 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: CreateP
         }
     };
 
-    const reviewUrl = created?.website_url && created?.review_token
-        ? buildReviewUrl(created.website_url, created.review_token)
-        : '';
-
-    const copyReviewUrl = () => {
-        if (!reviewUrl) return;
-        navigator.clipboard.writeText(reviewUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
     if (created) {
         return (
             <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,43 +88,26 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: CreateP
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
-                        {reviewUrl ? (
-                            <>
-                                <p className="text-sm text-gray-600">
-                                    Share this review link with anyone who should give feedback. They open it, enter their name and email, and can start pinning right away — no invite needed.
-                                </p>
-                                <div className="flex gap-2">
-                                    <Input value={reviewUrl} readOnly className="font-mono text-sm" />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={copyReviewUrl}
-                                        className="shrink-0 cursor-pointer"
-                                    >
-                                        {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-gray-600" />}
-                                    </Button>
-                                </div>
-                            </>
-                        ) : (
-                            <p className="text-sm text-gray-600">
-                                Your project was created. Head to project settings to share it or embed the widget.
-                            </p>
-                        )}
-                        <p className="text-xs text-gray-500">
-                            Want the widget on your site permanently? Grab the embed snippet in{' '}
-                            <Link
-                                href="/dashboard/project-settings#share-or-embed"
-                                className="text-violet-600 hover:underline"
-                                onClick={() => onOpenChange(false)}
-                            >
-                                project settings
-                            </Link>.
+                        <p className="text-sm text-gray-600">
+                            Next step: embed the widget snippet on your site. As soon as it loads once, your shareable review link unlocks in project settings — send that to anyone who should give feedback, no invite needed.
                         </p>
                     </div>
                     <DialogFooter>
-                        <Button type="button" onClick={() => onOpenChange(false)} className="cursor-pointer">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => onOpenChange(false)}
+                            className="cursor-pointer"
+                        >
                             Done
+                        </Button>
+                        <Button asChild className="cursor-pointer">
+                            <Link
+                                href="/dashboard/project-settings#share-or-embed"
+                                onClick={() => onOpenChange(false)}
+                            >
+                                Get the embed snippet
+                            </Link>
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -25,6 +25,15 @@ export async function GET(request: Request) {
         return corsError(error ?? "Unauthorized", status);
     }
 
+    // Best-effort embed heartbeat: the dashboard uses widget_last_seen_at to
+    // warn when a review link is being shared for a site that never loaded
+    // the widget. Config GET fires once per widget load, so this is cheap.
+    createAdminClient()
+        .from('projects')
+        .update({ widget_last_seen_at: new Date().toISOString() })
+        .eq('id', project.id)
+        .then(() => undefined, () => undefined);
+
     // Notification preference for the authenticated identity (replaces the
     // legacy `?sender=` lookup — the bearer token is now the source of truth).
     let notifyReplies = true;

@@ -57,11 +57,12 @@ export default function WidgetAccessDoc() {
 
                 <h2 id="review-link">The review link: guest access without invites</h2>
                 <p>
-                    Every project also has a <strong>shareable review link</strong>, found in the project&apos;s settings. It is
-                    the same website address with an unguessable code attached, and anyone who opens it can activate the widget
-                    as a <strong>guest</strong> after entering their name and email. No invite, no waiting for an email to
-                    arrive: paste it into a chat, a ticket, or a kickoff email and the whole stakeholder group can start
-                    pinning feedback. How guests differ from invited clients is covered in{" "}
+                    Every project also has a <strong>shareable review link</strong>, found in the project&apos;s settings. It
+                    points at a page we host: the guest enters their name and email there, and is then taken to your site with
+                    the widget active. No invite, no waiting for an email to arrive: paste it into a chat, a ticket, or a
+                    kickoff email and the whole stakeholder group can start pinning feedback. And because the link goes through
+                    us, a guest on a link that isn&apos;t ready yet sees a clear explanation instead of a dead page. How guests
+                    differ from invited clients is covered in{" "}
                     <Link href="/docs/roles-and-sharing#roles">Roles, plans, and sharing</Link>.
                 </p>
                 <p>
