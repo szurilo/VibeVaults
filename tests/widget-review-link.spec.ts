@@ -1,23 +1,21 @@
 /**
- * Shareable review link: identity gate bootstrap and the pause state.
+ * Shareable review link: widget-side bootstrap params and the pause state.
  *
- * The review link (`?vv_review=<projects.review_token>`) is the no-invite
- * capture path: anyone opening it self-identifies with a name + email, the
- * widget exchanges the review token for a per-device identity, and from then
- * on behaves exactly like an invited client. Two behaviours here fail silently
- * and would be visible on a customer's site before ours:
+ * The guest identity gate lives on the hosted /review/<token> page (tested
+ * server-backed in review-entry.spec.ts). What the widget itself owns:
  *
- *   1. The gate. If it stops appearing, the review link a customer already
- *      shared with their client does nothing at all.
- *   2. Pause semantics. A paused reviewer must be blocked from writing but
- *      keep browsing — and above all a pause 403 must NOT be treated as a
- *      revoked token, which would wipe the reviewer's identity.
+ *   1. `vv_token` + `vv_key`: the hosted page redirects here with a planted
+ *      token and the project's real API key — the widget must adopt that key
+ *      for every call, or a stale embed-snippet key strands the session.
+ *   2. Pause semantics. A paused guest must be blocked from writing but keep
+ *      browsing — and above all a pause 403 must NOT be treated as a revoked
+ *      token, which would wipe the guest's identity.
  *
  * Same harness as widget-pinning: the real `public/widget.js` against stubbed
  * endpoints, no database or dev server.
  */
 import { test, expect, type Page } from '@playwright/test';
-import { mountWidget, REVIEW_TOKEN } from './utils/widget-harness';
+import { mountWidget } from './utils/widget-harness';
 
 const BODY = `<div style="padding:60px"><button id="cta" style="padding:14px 26px">Buy now</button></div>`;
 
@@ -27,66 +25,33 @@ const shadowEval = (page: Page, script: string) =>
         return (${script})(root);
     })()`);
 
-async function fillGateAndStart(page: Page, name: string, email: string) {
-    await shadowEval(page, `(root) => {
-        root.querySelector('#vv-review-name').value = ${JSON.stringify(name)};
-        root.querySelector('#vv-review-email').value = ${JSON.stringify(email)};
-        root.querySelector('#vv-review-start').click();
-    }`);
-}
-
-test.describe('review link identity gate', () => {
-    test('shows the gate, strips the URL param, and exchanges name + email for a token', async ({ page }) => {
-        const widget = await mountWidget(page, { body: BODY, reviewBootstrap: true });
-
-        // Param stripped so the review token cannot leak via referrer/share.
-        expect(page.url()).not.toContain('vv_review');
-
-        // Gate is open, widget panel is not.
-        expect(await shadowEval(page, `(root) => root.querySelector('#vv-review-gate').classList.contains('open')`)).toBe(true);
-        expect(await shadowEval(page, `(root) => root.querySelector('.popup').classList.contains('open')`)).toBe(false);
-
-        await fillGateAndStart(page, 'Jane Reviewer', 'jane@example.com');
-
-        // Exchange carried the review token and the self-declared identity.
-        await expect.poll(() => widget.exchanged()).not.toBeNull();
-        expect(widget.exchanged()).toMatchObject({
-            reviewToken: REVIEW_TOKEN,
-            name: 'Jane Reviewer',
-            email: 'jane@example.com',
+test.describe('review link bootstrap params', () => {
+    test('vv_token + vv_key plants the token and remaps the API key past a stale embed key', async ({ page }) => {
+        const widget = await mountWidget(page, {
+            body: BODY,
+            extraParams: '&vv_key=fresh-project-key',
         });
 
-        // Token planted, gate gone, widget auto-opened on the pin bar.
-        await expect.poll(() =>
-            page.evaluate(() => localStorage.getItem('vv_token_harness-key'))
-        ).toBe('harness-token');
-        expect(await shadowEval(page, `(root) => root.querySelector('#vv-review-gate').classList.contains('open')`)).toBe(false);
-        await expect.poll(() =>
-            shadowEval(page, `(root) => root.querySelector('.popup').classList.contains('open')`)
-        ).toBe(true);
+        // Params stripped so tokens cannot leak via referrer/share.
+        expect(page.url()).not.toContain('vv_token');
+        expect(page.url()).not.toContain('vv_key');
+
+        // Calls carry the hosted page's key, not the embed snippet's key...
+        await expect.poll(() => widget.lastConfigKey()).toBe('fresh-project-key');
+        // ...the remap is persisted per embed key so reloads keep working...
+        expect(await page.evaluate(() => localStorage.getItem('vv_apikey_harness-key'))).toBe('fresh-project-key');
+        // ...and the identity token stays under the embed-key-derived storage key.
+        expect(await page.evaluate(() => localStorage.getItem('vv_token_harness-key'))).toBe('harness-token');
     });
 
-    test('rejects a missing name and a malformed email without calling the server', async ({ page }) => {
-        const widget = await mountWidget(page, { body: BODY, reviewBootstrap: true });
+    test('a bare vv_token clears a stale key remap', async ({ page }) => {
+        await page.addInitScript(() => {
+            try { localStorage.setItem('vv_apikey_harness-key', 'dead-old-key'); } catch { /* ignore */ }
+        });
+        const widget = await mountWidget(page, { body: BODY });
 
-        await fillGateAndStart(page, '', 'jane@example.com');
-        expect(await shadowEval(page, `(root) => root.querySelector('#vv-review-error').textContent`)).toContain('name');
-
-        await fillGateAndStart(page, 'Jane', 'not-an-email');
-        expect(await shadowEval(page, `(root) => root.querySelector('#vv-review-error').textContent`)).toContain('email');
-
-        expect(widget.exchanged()).toBeNull();
-    });
-
-    test('backdrop click dismisses the gate and hides the widget instead of trapping the visitor', async ({ page }) => {
-        await mountWidget(page, { body: BODY, reviewBootstrap: true });
-
-        await shadowEval(page, `(root) => root.querySelector('#vv-review-gate').click()`);
-
-        expect(await shadowEval(page, `(root) => root.querySelector('#vv-review-gate').classList.contains('open')`)).toBe(false);
-        expect(await page.evaluate(() =>
-            (document.querySelector('#vibe-vaults-widget-host') as HTMLElement).style.display
-        )).toBe('none');
+        await expect.poll(() => widget.lastConfigKey()).toBe('harness-key');
+        expect(await page.evaluate(() => localStorage.getItem('vv_apikey_harness-key'))).toBeNull();
     });
 });
 

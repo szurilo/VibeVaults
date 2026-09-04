@@ -85,6 +85,13 @@ export async function updateSession(request: NextRequest) {
         !request.nextUrl.pathname.startsWith('/docs') &&
         !request.nextUrl.pathname.startsWith('/share') &&
         !request.nextUrl.pathname.startsWith('/access') &&
+        // Token-authenticated opt-out. MUST stay public: guests and invited
+        // clients have no account at all, so gating this behind a login makes
+        // the unsubscribe link in every notification email impossible to use.
+        !request.nextUrl.pathname.startsWith('/unsubscribe') &&
+        !request.nextUrl.pathname.startsWith('/api/unsubscribe') &&
+        !request.nextUrl.pathname.startsWith('/review') &&
+        !request.nextUrl.pathname.startsWith('/api/review') &&
         !request.nextUrl.pathname.includes('sitemap.xml') &&
         !request.nextUrl.pathname.includes('robots.txt') &&
         !request.nextUrl.pathname.includes('llms.txt')

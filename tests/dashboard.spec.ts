@@ -35,9 +35,11 @@ test.describe('Onboarding flow', () => {
         await page.locator('#createWebsiteUrl').fill('https://example.com');
         await page.getByRole('dialog').getByRole('button', { name: /^create$/i }).click();
 
-        // Post-create success step: shows the shareable review link, closes on Done
+        // Post-create success step: no copyable review link yet (the widget
+        // has never loaded on a brand-new project) — it points at embedding.
         await expect(page.getByRole('dialog')).toContainText('My Test Project is ready');
-        await expect(page.getByRole('dialog').locator('input[readonly]')).toHaveValue(/vv_review=/);
+        await expect(page.getByRole('dialog')).toContainText('embed the widget snippet');
+        await expect(page.getByRole('dialog').locator('input[readonly]')).toHaveCount(0);
         await page.getByRole('dialog').getByRole('button', { name: /^done$/i }).click();
 
         await expect(page.getByRole('dialog')).toBeHidden();

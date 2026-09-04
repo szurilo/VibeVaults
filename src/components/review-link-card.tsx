@@ -1,14 +1,16 @@
 /**
  * Main Responsibility: Surfaces the project's permanent shareable review link
- * (website_url + ?vv_review=<review_token>) with copy/open actions and the
- * pause toggle. Anyone opening the link self-identifies in the widget — no
- * per-person invite — so this card is the entire management surface for the
- * feature: the link is never rotated or disabled, only paused.
+ * (the hosted `/review/<review_token>` page) with copy/open actions and the
+ * pause toggle. The link and its copy/open actions are withheld until the
+ * widget has been seen loading on the site (`widget_last_seen_at`) — sharing
+ * a link that lands guests on the "not set up yet" page is the mistake this
+ * gate prevents. The link is never rotated or disabled, only paused.
  *
  * Sensitive Dependencies:
  * - setReviewFeedbackPaused server action (user-scoped, RLS-enforced).
- * - projects.review_token / review_feedback_paused from the server component's
- *   user-scoped `select('*')` on the project-settings page.
+ * - projects.review_token / review_feedback_paused / widget_last_seen_at from
+ *   the server component's user-scoped `select('*')` on the project-settings
+ *   page (widget_last_seen_at is stamped by the widget config GET).
  */
 'use client'
 
@@ -26,7 +28,7 @@ import {
 import { AlertCircle, Check, Copy, ExternalLink, MessageSquarePlus, PauseCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { setReviewFeedbackPaused } from '@/actions/review-link'
-import { buildReviewUrl } from '@/lib/review-url'
+import { hostedReviewUrl } from '@/lib/review-url'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface Project {
@@ -35,6 +37,7 @@ interface Project {
     website_url?: string | null;
     review_token?: string | null;
     review_feedback_paused?: boolean;
+    widget_last_seen_at?: string | null;
 }
 
 export function ReviewLinkCard({ project }: { project: Project }) {
@@ -46,8 +49,16 @@ export function ReviewLinkCard({ project }: { project: Project }) {
         setPaused(project.review_feedback_paused || false)
     }, [project.review_feedback_paused])
 
-    const reviewUrl = project.website_url && project.review_token
-        ? buildReviewUrl(project.website_url, project.review_token)
+    const [origin, setOrigin] = useState('')
+    useEffect(() => {
+        setOrigin(window.location.origin)
+    }, [])
+
+    // Hosted link on OUR domain: the guest identifies there, then gets
+    // redirected onto the site with a planted token — so the link keeps
+    // working (or fails with a helpful page) whatever state the embed is in.
+    const reviewUrl = project.website_url && project.review_token && origin
+        ? hostedReviewUrl(origin, project.review_token)
         : ''
 
     const handlePauseToggle = async (checked: boolean) => {
@@ -89,7 +100,17 @@ export function ReviewLinkCard({ project }: { project: Project }) {
                 </div>
             </CardHeader>
             <CardContent>
-                {reviewUrl ? (
+                {reviewUrl && !project.widget_last_seen_at ? (
+                    // No copyable link until the widget has been seen on the
+                    // site — a shared link would land every guest on the
+                    // "not set up yet" page.
+                    <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                        <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <p className="text-xs text-amber-700">
+                            {"Your review link will appear here once the widget is set up. Embed the snippet from the Embed Widget card below, then use \"Open widget on site\" to verify — the link unlocks as soon as we see the widget load."}
+                        </p>
+                    </div>
+                ) : reviewUrl ? (
                     <>
                         <div className="flex gap-2">
                             <Input
