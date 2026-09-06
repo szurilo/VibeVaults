@@ -1,16 +1,16 @@
 /**
  * Main Responsibility: Surfaces the project's permanent shareable review link
  * (the hosted `/review/<review_token>` page) with copy/open actions and the
- * pause toggle. The link and its copy/open actions are withheld until the
- * widget has been seen loading on the site (`widget_last_seen_at`) — sharing
- * a link that lands guests on the "not set up yet" page is the mistake this
- * gate prevents. The link is never rotated or disabled, only paused.
+ * pause toggle. The whole card is withheld by the project-settings page until
+ * the widget has been seen loading on the site (`widget_last_seen_at`), so a
+ * link that would land guests on the "not set up yet" page is never shown.
+ * The link is never rotated or disabled, only paused.
  *
  * Sensitive Dependencies:
  * - setReviewFeedbackPaused server action (user-scoped, RLS-enforced).
  * - projects.review_token / review_feedback_paused / widget_last_seen_at from
  *   the server component's user-scoped `select('*')` on the project-settings
- *   page (widget_last_seen_at is stamped by the widget config GET).
+ *   page (widget_last_seen_at is stamped by the widget heartbeat).
  */
 'use client'
 
@@ -100,17 +100,7 @@ export function ReviewLinkCard({ project }: { project: Project }) {
                 </div>
             </CardHeader>
             <CardContent>
-                {reviewUrl && !project.widget_last_seen_at ? (
-                    // No copyable link until the widget has been seen on the
-                    // site — a shared link would land every guest on the
-                    // "not set up yet" page.
-                    <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                        <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                        <p className="text-xs text-amber-700">
-                            {"Your review link will appear here once the widget is set up. Embed the snippet from the Embed Widget card below, then use \"Open widget on site\" to verify — the link unlocks as soon as we see the widget load."}
-                        </p>
-                    </div>
-                ) : reviewUrl ? (
+                {reviewUrl ? (
                     <>
                         <div className="flex gap-2">
                             <Input

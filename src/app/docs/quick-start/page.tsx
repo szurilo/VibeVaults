@@ -58,7 +58,7 @@ export default function QuickStartDoc() {
 
                 <h2 id="see-it-yourself">3. See it on your own site</h2>
                 <p>
-                    In the same <strong>Embed widget</strong> card, click <strong>Open widget on site</strong>. That opens your
+                    In the same <strong>Embed widget</strong> card, click <strong>Activate widget</strong>. That opens your
                     website with a one-time access link attached, which plants your access token in that browser. The widget
                     appears in the bottom corner and stays available on that device from then on.
                 </p>

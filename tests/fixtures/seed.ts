@@ -28,7 +28,7 @@ export interface SeedResult {
      * Each is a per-device token planted directly into widget_identities
      * — same primitive a real client would obtain by clicking
      * `?vv_invite=...` on the host site, or a member would obtain via
-     * the dashboard's "Open widget on site" button. Tests pass these in
+     * the dashboard's "Activate widget" button. Tests pass these in
      * the Authorization header on widget API calls.
      */
     widgetTokens: {

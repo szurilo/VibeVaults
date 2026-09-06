@@ -21,6 +21,7 @@
     const API_IDENTITY_EXCHANGE = `${origin}/api/widget/identity/exchange`;
     const API_ERRORS = `${origin}/api/widget/errors`;
     const API_CAPTURE_INFO = `${origin}/api/widget/capture-info`;
+    const API_HEARTBEAT = `${origin}/api/widget/heartbeat`;
 
     // The key baked into the customer's embed snippet. Can go stale (project
     // deleted and recreated, snippet never updated), so it is only the
@@ -69,7 +70,7 @@
     //   * vv_invite : workspace_invites.id — exchanged for a token by the server
     //                (client-invitee flow)
     //   * vv_token  : raw widget token — planted directly into localStorage
-    //                (dashboard "Open widget on site", and the hosted review
+    //                (dashboard "Activate widget", and the hosted review
     //                page's redirect after the guest identifies themselves)
     //   * vv_key    : the project's real API key, sent alongside vv_token by
     //                the hosted review page so a stale embed-snippet key
@@ -436,6 +437,27 @@
     const host = document.createElement('div');
     host.id = 'vibe-vaults-widget-host';
     const shadow = host.attachShadow({ mode: 'open' });
+
+    // Stacking is set INLINE and !important, not via the `:host` rule below.
+    // `:host` has lower specificity than any rule in the customer's own
+    // stylesheet that matches this element, so a page-level `div { z-index }`
+    // or a framework reset can quietly drop the whole widget behind the page
+    // (Framer overlays did exactly this). Inline + !important is the highest
+    // author priority there is, and 2147483647 is the practical z-index
+    // ceiling, so the widget stays on top of whatever the site paints.
+    host.style.setProperty('position', 'fixed', 'important');
+    host.style.setProperty('top', '0', 'important');
+    host.style.setProperty('left', '0', 'important');
+    host.style.setProperty('right', '0', 'important');
+    host.style.setProperty('bottom', '0', 'important');
+    host.style.setProperty('width', 'auto', 'important');
+    host.style.setProperty('height', 'auto', 'important');
+    host.style.setProperty('margin', '0', 'important');
+    host.style.setProperty('z-index', '2147483647', 'important');
+    // The host itself must never eat clicks meant for the customer's page;
+    // individual controls inside the shadow tree opt back in.
+    host.style.setProperty('pointer-events', 'none', 'important');
+
     document.body.appendChild(host);
 
     const style = document.createElement('style');
@@ -840,7 +862,9 @@
     // once we have a valid identity token (either already in storage, or one
     // we obtain by exchanging an `?vv_invite=` param for a per-device token).
     const setWidgetVisible = (visible) => {
-      host.style.display = visible ? '' : 'none';
+      // !important for the same reason the stacking styles are: a page rule
+      // must not be able to force our host visible (or hidden).
+      host.style.setProperty('display', visible ? 'block' : 'none', 'important');
     };
     setWidgetVisible(false);
 
@@ -1168,6 +1192,20 @@
         await loadConfig();
       }
     };
+
+    // Embed heartbeat: tells the dashboard the snippet is live on this page.
+    // Deliberately outside the token branch — an anonymous visitor (including
+    // the owner right after pasting the snippet) makes no other request, so
+    // without this the dashboard could never confirm the embed. Fire-and-
+    // forget: the widget's behaviour must not depend on it.
+    try {
+      const beacon = `${API_HEARTBEAT}?key=${encodeURIComponent(apiKey)}`;
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(beacon);
+      } else {
+        fetch(beacon, { method: 'POST', keepalive: true }).catch(() => {});
+      }
+    } catch (_) { /* never block the widget on telemetry */ }
 
     bootstrapIdentity();
 

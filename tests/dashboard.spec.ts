@@ -35,12 +35,14 @@ test.describe('Onboarding flow', () => {
         await page.locator('#createWebsiteUrl').fill('https://example.com');
         await page.getByRole('dialog').getByRole('button', { name: /^create$/i }).click();
 
-        // Post-create success step: no copyable review link yet (the widget
-        // has never loaded on a brand-new project) — it points at embedding.
+        // Post-create embed step: shows the snippet and waits for the widget to
+        // be seen on the site. A brand-new project has never loaded it, so the
+        // step stays in its waiting state and offers Cancel, not Activate.
         await expect(page.getByRole('dialog')).toContainText('My Test Project is ready');
-        await expect(page.getByRole('dialog')).toContainText('embed the widget snippet');
-        await expect(page.getByRole('dialog').locator('input[readonly]')).toHaveCount(0);
-        await page.getByRole('dialog').getByRole('button', { name: /^done$/i }).click();
+        await expect(page.getByRole('dialog').getByLabel('Widget embed snippet')).toHaveValue(/widget\.js/);
+        await expect(page.getByRole('dialog')).toContainText('Waiting for the widget');
+        await expect(page.getByRole('dialog').getByRole('button', { name: /activate widget/i })).toHaveCount(0);
+        await page.getByRole('dialog').getByRole('button', { name: /^cancel$/i }).click();
 
         await expect(page.getByRole('dialog')).toBeHidden();
 

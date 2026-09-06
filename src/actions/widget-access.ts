@@ -222,3 +222,40 @@ export async function requestWidgetAccessRecovery(email: string): Promise<Reques
 
     return { ok: true };
 }
+
+export type WidgetEmbedStatus = { embedded: boolean };
+
+/**
+ * Has `public/widget.js` been seen loading on this project's site yet?
+ * Backs the embed step of the create-project dialog (polled) and gates the
+ * shareable review link. Stamped by the widget heartbeat — see
+ * `src/app/api/widget/heartbeat/route.ts`.
+ */
+export async function getWidgetEmbedStatus(projectId: string): Promise<WidgetEmbedStatus> {
+    if (!projectId) return { embedded: false };
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { embedded: false };
+
+    const admin = createAdminClient();
+    const { data: project } = await admin
+        .from('projects')
+        .select('workspace_id, widget_last_seen_at')
+        .eq('id', projectId)
+        .maybeSingle();
+
+    if (!project) return { embedded: false };
+
+    // Same access rule as issueSelfWidgetLink: membership in the workspace.
+    const { data: membership } = await admin
+        .from('workspace_members')
+        .select('user_id')
+        .eq('workspace_id', project.workspace_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    if (!membership) return { embedded: false };
+
+    return { embedded: !!project.widget_last_seen_at };
+}

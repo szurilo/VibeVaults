@@ -1,7 +1,8 @@
 /**
  * Tier 2 — `issueSelfWidgetLink` server action via the dashboard UI
  *
- * The "Open widget on site" button in `EmbedWidgetCard` is the owner / member
+ * The "Activate widget" button (`ActivateWidgetButton`, used by `EmbedWidgetCard`
+ * and the post-create dialog) is the owner / member
  * path for activating the widget on a host site without going through email.
  * The button:
  *   1. Synchronously opens a blank tab (so popup blockers don't kill it).
@@ -33,7 +34,7 @@ test.skip(({ browserName }) => browserName !== 'chromium', 'Server-action UI wra
 // Owner-side happy path
 // ---------------------------------------------------------------------------
 
-test.describe('Open widget on site button (owner)', () => {
+test.describe('Activate widget button (owner)', () => {
     test.use({ storageState: AUTH_FILES.owner });
 
     test('clicking opens a new tab with ?vv_token=... and the token authenticates widget config', async ({ page, context, request }) => {
@@ -52,7 +53,7 @@ test.describe('Open widget on site button (owner)', () => {
         await page.goto('/dashboard/project-settings');
         await page.waitForLoadState('domcontentloaded');
 
-        const button = page.getByRole('button', { name: /open widget on site/i });
+        const button = page.getByRole('button', { name: /activate widget/i });
         await expect(button).toBeVisible({ timeout: 10_000 });
 
         // Click + capture the new tab.
@@ -89,7 +90,7 @@ test.describe('Open widget on site button (owner)', () => {
 // Project without website_url — button must be disabled with a clear hint
 // ---------------------------------------------------------------------------
 
-test.describe('Open widget on site button — no website_url', () => {
+test.describe('Activate widget button — no website_url', () => {
     test.use({ storageState: AUTH_FILES.owner });
 
     test('button is disabled and explains why when the project has no website_url', async ({ page, context }) => {
@@ -114,7 +115,7 @@ test.describe('Open widget on site button — no website_url', () => {
             // background analytics that may keep the network busy past timeout.
             await dashboardCtx.waitForLoadState('domcontentloaded');
 
-            const button = dashboardCtx.getByRole('button', { name: /open widget on site/i });
+            const button = dashboardCtx.getByRole('button', { name: /activate widget/i });
             await expect(button).toBeVisible({ timeout: 10_000 });
             await expect(button).toBeDisabled();
             await expect(dashboardCtx.getByText(/add a website url/i)).toBeVisible();

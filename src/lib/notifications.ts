@@ -124,7 +124,7 @@ export async function sendWidgetAccessRecoveryEmail({ to, items }: SendWidgetAcc
         <div style="background-color: #f9fafb; padding: 16px 20px; border-radius: 12px; border: 1px solid #f1f5f9; margin-bottom: 12px;">
             <p style="margin: 0 0 4px; font-size: 14px; color: #6b7280; font-weight: 500;">${esc(item.workspaceName)}</p>
             <p style="margin: 0 0 12px; font-size: 16px; color: #1a202c; font-weight: 600;">${esc(item.projectName)}</p>
-            <a href="${item.url}" style="display: inline-block; padding: 10px 20px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Open widget on site</a>
+            <a href="${item.url}" style="display: inline-block; padding: 10px 20px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Activate widget</a>
         </div>
     `).join('');
 
@@ -281,8 +281,8 @@ interface SendProjectCreatedEmailParams {
     widgetUrl?: string;
     /**
      * Recipient kind, controls copy and CTA:
-     *   - 'member' shows both "Go to dashboard" and "Open widget on site"
-     *   - 'client' shows only "Open widget on site" (clients have no dashboard)
+     *   - 'member' shows both "Go to dashboard" and "Activate widget"
+     *   - 'client' shows only "Activate widget" (clients have no dashboard)
      * Defaults to 'member' for backwards compatibility.
      */
     recipientKind?: 'member' | 'client';
@@ -309,7 +309,7 @@ export async function sendProjectCreatedNotification({
             : 'You can now start collecting feedback and managing tasks for this project.';
 
         const widgetCta = widgetUrl
-            ? `<a href="${widgetUrl}" style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; margin-right: 12px;">Open widget on site</a>`
+            ? `<a href="${widgetUrl}" style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; margin-right: 12px;">Activate widget</a>`
             : '';
 
         const dashboardCta = recipientKind === 'member'
@@ -1177,7 +1177,7 @@ export async function sendProjectEventDigestEmail({
             <p style="margin: 0 0 ${item.widgetUrl ? '8px' : '0'}; font-size: 15px; color: #1a202c; line-height: 1.5;">
                 <strong>${esc(item.actorName)}</strong> ${item.type === 'deleted' ? 'deleted' : 'created'} the project <strong>"${esc(item.projectName)}"</strong>
             </p>
-            ${item.widgetUrl ? `<a href="${item.widgetUrl}" style="font-size: 13px; color: #209CEE; text-decoration: none; font-weight: 500;">Open widget on site &rarr;</a>` : ''}
+            ${item.widgetUrl ? `<a href="${item.widgetUrl}" style="font-size: 13px; color: #209CEE; text-decoration: none; font-weight: 500;">Activate widget &rarr;</a>` : ''}
         </div>
     `).join('');
 
