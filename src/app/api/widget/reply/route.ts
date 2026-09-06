@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     try {
         const { data: projectData } = await adminSupabase
             .from('projects')
-            .select('name, workspace_id')
+            .select('name, workspace_id, website_url')
             .eq('id', feedback.project_id)
             .single();
 
@@ -134,7 +134,9 @@ export async function POST(request: Request) {
                                 unsubscribeToken: prefs.unsubscribeToken,
                                 workspaceId: projectData.workspace_id,
                                 projectId: feedback.project_id,
-                                feedbackId
+                                feedbackId,
+                                recipientKind: prefs.recipientKind,
+                                siteUrl: projectData.website_url ?? undefined
                             });
                             await recordEmailSent({
                                 recipientEmail: email,

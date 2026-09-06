@@ -58,7 +58,12 @@ export default async function SettingsPage() {
                                 and should spotlight them together. */}
                             <Highlight id="share-or-embed" className="rounded-xl">
                                 <div className="space-y-6">
-                                    <ReviewLinkCard project={currentProject} />
+                                    {/* The review link is only shown once the widget has
+                                        actually been seen loading on the site. Sharing it
+                                        earlier lands every guest on a "not set up yet" page. */}
+                                    {currentProject.widget_last_seen_at && (
+                                        <ReviewLinkCard project={currentProject} />
+                                    )}
                                     <EmbedWidgetCard project={currentProject} />
                                 </div>
                             </Highlight>

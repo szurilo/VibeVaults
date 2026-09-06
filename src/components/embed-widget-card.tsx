@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -10,9 +10,9 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card'
-import { Check, Copy, Code, ExternalLink, Loader2 } from 'lucide-react'
+import { Check, Copy, Code } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { issueSelfWidgetLink } from '@/actions/widget-access'
+import { ActivateWidgetButton } from '@/components/activate-widget-button'
 
 type EmbedWidgetCardProps = {
     project: {
@@ -25,14 +25,6 @@ type EmbedWidgetCardProps = {
 
 export function EmbedWidgetCard({ project }: EmbedWidgetCardProps) {
     const [copied, setCopied] = useState(false)
-    const [openingWidget, setOpeningWidget] = useState(false)
-    const [openError, setOpenError] = useState<string | null>(null)
-    // Opening the widget needs a real click handler (window.open must run
-    // synchronously or the popup blocker eats it), so the button cannot work
-    // before hydration. Staying disabled until mounted makes that visible
-    // instead of swallowing the click silently.
-    const [hydrated, setHydrated] = useState(false)
-    useEffect(() => { setHydrated(true) }, [])
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL!
     const scriptTag = `<script src="${baseUrl}/widget.js" data-key="${project.api_key}" async></script>`
 
@@ -40,42 +32,6 @@ export function EmbedWidgetCard({ project }: EmbedWidgetCardProps) {
         navigator.clipboard.writeText(scriptTag)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
-    }
-
-    const openWidgetOnSite = async () => {
-        setOpenError(null)
-        setOpeningWidget(true)
-
-        // Open a blank tab synchronously *first*, then navigate it after the
-        // server action resolves. Browsers block window.open() invoked after an
-        // await because it's no longer attached to the original click gesture.
-        const tab = window.open('about:blank', '_blank')
-
-        try {
-            const result = await issueSelfWidgetLink(project.id)
-            if (!result.ok) {
-                tab?.close()
-                if (result.reason === 'no_website_url') {
-                    setOpenError('Add a website URL to this project first.')
-                } else if (result.reason === 'no_access') {
-                    setOpenError('You no longer have access to this project.')
-                } else {
-                    setOpenError('Could not generate a widget link. Please try again.')
-                }
-                return
-            }
-            if (tab) {
-                tab.location.href = result.url
-            } else {
-                // Pop-up blocker — fall back to current-tab navigation.
-                window.location.href = result.url
-            }
-        } catch {
-            tab?.close()
-            setOpenError('Network error. Please try again.')
-        } finally {
-            setOpeningWidget(false)
-        }
     }
 
     return (
@@ -125,31 +81,15 @@ export function EmbedWidgetCard({ project }: EmbedWidgetCardProps) {
                 </p>
 
                 <div className="mt-5 pt-4 border-t border-blue-100/70">
-                    <p className="text-sm font-medium text-blue-900 mb-1">Open the widget on your site</p>
+                    <p className="text-sm font-medium text-blue-900 mb-1">Activate widget</p>
                     <p className="text-xs text-blue-700/80 mb-3">
                         Use this whenever the widget doesn&apos;t appear on <strong>{project.website_url || 'your site'}</strong> — typically the first time you visit on each new device or browser, or after you&apos;ve cleared your browser data. Each click activates the widget for your account on the current device.
                     </p>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={openWidgetOnSite}
-                        disabled={!hydrated || openingWidget || !project.website_url}
-                        className="bg-white hover:bg-blue-50 border-blue-100 cursor-pointer"
-                    >
-                        {openingWidget ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                            <ExternalLink className="w-4 h-4 mr-2" />
-                        )}
-                        Open widget on site
-                    </Button>
+                    <ActivateWidgetButton projectId={project.id} disabled={!project.website_url} />
                     {!project.website_url && (
                         <p className="text-xs text-amber-700 mt-2">
                             Add a website URL above to enable this.
                         </p>
-                    )}
-                    {openError && (
-                        <p className="text-xs text-red-600 mt-2">{openError}</p>
                     )}
                 </div>
             </CardContent>

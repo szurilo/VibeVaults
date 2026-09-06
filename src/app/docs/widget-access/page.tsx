@@ -108,7 +108,7 @@ export default function WidgetAccessDoc() {
                 <ul>
                     <li>Re-send the invite from the <strong>Users</strong> page.</li>
                     <li>
-                        For yourself or a team member, use <strong>Open widget on site</strong> in the project&apos;s embed card,
+                        For yourself or a team member, use <strong>Activate widget</strong> in the project&apos;s embed card,
                         which issues a new link for the browser you are in.
                     </li>
                 </ul>

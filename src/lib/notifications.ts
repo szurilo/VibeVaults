@@ -8,6 +8,7 @@
  */
 import { randomUUID } from 'crypto';
 import { resend } from './resend';
+import type { RecipientKind } from '@/lib/notification-prefs';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
@@ -44,6 +45,39 @@ function esc(s: string): string {
  * fresh per-device bootstrap links without touching the workspace owner.
  */
 const RECOVERY_FOOTER_LINE = `<br><a href="${BASE_URL}/access" style="color: #718096; text-decoration: underline;">Lost widget access? Request a new link</a>`;
+
+/**
+ * The /access recovery line, omitted for guests. Recovery enumerates members
+ * (profiles) and invited clients (workspace_invites); a review-link guest has
+ * neither, so the page can never send them anything — offering it would tell
+ * them to go somewhere that silently fails. Guests recover by reopening the
+ * review link instead.
+ */
+function recoveryFooterLine(recipientKind: RecipientKind = 'member'): string {
+    return recipientKind === 'guest' ? '' : RECOVERY_FOOTER_LINE;
+}
+
+/**
+ * Primary CTA for a feedback thread. Only account holders get the dashboard
+ * deep link — for clients and guests it lands on a login screen they can
+ * never pass. They get the project's site instead, where the widget holds
+ * the same conversation.
+ */
+function threadCtaButton(opts: {
+    recipientKind?: RecipientKind;
+    siteUrl?: string;
+    workspaceId?: string;
+    projectId?: string;
+    feedbackId?: string;
+}): string {
+    const style = "display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;";
+    if ((opts.recipientKind ?? 'member') === 'member') {
+        const href = emailRedirectUrl({ page: 'feedback', workspaceId: opts.workspaceId, projectId: opts.projectId, feedbackId: opts.feedbackId });
+        return `<a href="${href}" style="${style}">View in Dashboard</a>`;
+    }
+    if (!opts.siteUrl) return '';
+    return `<a href="${opts.siteUrl}" style="${style}">Open the site to reply</a>`;
+}
 
 /**
  * Build a deep-link URL that sets workspace/project cookies and redirects to the target page.
@@ -90,7 +124,7 @@ export async function sendWidgetAccessRecoveryEmail({ to, items }: SendWidgetAcc
         <div style="background-color: #f9fafb; padding: 16px 20px; border-radius: 12px; border: 1px solid #f1f5f9; margin-bottom: 12px;">
             <p style="margin: 0 0 4px; font-size: 14px; color: #6b7280; font-weight: 500;">${esc(item.workspaceName)}</p>
             <p style="margin: 0 0 12px; font-size: 16px; color: #1a202c; font-weight: 600;">${esc(item.projectName)}</p>
-            <a href="${item.url}" style="display: inline-block; padding: 10px 20px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Open widget on site</a>
+            <a href="${item.url}" style="display: inline-block; padding: 10px 20px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Activate widget</a>
         </div>
     `).join('');
 
@@ -247,8 +281,8 @@ interface SendProjectCreatedEmailParams {
     widgetUrl?: string;
     /**
      * Recipient kind, controls copy and CTA:
-     *   - 'member' shows both "Go to dashboard" and "Open widget on site"
-     *   - 'client' shows only "Open widget on site" (clients have no dashboard)
+     *   - 'member' shows both "Go to dashboard" and "Activate widget"
+     *   - 'client' shows only "Activate widget" (clients have no dashboard)
      * Defaults to 'member' for backwards compatibility.
      */
     recipientKind?: 'member' | 'client';
@@ -275,7 +309,7 @@ export async function sendProjectCreatedNotification({
             : 'You can now start collecting feedback and managing tasks for this project.';
 
         const widgetCta = widgetUrl
-            ? `<a href="${widgetUrl}" style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; margin-right: 12px;">Open widget on site</a>`
+            ? `<a href="${widgetUrl}" style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; margin-right: 12px;">Activate widget</a>`
             : '';
 
         const dashboardCta = recipientKind === 'member'
@@ -418,6 +452,8 @@ interface SendReplyEmailParams {
     originalFeedback: string;
     sender: string;
     unsubscribeToken?: string;
+    recipientKind?: RecipientKind;
+    siteUrl?: string;
 }
 
 export async function sendReplyNotification({
@@ -426,7 +462,9 @@ export async function sendReplyNotification({
     replyContent,
     originalFeedback,
     sender,
-    unsubscribeToken
+    unsubscribeToken,
+    recipientKind = 'member',
+    siteUrl
 }: SendReplyEmailParams) {
     try {
         const { data, error } = await resend.emails.send({
@@ -458,7 +496,7 @@ export async function sendReplyNotification({
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeFooterLink(unsubscribeToken)}
-                                ${RECOVERY_FOOTER_LINE}
+                                ${recoveryFooterLine(recipientKind)}
                             </p>
 
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
@@ -486,8 +524,10 @@ export async function sendAgencyReplyNotification({
     unsubscribeToken,
     workspaceId,
     projectId,
-    feedbackId
-}: { to: string, projectName: string, replyContent: string, sender: string, unsubscribeToken?: string, workspaceId?: string, projectId?: string, feedbackId?: string }) {
+    feedbackId,
+    recipientKind = 'member',
+    siteUrl,
+}: { to: string, projectName: string, replyContent: string, sender: string, unsubscribeToken?: string, workspaceId?: string, projectId?: string, feedbackId?: string, recipientKind?: RecipientKind, siteUrl?: string }) {
     try {
         const { data, error } = await resend.emails.send({
             from: 'VibeVaults <notifications@mail.vibe-vaults.com>',
@@ -510,17 +550,14 @@ export async function sendAgencyReplyNotification({
                         </div>
 
                         <div style="margin-top: 32px;">
-                            <a href="${emailRedirectUrl({ page: 'feedback', workspaceId, projectId, feedbackId })}"
-                               style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
-                               Reply in Dashboard
-                            </a>
+                            ${threadCtaButton({ recipientKind, siteUrl, workspaceId, projectId, feedbackId })}
                         </div>
                         
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeFooterLink(unsubscribeToken)}
-                                ${RECOVERY_FOOTER_LINE}
+                                ${recoveryFooterLine(recipientKind)}
                             </p>
 
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
@@ -1049,8 +1086,10 @@ interface DigestReplyItem {
 export async function sendReplyDigestEmail({
     to,
     items,
-    unsubscribeToken
-}: { to: string; items: DigestReplyItem[]; unsubscribeToken?: string }) {
+    unsubscribeToken,
+    recipientKind = 'member',
+    siteUrl,
+}: { to: string; items: DigestReplyItem[]; unsubscribeToken?: string; recipientKind?: RecipientKind; siteUrl?: string }) {
     const count = items.length;
 
     const itemsHtml = items.slice(0, 10).map(item => `
@@ -1058,7 +1097,7 @@ export async function sendReplyDigestEmail({
             <p style="margin: 0 0 4px; font-size: 13px; color: #718096;">${esc(item.projectName)} &mdash; ${esc(item.sender)}</p>
             <p style="margin: 0; font-size: 15px; color: #0369a1; line-height: 1.5;">"${esc(replyText(item.replyContent).slice(0, 200))}${item.replyContent.trim().length > 200 ? '…' : ''}"</p>
             ${item.feedbackContentPreview ? `<p style="margin: 6px 0 0; font-size: 13px; color: #718096; font-style: italic;">Re: "${esc(item.feedbackContentPreview.slice(0, 100))}${item.feedbackContentPreview.length > 100 ? '…' : ''}"</p>` : ''}
-            ${item.feedbackId ? `<a href="${emailRedirectUrl({ page: 'feedback', workspaceId: item.workspaceId, projectId: item.projectId, feedbackId: item.feedbackId })}" style="display: inline-block; margin-top: 8px; font-size: 13px; color: #0369a1; text-decoration: none; font-weight: 600;">View &rarr;</a>` : ''}
+            ${item.feedbackId && recipientKind === 'member' ? `<a href="${emailRedirectUrl({ page: 'feedback', workspaceId: item.workspaceId, projectId: item.projectId, feedbackId: item.feedbackId })}" style="display: inline-block; margin-top: 8px; font-size: 13px; color: #0369a1; text-decoration: none; font-weight: 600;">View &rarr;</a>` : ''}
         </div>
     `).join('');
 
@@ -1083,16 +1122,13 @@ export async function sendReplyDigestEmail({
                         ${itemsHtml}
                         ${moreHtml}
 
-                        <a href="${emailRedirectUrl({ page: 'feedback', workspaceId: items[0]?.workspaceId, projectId: items[0]?.projectId })}"
-                           style="display: inline-block; padding: 14px 32px; background-color: #209CEE; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px;">
-                           View in Dashboard
-                        </a>
+                        ${threadCtaButton({ recipientKind, siteUrl, workspaceId: items[0]?.workspaceId, projectId: items[0]?.projectId })}
 
                         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9;">
                             <p style="font-size: 13px; color: #718096; margin-bottom: 8px;">
                                 You received this because you have notifications enabled.
                                 ${unsubscribeFooterLink(unsubscribeToken)}
-                                ${RECOVERY_FOOTER_LINE}
+                                ${recoveryFooterLine(recipientKind)}
                             </p>
                             <p style="font-size: 12px; color: #a0aec0; margin: 0;">
                                 This is an automatically generated email, please do not reply.<br>
@@ -1141,7 +1177,7 @@ export async function sendProjectEventDigestEmail({
             <p style="margin: 0 0 ${item.widgetUrl ? '8px' : '0'}; font-size: 15px; color: #1a202c; line-height: 1.5;">
                 <strong>${esc(item.actorName)}</strong> ${item.type === 'deleted' ? 'deleted' : 'created'} the project <strong>"${esc(item.projectName)}"</strong>
             </p>
-            ${item.widgetUrl ? `<a href="${item.widgetUrl}" style="font-size: 13px; color: #209CEE; text-decoration: none; font-weight: 500;">Open widget on site &rarr;</a>` : ''}
+            ${item.widgetUrl ? `<a href="${item.widgetUrl}" style="font-size: 13px; color: #209CEE; text-decoration: none; font-weight: 500;">Activate widget &rarr;</a>` : ''}
         </div>
     `).join('');
 

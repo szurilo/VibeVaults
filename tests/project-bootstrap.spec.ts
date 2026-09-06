@@ -12,7 +12,7 @@
  *     `?vv_invite=<workspace_invites.id>`, the invite ID is persistent so no
  *     widget_identities row is minted.
  *   - The creator: explicitly excluded — they already use the dashboard
- *     "Open widget on site" button on demand.
+ *     "Activate widget" button on demand.
  *
  * The email itself is no-op'd in the test environment (resend.ts checks for
  * `.playwright-running`), so we verify the DB side effects: widget_identities
