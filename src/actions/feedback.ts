@@ -73,12 +73,12 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
     // Verify ownership via RLS
     const { data: feedback, error: checkError } = await supabase
         .from('feedbacks')
-        .select('*, projects!inner(id, name, workspace_id)')
+        .select('*, projects!inner(id, name, workspace_id, website_url)')
         .eq('id', feedbackId)
         .single();
 
     if (checkError || !feedback) return { error: "Feedback not found or you no longer have access.", replyId: null };
-    const project = feedback.projects as unknown as { id: string; name: string; workspace_id: string };
+    const project = feedback.projects as unknown as { id: string; name: string; workspace_id: string; website_url: string | null };
 
     const { data: replyData, error: replyError } = await supabase
         .from('feedback_replies')
@@ -116,7 +116,9 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
                     replyContent: content,
                     originalFeedback: feedback.content,
                     sender: senderEmail,
-                    unsubscribeToken: prefs.unsubscribeToken
+                    unsubscribeToken: prefs.unsubscribeToken,
+                    recipientKind: prefs.recipientKind,
+                    siteUrl: project.website_url ?? undefined
                 });
                 await recordEmailSent({
                     recipientEmail: feedback.sender,
@@ -169,7 +171,9 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
                         unsubscribeToken: prefs.unsubscribeToken,
                         workspaceId: project.workspace_id,
                         projectId: project.id,
-                        feedbackId
+                        feedbackId,
+                        recipientKind: prefs.recipientKind,
+                        siteUrl: project.website_url ?? undefined
                     });
                     await recordEmailSent({
                         recipientEmail: email,
@@ -239,7 +243,7 @@ export async function addManualFeedbackAction(projectId: string, content: string
 
         const { data: projectData } = await adminSupabase
             .from('projects')
-            .select('name, workspace_id')
+            .select('name, workspace_id, website_url')
             .eq('id', projectId)
             .single();
 

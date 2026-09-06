@@ -33,6 +33,17 @@ import { issueWidgetIdentity } from '@/lib/widget-helpers';
  * and embeds `?vv_invite=<inviteId>`. Either way, opening the link on the
  * host site activates the widget for that recipient on that device.
  */
+/** Site URL for a project, used as the non-member CTA in digest emails. */
+async function getProjectSiteUrl(projectId?: string): Promise<string | null> {
+    if (!projectId) return null;
+    const { data } = await createAdminClient()
+        .from('projects')
+        .select('website_url')
+        .eq('id', projectId)
+        .maybeSingle();
+    return data?.website_url ?? null;
+}
+
 async function buildWidgetUrlForDigestItem(
     recipientEmail: string,
     projectId: string
@@ -167,6 +178,12 @@ export async function GET() {
                             feedbackId: item.feedback_id || (item.payload.feedbackId as string),
                         })),
                         unsubscribeToken: prefs.unsubscribeToken,
+                        recipientKind: prefs.recipientKind,
+                        // Clients and guests have no dashboard; point them at
+                        // the site where the widget holds the same thread.
+                        siteUrl: prefs.recipientKind === 'member'
+                            ? undefined
+                            : (await getProjectSiteUrl(replyItems[0]?.payload.projectId as string | undefined)) ?? undefined,
                     });
                     totalSent++;
                 }

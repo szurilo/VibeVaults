@@ -4,10 +4,47 @@ import { getUserTier } from "@/lib/tier-helpers";
 type NotificationType = 'new_feedback' | 'replies' | 'project_created' | 'project_deleted';
 type EmailFrequency = 'digest' | 'realtime';
 
+/**
+ * Who the email is going to, which decides what links it may contain:
+ *   - 'member': owner/member with a dashboard account.
+ *   - 'client': individually invited, no account, but /access recovery works
+ *     for them (they have a workspace_invites row).
+ *   - 'guest':  arrived via a shareable review link. No account AND no invite,
+ *     so a dashboard link is a dead end and /access can never find them.
+ */
+export type RecipientKind = 'member' | 'client' | 'guest';
+
 interface NotificationPrefs {
     shouldNotify: boolean;
     emailFrequency: EmailFrequency;
     unsubscribeToken: string | undefined;
+    recipientKind: RecipientKind;
+}
+
+/**
+ * Classifies an email address so templates can pick links the recipient can
+ * actually use. Order matters: an address that owns an account is a member
+ * even if it was also invited as a client somewhere.
+ */
+export async function resolveRecipientKind(email: string): Promise<RecipientKind> {
+    const adminSupabase = createAdminClient();
+
+    const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+    if (profile) return 'member';
+
+    const { data: invite } = await adminSupabase
+        .from('workspace_invites')
+        .select('id')
+        .eq('email', email)
+        .eq('role', 'client')
+        .maybeSingle();
+    if (invite) return 'client';
+
+    return 'guest';
 }
 
 const isLocalhost = process.env.NEXT_PUBLIC_APP_URL?.includes('localhost') ?? false;
@@ -81,5 +118,9 @@ export async function getNotificationPrefs(
         }
     }
 
-    return { shouldNotify, emailFrequency, unsubscribeToken };
+    // Resolved on every call so templates never have to guess whether the
+    // recipient can open a dashboard link.
+    const recipientKind = await resolveRecipientKind(email);
+
+    return { shouldNotify, emailFrequency, unsubscribeToken, recipientKind };
 }
