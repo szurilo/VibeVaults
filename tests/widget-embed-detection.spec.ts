@@ -64,7 +64,7 @@ test.describe('review link card visibility', () => {
 
         await supabaseAdmin
             .from('projects').update({ widget_last_seen_at: null }).eq('id', seed.projectId);
-        await page.goto('/dashboard/project-settings', { waitUntil: 'domcontentloaded' });
+        await page.goto('/dashboard/project-settings');
         await expect(page.getByText('Shareable Review Link')).toHaveCount(0);
         // The embed card is always available so the customer can finish setup.
         await expect(page.getByText('Embed widget').first()).toBeVisible();
@@ -73,7 +73,11 @@ test.describe('review link card visibility', () => {
             .from('projects')
             .update({ widget_last_seen_at: new Date().toISOString() })
             .eq('id', seed.projectId);
-        await page.goto('/dashboard/project-settings', { waitUntil: 'domcontentloaded' });
+        // reload(), not a second goto() to the same URL: the dashboard kicks off
+        // a client-side navigation of its own after load, and on WebKit a goto to
+        // the URL already showing collides with it ("interrupted by another
+        // navigation"). reload() has no such race.
+        await page.reload();
         await expect(page.getByText('Shareable Review Link')).toBeVisible();
     });
 });
@@ -82,13 +86,24 @@ test.describe('post-create dialog polling', () => {
     test.use({ storageState: AUTH_FILES.owner });
 
     test('flips to "Activate widget" once the widget is seen on the site', async ({ page }) => {
-        await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+        await page.goto('/dashboard');
 
         // Create a throwaway project through the real dialog, opened the way a
         // customer does — from the sidebar project switcher.
         const name = `Embed Poll ${Date.now()}`;
-        await page.getByRole('button', { name: /current project/i }).click();
-        await page.getByText('Create Project').click();
+
+        // The switcher is a Radix dropdown inside a client component, so its
+        // trigger does nothing until React hydrates. A single click can land in
+        // that gap, get swallowed, and leave the menu shut until the 30s test
+        // timeout. Retry opening until the menu is actually there. This is the
+        // same click-before-hydration failure real users hit on cold pages.
+        const createItem = page.getByRole('menuitem', { name: /create project/i });
+        await expect(async () => {
+            await page.getByRole('button', { name: /current project/i }).click();
+            await expect(createItem).toBeVisible({ timeout: 1_000 });
+        }).toPass({ timeout: 15_000 });
+        await createItem.click();
+
         const dialog = page.getByRole('dialog');
         await expect(dialog).toBeVisible();
         await page.locator('#createProjectName').fill(name);
