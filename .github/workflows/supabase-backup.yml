@@ -1,15 +1,40 @@
-name: Daily Supabase Backup
+# Main Responsibility:
+#   Nightly logical backup of the production Supabase database, pushed to the
+#   PRIVATE repo szurilo/VibeVaults-backups.
+#
+# Sensitive Dependencies:
+#   - The dump contains personal data (auth.users, auth.sessions, feedback
+#     content). This repo is public, so the dump MUST NOT be uploaded as a
+#     workflow artifact: artifacts on a public repo are readable by anyone with
+#     read access to it. Push to the private backup repo instead.
+#   - Auth to the backup repo is a write-scoped DEPLOY KEY (secret
+#     BACKUP_REPO_SSH_KEY), not a PAT, so it can touch nothing else.
+#   - Each run force-pushes a single orphan commit. History therefore never
+#     accumulates: a pruned backup is genuinely gone, which is what our stated
+#     retention period requires.
+#   - scripts/restore-prod-snapshot.sh reads from this repo. Changing the path
+#     layout or retention here breaks that script.
+
+name: Backup Supabase Database
 
 on:
   schedule:
     - cron: '0 0 * * *' # Midnight every day
-  workflow_dispatch: # Allows manual trigger from the Actions tab
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-backup
+  cancel-in-progress: false
+
+env:
+  BACKUP_REPO: szurilo/VibeVaults-backups
+  RETENTION: 30 # how many nightly backups to keep
 
 jobs:
   backup:
     name: Backup Supabase Database
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -25,37 +50,74 @@ jobs:
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          # Create a backup directory
           mkdir -p backups
-
-          # Link the project (required for newer CLI versions)
           supabase link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
-
-          # 1. Dump Roles
           supabase db dump --password "$DB_PASSWORD" --role-only -f backups/roles.sql
-
-          # 2. Dump Schema
           supabase db dump --password "$DB_PASSWORD" -f backups/schema.sql
-
-          # 3. Dump Data (The important stuff)
           supabase db dump --password "$DB_PASSWORD" --data-only -f backups/data.sql
-          
-          # Compress the backups
-          tar -czvf "supabase_backup_$(date +%Y%m%d_%H%M%S).tar.gz" backups/
+          tar -czf "supabase_backup_$(date -u +%Y%m%d_%H%M%S).tar.gz" backups/
+          ls -lh supabase_backup_*.tar.gz
 
-      - name: Upload Backup Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: supabase-db-backup
-          path: supabase_backup_*.tar.gz
-          retention-days: 7 # GitHub Free Tier storage limit for artifacts
+      - name: Configure SSH for backup repo
+        env:
+          BACKUP_REPO_SSH_KEY: ${{ secrets.BACKUP_REPO_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$BACKUP_REPO_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
 
-      # Optional: To store backups permanently in a private branch:
-      # - name: Commit Backup
-      #   run: |
-      #     git config --local user.email "action@github.com"
-      #     git config --local user.name "GitHub Action"
-      #     git checkout -b backups
-      #     git add supabase_backup_*.tar.gz
-      #     git commit -m "Daily backup $(date +%F)"
-      #     git push origin backups
+      - name: Push backup to private repo
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/backup-repo
+          cd /tmp/backup-repo
+          git init -q -b main
+          git remote add origin "git@github.com:${BACKUP_REPO}.git"
+          # Shallow-fetch whatever is already there so we can prune against it.
+          git fetch -q --depth=1 origin main 2>/dev/null \
+            && git checkout -q -f -b main origin/main \
+            || echo "backup repo is empty, starting fresh"
+
+          mkdir -p daily
+          cp "$GITHUB_WORKSPACE"/supabase_backup_*.tar.gz daily/
+
+          # Keep only the newest $RETENTION backups. Filenames sort chronologically.
+          ls -1 daily/supabase_backup_*.tar.gz | sort | head -n -"$RETENTION" | while read -r old; do
+            echo "pruning $(basename "$old")"
+            rm -f "$old"
+          done
+
+          cat > README.md <<'README'
+          # VibeVaults production backups
+
+          Nightly logical dumps of the production Supabase database, written by
+          `.github/workflows/supabase-backup.yml` in szurilo/VibeVaults.
+
+          **This repository contains personal data** (account emails, auth
+          sessions, and customer end-user feedback content). It must stay
+          private. Do not fork, mirror, or add collaborators without a DPA in
+          place.
+
+          - Layout: `daily/supabase_backup_<UTC timestamp>.tar.gz`
+          - Retention: newest 30 runs. Each run force-pushes a single orphan
+            commit, so pruned backups leave no trace in git history.
+          - Restore: `npm run db:rehearse` in the main repo.
+          README
+
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+
+          # Orphan commit + force push: the repo is always exactly the current
+          # retention window, with no historical copies of pruned personal data.
+          git checkout -q --orphan staging
+          git add -A
+          git commit -q -m "Backups as of $(date -u +%Y-%m-%dT%H:%M:%SZ) (keeping newest ${RETENTION})"
+          git branch -M staging main
+          git push -q --force origin main
+          echo "pushed. files now retained:"
+          ls -1 daily/ | wc -l
+
+      - name: Clean up key material
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519
