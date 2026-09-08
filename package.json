@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "db:rehearse": "bash scripts/restore-prod-snapshot.sh"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.4.2",
