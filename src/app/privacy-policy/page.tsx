@@ -206,6 +206,7 @@ export default function PrivacyPolicy() {
                         <li><strong>Resend</strong> &ndash; transactional email delivery (notifications, digests)</li>
                         <li><strong>Cloudflare Turnstile</strong> &ndash; anti-bot verification during authentication</li>
                         <li><strong>PostHog</strong> &ndash; product analytics, session replays, and error tracking, on PostHog&apos;s EU hosting</li>
+                        <li><strong>GitHub</strong> &ndash; source control and automation, and the private storage location for our encrypted nightly database backups</li>
                     </ul>
                     <p className="mb-6">
                         These providers process data only as necessary to deliver their services, on our instructions, and under their own privacy policies. We do not authorise them to use the data for their own purposes.

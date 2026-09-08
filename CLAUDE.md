@@ -53,9 +53,11 @@ Operator is a Hungarian sole trader (egyéni vállalkozó, "e.v."), so the legal
 - **`src/lib/legal-entity.ts`** is the single source of truth for the operator's identity (name, legal form, registration number, tax number, seat). It is rendered by **both** `/privacy-policy` section 1 and `/terms-of-service` section 1. Never hand-copy these values into a third place.
 - **`/privacy-policy`** doubles as the GDPR Art. 13 notice. Section 3.2 must mirror what `getMetadata()` in `public/widget.js` actually captures, and `/docs/widget-data` must mirror it too. Those three move together.
 - **`/terms-of-service` section 8** carries the Art. 28 processor terms. `/privacy-policy` section 4 points at it and calls it half of the DPA, so that section cannot be removed or renumbered without breaking the claim.
-- **`docs/records-of-processing.md`** — Art. 30 ROPA. Internal, never published. Update when a new data category, sub-processor, or retention period appears.
-- **`docs/dpa-checklist.md`** — evidence that every sub-processor is actually under a DPA, as both public policies assert.
-- **`docs/data-breach-response.md`** — the 72-hour procedure. Key fork: for **feedback** data we are the processor, so we notify the affected customer, not NAIH.
+- **Internal compliance records live in the private repo `szurilo/VibeVaults-internal`, not here.** This repo is public, so the ROPA, the DPA checklist, the breach procedure and the breach register are kept out of it. `docs/README.md` is the pointer.
+  - `records-of-processing.md` — Art. 30 ROPA. Update when a new data category, sub-processor, or retention period appears.
+  - `dpa-checklist.md` — evidence that every sub-processor is actually under a DPA, as both public policies assert.
+  - `data-breach-response.md` — the 72-hour procedure. Key fork: for **feedback** data we are the processor, so we notify the affected customer, not NAIH.
+  - `breach-register.md` — Art. 33(5) register. Every breach goes in it, including ones assessed as not notifiable.
 
 ## File Structure
 ```

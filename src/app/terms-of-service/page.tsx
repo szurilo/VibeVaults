@@ -211,6 +211,7 @@ export default function TermsOfService() {
                         <li><strong>Resend</strong> (transactional email delivery)</li>
                         <li><strong>Cloudflare Turnstile</strong> (anti-bot verification)</li>
                         <li><strong>PostHog</strong> (product analytics and error tracking)</li>
+                        <li><strong>GitHub</strong> (source control, automation, and private database backup storage)</li>
                     </ul>
                     <p className="mb-6">
                         We are not responsible for outages or failures caused by these providers. Where they process personal data on our behalf, they are listed as sub-processors in our <Link href="/privacy-policy" className="underline">Privacy Policy</Link>.
