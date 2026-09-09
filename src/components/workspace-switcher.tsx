@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { Plus, ChevronsUpDown, Lock } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
@@ -18,6 +18,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { scopeChangeFallbackRoute } from '@/lib/dashboard-scope';
 
 interface Workspace {
     id: string;
@@ -48,6 +49,7 @@ export default function WorkspaceSwitcher({
     trialStarted?: boolean,
 }) {
     const router = useRouter();
+    const pathname = usePathname();
     const lockedIds = new Set(lockedWorkspaceIds);
     const [showNewWorkspaceDialog, setShowNewWorkspaceDialog] = useState(false);
     const [name, setName] = useState('');
@@ -96,6 +98,12 @@ export default function WorkspaceSwitcher({
                 : '/dashboard/workspace-paused';
             return;
         }
+
+        // An entity-scoped page (a single feedback thread) loads its row by id
+        // from the URL, so refreshing in place would keep showing a record from
+        // the workspace the user just left. Navigate back to its list instead.
+        const fallback = scopeChangeFallbackRoute(pathname);
+        if (fallback) router.push(fallback);
 
         router.refresh();
     };
