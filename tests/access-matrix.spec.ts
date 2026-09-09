@@ -152,9 +152,14 @@ test.describe('Widget gate × owner billing state', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Dashboard paywall — triggers only when the SELECTED workspace is one the
-// user owns AND their trial/sub is inactive. Members accessing an invited
-// workspace should never be paywalled regardless of the owner's status.
+// Dashboard paywall — keyed on the SELECTED workspace's OWNER. A workspace is
+// usable only while whoever pays for it still pays, so everyone in it is gated
+// together: the owner lands on /dashboard/subscribe (they can fix it), members
+// land on /dashboard/workspace-paused (they can only nudge the owner).
+//
+// This block used to assert the opposite for members — that an invited
+// workspace stayed fully usable no matter the owner's status. That was the bug:
+// a lapsed agency kept working indefinitely through its members' logins.
 // ---------------------------------------------------------------------------
 
 test.describe('Dashboard paywall × role', () => {
@@ -222,14 +227,13 @@ test.describe('Dashboard paywall × role', () => {
     test.describe('member (of owner)', () => {
         test.use({ storageState: AUTH_FILES.member });
 
-        test('owner trial-expired → member still reaches dashboard (invited workspace)', async ({ page, context }) => {
+        test('owner trial-expired → member locked out to /dashboard/workspace-paused', async ({ page, context }) => {
             const seed = getSeedResult();
             await setOwnerBillingState(seed.ownerId, 'trial-expired');
 
             // Point the member at the owner's (expired) workspace so the proxy
-            // has to decide whether to paywall. Members should NOT be paywalled
-            // when viewing an invited workspace — the owner's trial is the
-            // owner's problem, not theirs.
+            // has to decide. The member inherits the lock: the workspace is
+            // only alive while its owner pays.
             await context.addCookies([{
                 name: 'selectedWorkspaceId',
                 value: seed.workspaceId,
@@ -237,8 +241,10 @@ test.describe('Dashboard paywall × role', () => {
             }]);
 
             await page.goto('/dashboard');
-            await page.waitForLoadState('networkidle');
-            expect(page.url()).toContain('/dashboard');
+            await page.waitForURL(/\/dashboard\/workspace-paused/, { timeout: 10_000 });
+
+            // Members must never be sent to the plan picker — they can't pay
+            // for someone else's workspace.
             expect(page.url()).not.toContain('/subscribe');
         });
 

@@ -16,10 +16,21 @@ import { revalidatePath } from "next/cache";
 import { sendReplyNotification, sendAgencyReplyNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { shouldSendReplyImmediately, shouldSendFeedbackImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
+import { checkFeedbackWorkspaceActive, checkProjectWorkspaceActive, checkWorkspaceActive } from "@/lib/tier-helpers";
 
 
 export async function updateFeedbackStatus(id: string, status: string) {
     const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "You must be logged in to update feedback." };
+
+    // A workspace is usable only while its OWNER pays. RLS can't see that (it
+    // only knows membership), so the billing gate has to be explicit here —
+    // otherwise a member of a lapsed owner keeps mutating data through a tab
+    // that was open before the lock landed, or by calling the action directly.
+    const paused = await checkFeedbackWorkspaceActive(id, user.id);
+    if (paused) return { error: paused };
 
     const { data, error } = await supabase
         .from('feedbacks')
@@ -45,6 +56,12 @@ export async function updateFeedbackStatus(id: string, status: string) {
 
 export async function deleteFeedback(id: string) {
     const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "You must be logged in to delete feedback." };
+
+    const paused = await checkFeedbackWorkspaceActive(id, user.id);
+    if (paused) return { error: paused };
 
     const { data, error } = await supabase
         .from('feedbacks')
@@ -79,6 +96,9 @@ export async function sendAgencyReplyAction(feedbackId: string, content: string)
 
     if (checkError || !feedback) return { error: "Feedback not found or you no longer have access.", replyId: null };
     const project = feedback.projects as unknown as { id: string; name: string; workspace_id: string; website_url: string | null };
+
+    const paused = await checkWorkspaceActive(project.workspace_id, user.id);
+    if (paused) return { error: paused, replyId: null };
 
     const { data: replyData, error: replyError } = await supabase
         .from('feedback_replies')
@@ -217,6 +237,9 @@ export async function addManualFeedbackAction(projectId: string, content: string
         .single();
 
     if (checkError || !project) return { error: "You no longer have access to this project. Your access may have been revoked.", success: false, feedback_id: null };
+
+    const paused = await checkProjectWorkspaceActive(projectId, user.id);
+    if (paused) return { error: paused, success: false, feedback_id: null };
 
     const feedbackId = crypto.randomUUID();
 

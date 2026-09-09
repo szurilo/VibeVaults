@@ -11,6 +11,10 @@
  *   - Uses `supabase.auth.getClaims()` to read the JWT — does not need
  *     session.user, so the `tokens-only` encoding is transparent here.
  *   - Do not insert code between createServerClient and getClaims().
+ *   - The workspace paywall calls the `get_user_workspace_billing()` RPC
+ *     (migration 20260909000000). It must stay granted to `authenticated`:
+ *     `profiles` RLS hides the owner's row from members, so without the RPC
+ *     the proxy cannot tell whether an invited workspace is still paid for.
  */
 
 import { createServerClient } from "@supabase/ssr";
@@ -112,60 +116,82 @@ export async function updateSession(request: NextRequest) {
         }
     }
 
-    // New: Subscription protection for /dashboard
-    if (request.nextUrl.pathname.startsWith('/dashboard') && !request.nextUrl.pathname.startsWith('/dashboard/payment-success') && !request.nextUrl.pathname.startsWith('/dashboard/subscribe') && !request.nextUrl.pathname.startsWith('/dashboard/account') && user) {
-        const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('subscription_status, subscription_tier, trial_ends_at')
-            .eq('id', user.sub)
-            .single();
+    // -----------------------------------------------------------------------
+    // Workspace paywall for /dashboard
+    //
+    // A workspace is live only while its OWNER pays. This check is therefore
+    // keyed on the selected workspace's owner, NOT on the viewing user: an
+    // earlier version read the viewer's own profile and deliberately exempted
+    // invited workspaces, which meant every member of a lapsed owner kept full
+    // access for free.
+    //
+    // `profiles` RLS only exposes the caller's own row, so the owner's billing
+    // state comes from the get_user_workspace_billing() SECURITY DEFINER RPC,
+    // scoped to workspaces the caller is a member of. It hands back the raw
+    // columns so hasActiveAccess() stays the only implementation of the
+    // predicate.
+    //
+    // Excluded paths, and why each one must stay excluded:
+    //   - the two redirect destinations themselves, or it loops
+    //   - /dashboard/payment-success, which is how a fresh payment lands
+    //   - /dashboard/account — billing and account deletion
+    //   - /dashboard/settings/users — the ONLY place a member can leave a
+    //     workspace and an owner can remove a member or revoke a client. Those
+    //     are exits, so gating the page that hosts them would trap people in a
+    //     workspace they can't use, exactly like gating unsubscribe would. The
+    //     page renders itself in a restricted mode instead (no inviting), and
+    //     `/dashboard/settings` (workspace settings) stays gated — the prefix
+    //     below is deliberately the longer path.
+    // -----------------------------------------------------------------------
+    if (
+        request.nextUrl.pathname.startsWith('/dashboard') &&
+        !request.nextUrl.pathname.startsWith('/dashboard/payment-success') &&
+        !request.nextUrl.pathname.startsWith('/dashboard/subscribe') &&
+        !request.nextUrl.pathname.startsWith('/dashboard/workspace-paused') &&
+        !request.nextUrl.pathname.startsWith('/dashboard/account') &&
+        !request.nextUrl.pathname.startsWith('/dashboard/settings/users') &&
+        user
+    ) {
+        const { data: billingRows, error } = await supabase.rpc('get_user_workspace_billing');
 
-        // If the table is missing or there's an error, don't redirect yet to avoid infinite loops
-        // during development or if the profile hasn't been created yet.
+        // On error (migration not applied yet, transient failure) fail open
+        // rather than locking paying customers out of their dashboard.
         if (error) {
-            console.error('Middleware: Error fetching profile:', error.message);
+            console.error('Middleware: Error fetching workspace billing:', error.message);
             return supabaseResponse;
         }
 
-        if (!hasActiveAccess(profile)) {
-            // Paywall is scoped to the active workspace, not the account. A user
-            // with an expired trial can still access workspaces they were invited
-            // to — the inviting owner pays for those. We only gate access when
-            // the user is viewing (or would land on) one of their OWN workspaces.
+        type BillingRow = {
+            workspace_id: string;
+            owner_id: string | null;
+            subscription_status: string | null;
+            trial_ends_at: string | null;
+        };
+        const rows = (billingRows ?? []) as BillingRow[];
+
+        if (rows.length > 0) {
             const selectedWorkspaceId = request.cookies.get('selectedWorkspaceId')?.value;
+            const isLive = (row: BillingRow) => hasActiveAccess(row);
 
-            // RLS limits this to workspaces the user is a member of.
-            const { data: myWorkspaces } = await supabase
-                .from('workspaces')
-                .select('id, owner_id');
-
-            const ownsAny = myWorkspaces?.some(w => w.owner_id === user.sub) ?? false;
-            const hasInvited = myWorkspaces?.some(w => w.owner_id !== user.sub) ?? false;
-            const selectedOwnership = selectedWorkspaceId
-                ? myWorkspaces?.find(w => w.id === selectedWorkspaceId)?.owner_id
+            // Which workspace is the user actually looking at? Honor a cookie
+            // that still points at a workspace they belong to. Otherwise mirror
+            // the layout's default-selection rule, which prefers a workspace
+            // that actually works over the oldest one.
+            const selected = selectedWorkspaceId
+                ? rows.find(r => r.workspace_id === selectedWorkspaceId)
                 : undefined;
+            const effective = selected ?? rows.find(isLive) ?? rows[0];
 
-            // Rules:
-            //  - Selected workspace is one the user owns → paywall. The cookie
-            //    reflects the user's current context; if that context is a
-            //    locked (owned+expired) workspace, the subscribe page is what
-            //    we show. The subscribe page itself offers a "keep working on
-            //    <invited>" CTA when applicable, so the user is never stuck.
-            //  - No valid selection → paywall only if they have no invited
-            //    workspace to fall back to. Otherwise let the layout pick an
-            //    invited workspace as the default.
-            //  - Selected workspace is invited → full access, regardless of
-            //    the user's own trial status (the inviting owner pays).
-            let shouldPaywall = false;
-            if (selectedOwnership === user.sub) {
-                shouldPaywall = true;
-            } else if (selectedOwnership === undefined) {
-                shouldPaywall = ownsAny && !hasInvited;
-            }
-
-            if (shouldPaywall) {
+            if (!isLive(effective)) {
                 const url = request.nextUrl.clone();
-                url.pathname = "/dashboard/subscribe";
+                url.search = "";
+                // The owner of a lapsed workspace can fix it themselves, so
+                // they go to the plan picker. A member can't pay for someone
+                // else's workspace, so showing them pricing would be a dead
+                // end — they get the "ask the owner to renew" page instead.
+                url.pathname = effective.owner_id === user.sub
+                    ? "/dashboard/subscribe"
+                    : "/dashboard/workspace-paused";
                 return NextResponse.redirect(url);
             }
         }

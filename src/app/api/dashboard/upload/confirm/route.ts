@@ -7,6 +7,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
+import { checkProjectWorkspaceActive } from "@/lib/tier-helpers";
 
 export async function POST(request: Request) {
     const supabase = await createClient();
@@ -46,6 +47,14 @@ export async function POST(request: Request) {
 
     if (!feedback || feedback.project_id !== projectId) {
         return NextResponse.json({ error: "Feedback not found or access denied" }, { status: 404 });
+    }
+
+    // Billing gate — mirrors /api/dashboard/upload. Both halves of the
+    // presigned flow need it: blocking only the presign step would still let a
+    // stale, already-issued URL get confirmed into a DB record.
+    const paused = await checkProjectWorkspaceActive(projectId, user.id);
+    if (paused) {
+        return NextResponse.json({ error: paused }, { status: 403 });
     }
 
     const adminSupabase = createAdminClient();

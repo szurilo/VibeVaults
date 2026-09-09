@@ -15,7 +15,8 @@ import { cookies } from "next/headers";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { GlobalNotificationProvider } from "@/components/global-notification-provider";
-import { getUserTier, isTrialExpired as isTierExpired } from "@/lib/tier-helpers";
+import { DashboardLockProvider } from "@/components/dashboard-lock-context";
+import { getUserTier, isTrialExpired as isTierExpired, getViewerWorkspaceLiveness, isWorkspaceLive } from "@/lib/tier-helpers";
 import { sendWelcomeNotification } from "@/lib/notifications";
 import { dispatchMemberWelcomeBootstrap } from "@/lib/member-onboarding";
 
@@ -170,27 +171,44 @@ export default async function DashboardLayout({
 
     const isTrialExpired = isTierExpired(tierInfo);
 
+    // Per-workspace liveness, keyed on each workspace's OWNER. A member of a
+    // lapsed owner must be locked out of that workspace just like the owner is,
+    // so the sidebar can't be driven off the viewer's own trial state alone.
+    // Read after the invite auto-accept above so a freshly joined workspace is
+    // included.
+    const workspaceLiveness = await getViewerWorkspaceLiveness(supabase);
+
     let selectedWorkspaceId = cookieStore.get("selectedWorkspaceId")?.value;
 
     // Determine which workspace should be active. We honor the cookie whenever
-    // it points at a workspace the user is still a member of — including their
-    // own paywalled workspaces. The proxy handles the redirect-to-subscribe
-    // concern; the layout's job is to render the sidebar consistently with
-    // what the user actually chose. When picking a default (no cookie yet),
-    // we prefer an invited workspace for expired users so they land somewhere
-    // usable on a fresh login instead of on the paywall.
+    // it points at a workspace the user is still a member of — including
+    // paywalled ones. The proxy handles the redirect concern; the layout's job
+    // is to render the sidebar consistently with what the user actually chose.
+    // When picking a default (no cookie yet) we prefer a workspace that
+    // actually works, so a fresh login lands somewhere usable instead of on a
+    // paywall. That covers both an expired owner with an invited workspace and
+    // a member whose inviting owner has lapsed.
     if (autoSelectedWorkspaceId) {
         selectedWorkspaceId = autoSelectedWorkspaceId;
     } else if (workspaces && workspaces.length > 0) {
         const cookiePointsToValidWorkspace =
             selectedWorkspaceId && workspaces.some(w => w.id === selectedWorkspaceId);
         if (!cookiePointsToValidWorkspace) {
-            const invited = workspaces.find(w => w.owner_id !== user.id);
-            selectedWorkspaceId = (isTrialExpired && invited ? invited : workspaces[0]).id;
+            const firstLive = workspaces.find(w => isWorkspaceLive(workspaceLiveness, w.id));
+            selectedWorkspaceId = (firstLive ?? workspaces[0]).id;
         }
     } else {
         selectedWorkspaceId = undefined;
     }
+
+    // Ids the sidebar should render as locked (and refuse to navigate into).
+    const lockedWorkspaceIds = (workspaces ?? [])
+        .filter(w => !isWorkspaceLive(workspaceLiveness, w.id))
+        .map(w => w.id);
+
+    // Surfaced to client components via DashboardLockProvider so the paywall
+    // pages can tell whether this layout render is stale — see PaywallLockSync.
+    const activeWorkspaceLocked = !!selectedWorkspaceId && lockedWorkspaceIds.includes(selectedWorkspaceId);
 
 
     // Now fetch projects for the active workspace
@@ -232,6 +250,7 @@ export default async function DashboardLayout({
                     selectedProjectId={selectedProjectId}
                     user={user}
                     tierInfo={{ tier: tierInfo.tier, isTrialing: tierInfo.isTrialing, trialStarted: tierInfo.trialStarted }}
+                    lockedWorkspaceIds={lockedWorkspaceIds}
                 />
                 <main className="flex-1 overflow-y-auto bg-gray-50 flex flex-col">
                     <div className="p-4 bg-white border-b border-gray-200 md:hidden flex items-center gap-2">
@@ -243,7 +262,9 @@ export default async function DashboardLayout({
                         Let's just put the trigger for mobile usage primarily, as requested.
                     */}
                     <div className="p-8">
-                        {children}
+                        <DashboardLockProvider activeWorkspaceLocked={activeWorkspaceLocked}>
+                            {children}
+                        </DashboardLockProvider>
                     </div>
                 </main>
             </SidebarProvider>

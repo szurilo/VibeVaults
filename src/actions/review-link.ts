@@ -20,9 +20,19 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { checkProjectWorkspaceActive } from "@/lib/tier-helpers";
 
 export async function setReviewFeedbackPaused(projectId: string, paused: boolean) {
     const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "You must be logged in to change this." };
+
+    // Billing gate. Moot for the widget itself (validateApiKey already blocks a
+    // lapsed owner's widget outright), but the control must not look functional
+    // while the rest of the workspace is locked.
+    const workspacePaused = await checkProjectWorkspaceActive(projectId, user.id);
+    if (workspacePaused) return { error: workspacePaused };
 
     const { error } = await supabase
         .from('projects')

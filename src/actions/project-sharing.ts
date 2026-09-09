@@ -3,10 +3,20 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-import { getWorkspaceOwnerTier } from "@/lib/tier-helpers";
+import { getWorkspaceOwnerTier, checkProjectWorkspaceActive } from "@/lib/tier-helpers";
 
 export async function toggleProjectSharing(projectId: string, enable: boolean) {
     const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'You must be logged in to change sharing.' };
+
+    // Billing gate. Applied to BOTH directions on purpose: a public board is
+    // customer-facing output, so a paused workspace must not be able to turn
+    // one on, and the webhook already disables sharing on downgrade — letting a
+    // paused workspace toggle it back off would just add a confusing no-op.
+    const paused = await checkProjectWorkspaceActive(projectId, user.id);
+    if (paused) return { error: paused };
 
     if (enable) {
         // Check if the workspace owner's tier allows public dashboard sharing

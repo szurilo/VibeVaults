@@ -16,6 +16,7 @@ import { sendProjectDeletedNotification } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanupProjectStorage } from "@/lib/storage-cleanup";
 import { shouldSendProjectEventImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
+import { checkWorkspaceActive } from "@/lib/tier-helpers";
 
 export async function deleteProjectAction(projectId: string) {
     const supabase = await createClient();
@@ -31,6 +32,11 @@ export async function deleteProjectAction(projectId: string) {
         .single();
 
     if (fetchError || !project) return { error: "Project not found or you no longer have access." };
+
+    // Billing gate: a paused workspace is read-locked for everyone in it,
+    // members included. RLS only knows membership, never the owner's plan.
+    const paused = await checkWorkspaceActive(project.workspace_id, user.id);
+    if (paused) return { error: paused };
 
     // Fetch workspace info and members before deletion (for email notifications)
     const adminSupabase = createAdminClient();
