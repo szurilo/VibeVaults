@@ -30,16 +30,25 @@ export default function WorkspaceSwitcher({
     workspaces,
     selectedWorkspaceId,
     user,
-    isTrialExpired = false,
+    lockedWorkspaceIds = [],
+    lockCreateWorkspace = false,
     trialStarted = false,
 }: {
     workspaces: Workspace[],
     selectedWorkspaceId?: string,
     user: User,
-    isTrialExpired?: boolean,
+    /** Workspaces whose OWNER has no active access — locked for every member. */
+    lockedWorkspaceIds?: string[],
+    /**
+     * The VIEWER's own plan has lapsed, so a new workspace would be born
+     * locked. Never set from the active workspace's state: a member locked out
+     * of someone else's workspace needs this control to start their own trial.
+     */
+    lockCreateWorkspace?: boolean,
     trialStarted?: boolean,
 }) {
     const router = useRouter();
+    const lockedIds = new Set(lockedWorkspaceIds);
     const [showNewWorkspaceDialog, setShowNewWorkspaceDialog] = useState(false);
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -70,16 +79,21 @@ export default function WorkspaceSwitcher({
         document.cookie = `selectedWorkspaceId=${workspace.id}; path=/; max-age=31536000`;
         document.cookie = `selectedProjectId=; path=/; max-age=0`;
 
-        // For an owned workspace with an expired trial we navigate to the
-        // subscribe page. A client-side router.push preserves the shared
-        // dashboard layout across the segment change, which means the
-        // sidebar keeps its previous props (old selectedWorkspaceId, old
-        // lockSidebar) until something forces a re-fetch. A full reload is
-        // the simplest guarantee that the layout re-runs with the new
-        // cookie — sidebar then correctly shows the owned workspace as
-        // the active (locked) context.
-        if (isTrialExpired && workspace.owner_id === user.id) {
-            window.location.href = '/dashboard/subscribe';
+        // A locked workspace goes straight to its paywall page. A client-side
+        // router.push preserves the shared dashboard layout across the segment
+        // change, which means the sidebar keeps its previous props (old
+        // selectedWorkspaceId, old lockSidebar) until something forces a
+        // re-fetch. A full reload is the simplest guarantee that the layout
+        // re-runs with the new cookie — the sidebar then correctly shows the
+        // newly picked workspace as the active (locked) context.
+        //
+        // Owner vs member matters: the owner can pay, so they get the plan
+        // picker; a member can only nudge whoever pays, so pricing cards would
+        // be a dead end for them.
+        if (lockedIds.has(workspace.id)) {
+            window.location.href = workspace.owner_id === user.id
+                ? '/dashboard/subscribe'
+                : '/dashboard/workspace-paused';
             return;
         }
 
@@ -181,7 +195,7 @@ export default function WorkspaceSwitcher({
                                             key={w.id}
                                             onSelect={() => handleWorkspaceChange(w)}
                                             className="flex items-center gap-2"
-                                            title={isTrialExpired ? 'Subscribe to unlock this workspace' : undefined}
+                                            title={lockedIds.has(w.id) ? 'Subscribe to unlock this workspace' : undefined}
                                         >
                                             <Avatar className="h-6 w-6 rounded-md border border-gray-100">
                                                 <AvatarImage src={w.brand_logo_url ?? undefined} alt={w.name} className="object-contain" />
@@ -190,7 +204,7 @@ export default function WorkspaceSwitcher({
                                                 </AvatarFallback>
                                             </Avatar>
                                             <span className="truncate font-medium flex-1">{w.name}</span>
-                                            {isTrialExpired && (
+                                            {lockedIds.has(w.id) && (
                                                 <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" aria-label="Locked — subscribe to unlock" />
                                             )}
                                         </DropdownMenuItem>
@@ -209,6 +223,7 @@ export default function WorkspaceSwitcher({
                                             key={w.id}
                                             onSelect={() => handleWorkspaceChange(w)}
                                             className="flex items-center gap-2"
+                                            title={lockedIds.has(w.id) ? "Paused — the workspace owner's subscription has expired" : undefined}
                                         >
                                             <Avatar className="h-6 w-6 rounded-md border border-gray-100">
                                                 <AvatarImage src={w.brand_logo_url ?? undefined} alt={w.name} className="object-contain" />
@@ -216,20 +231,38 @@ export default function WorkspaceSwitcher({
                                                     {w.name.charAt(0).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
-                                            <span className="truncate font-medium">{w.name}</span>
+                                            <span className="truncate font-medium flex-1">{w.name}</span>
+                                            {lockedIds.has(w.id) && (
+                                                <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" aria-label="Paused — the owner must renew" />
+                                            )}
                                         </DropdownMenuItem>
                                     ))}
                                 </>
                             )}
 
                             {hasWorkspaces && <DropdownMenuSeparator />}
-                            <DropdownMenuItem
-                                onSelect={() => setShowNewWorkspaceDialog(true)}
-                                className="flex items-center gap-2 text-blue-600 focus:text-blue-600 focus:bg-blue-50"
-                            >
-                                <Plus className="h-4 w-4" />
-                                <span>Create Workspace</span>
-                            </DropdownMenuItem>
+                            {lockCreateWorkspace ? (
+                                // Routed to the paywall rather than disabled: a
+                                // dead-looking item leaves the user guessing,
+                                // and the subscribe page is the actual fix.
+                                <DropdownMenuItem
+                                    onSelect={() => { window.location.href = '/dashboard/subscribe'; }}
+                                    className="flex items-center gap-2 text-muted-foreground"
+                                    title="Subscribe to create more workspaces"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    <span className="flex-1">Create Workspace</span>
+                                    <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" aria-label="Locked — subscribe to unlock" />
+                                </DropdownMenuItem>
+                            ) : (
+                                <DropdownMenuItem
+                                    onSelect={() => setShowNewWorkspaceDialog(true)}
+                                    className="flex items-center gap-2 text-blue-600 focus:text-blue-600 focus:bg-blue-50"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    <span>Create Workspace</span>
+                                </DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </SidebarMenuItem>

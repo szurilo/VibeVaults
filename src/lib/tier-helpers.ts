@@ -8,8 +8,9 @@
  * - tier-config.ts (tier definitions and limits)
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getTierLimits, isSubscribed, isTrialActive, type TierSlug, type TierLimits } from './tier-config';
+import { getTierLimits, hasActiveAccess, isSubscribed, isTrialActive, type TierSlug, type TierLimits } from './tier-config';
 
 export { hasActiveAccess, isTrialExpired, isSubscribed, isTrialActive } from './tier-config';
 
@@ -76,6 +77,191 @@ export async function getWorkspaceOwnerTier(workspaceId: string): Promise<TierIn
 
     const tierInfo = await getUserTier(workspace.owner_id);
     return { ...tierInfo, ownerId: workspace.owner_id };
+}
+
+// ---------------------------------------------------------------------------
+// Workspace access gate (owner-derived)
+//
+// A workspace is live only while its OWNER has active access. Members and
+// clients never hold their own subscription, so every gate — page routing,
+// server actions, API routes, the widget — must resolve through the owner.
+// Deriving it from the *viewer's* profile instead is what let members of a
+// lapsed owner keep working for free.
+// ---------------------------------------------------------------------------
+
+export interface WorkspaceAccess {
+    /** True while the workspace may be used (owner subscribed or in trial). */
+    ok: boolean;
+    ownerId: string | null;
+    ownerEmail: string | null;
+    /** Owner's paid tier, or null while trialing / lapsed. */
+    ownerTier: TierSlug | null;
+}
+
+/**
+ * Resolves whether a workspace is currently usable, by looking at its owner's
+ * billing state. The single source of truth for "is this workspace live"; the
+ * widget gate (`checkOwnerAccess`), the proxy, server actions and API routes
+ * all route through this or through `hasActiveAccess` on the same columns.
+ *
+ * An ownerless workspace (shouldn't happen — `owner_id` is set at creation)
+ * fails open, matching the widget gate's long-standing behaviour: we would
+ * rather serve a malformed row than black out a paying customer's site.
+ */
+export async function getWorkspaceAccess(workspaceId: string): Promise<WorkspaceAccess> {
+    const admin = createAdminClient();
+
+    const { data: workspace } = await admin
+        .from('workspaces')
+        .select('owner_id')
+        .eq('id', workspaceId)
+        .single();
+
+    if (!workspace?.owner_id) {
+        return { ok: true, ownerId: null, ownerEmail: null, ownerTier: null };
+    }
+
+    const { data: profile } = await admin
+        .from('profiles')
+        .select('email, subscription_status, trial_ends_at, subscription_tier')
+        .eq('id', workspace.owner_id)
+        .single();
+
+    const ok = hasActiveAccess(profile);
+
+    return {
+        ok,
+        ownerId: workspace.owner_id,
+        ownerEmail: (profile?.email as string | null) ?? null,
+        // A lapsed owner has no effective tier, even if `subscription_tier`
+        // still holds a value (a failed payment leaves the tier in place and
+        // only flips `subscription_status`).
+        ownerTier: ok ? ((profile?.subscription_tier as TierSlug | null) ?? null) : null,
+    };
+}
+
+/** Same gate, addressed by project instead of workspace. */
+export async function getProjectWorkspaceAccess(
+    projectId: string,
+): Promise<WorkspaceAccess & { workspaceId: string | null }> {
+    const admin = createAdminClient();
+    const { data: project } = await admin
+        .from('projects')
+        .select('workspace_id')
+        .eq('id', projectId)
+        .single();
+
+    if (!project?.workspace_id) {
+        return { ok: false, ownerId: null, ownerEmail: null, ownerTier: null, workspaceId: null };
+    }
+
+    const access = await getWorkspaceAccess(project.workspace_id);
+    return { ...access, workspaceId: project.workspace_id };
+}
+
+/**
+ * Liveness for every workspace the calling user belongs to, as
+ * `workspaceId → isLive`, in one round trip. Backed by the
+ * `get_user_workspace_billing()` SECURITY DEFINER RPC because `profiles` RLS
+ * hides the owner's row from members.
+ *
+ * Pass a USER-SCOPED client — the RPC derives the workspace set from
+ * `auth.uid()`, so an admin client would return nothing.
+ *
+ * Fails open: on error the map comes back empty, and a workspace missing from
+ * the map must be treated as live. Locking paying customers out of their own
+ * dashboard because one query hiccuped is the worse failure.
+ */
+export async function getViewerWorkspaceLiveness(
+    supabase: SupabaseClient,
+): Promise<Record<string, boolean>> {
+    const { data, error } = await supabase.rpc('get_user_workspace_billing');
+
+    if (error || !data) {
+        if (error) console.error('getViewerWorkspaceLiveness failed:', error.message);
+        return {};
+    }
+
+    const rows = data as Array<{
+        workspace_id: string;
+        subscription_status: string | null;
+        trial_ends_at: string | null;
+    }>;
+
+    const map: Record<string, boolean> = {};
+    for (const row of rows) {
+        map[row.workspace_id] = hasActiveAccess(row);
+    }
+    return map;
+}
+
+/** True unless the liveness map explicitly says the workspace is paused (fail open). */
+export function isWorkspaceLive(
+    liveness: Record<string, boolean>,
+    workspaceId: string | undefined | null,
+): boolean {
+    if (!workspaceId) return true;
+    return liveness[workspaceId] !== false;
+}
+
+/**
+ * Context-aware copy for a blocked mutation, mirroring how the limit checks
+ * above word themselves differently for owners and members. Owners can fix it
+ * themselves; members can only nudge whoever pays.
+ */
+export function workspacePausedMessage(isOwner: boolean, ownerEmail?: string | null): string {
+    if (isOwner) {
+        return 'Your subscription is inactive. Renew your plan to continue working in this workspace.';
+    }
+    const who = ownerEmail ? `the workspace owner (${ownerEmail})` : 'the workspace owner';
+    return `This workspace is paused because its owner's subscription has expired. Ask ${who} to renew to continue working.`;
+}
+
+/**
+ * Guard for workspace-scoped mutations (server actions and API routes).
+ * Returns `null` when the caller may proceed, or a ready-to-surface message
+ * when the workspace is paused.
+ *
+ * Deliberately NOT applied to leaving a workspace, removing a member, email
+ * preferences, or unsubscribing: those are exits and opt-outs, and locking a
+ * user inside a workspace they can't use (or inside emails they can't stop)
+ * would be a support and compliance problem, not revenue protection.
+ */
+export async function checkWorkspaceActive(
+    workspaceId: string,
+    userId: string,
+): Promise<string | null> {
+    const access = await getWorkspaceAccess(workspaceId);
+    if (access.ok) return null;
+    return workspacePausedMessage(access.ownerId === userId, access.ownerEmail);
+}
+
+/** Same guard, addressed by project. */
+export async function checkProjectWorkspaceActive(
+    projectId: string,
+    userId: string,
+): Promise<string | null> {
+    const access = await getProjectWorkspaceAccess(projectId);
+    if (access.ok) return null;
+    return workspacePausedMessage(access.ownerId === userId, access.ownerEmail);
+}
+
+/** Same guard, addressed by feedback (feedback → project → workspace → owner). */
+export async function checkFeedbackWorkspaceActive(
+    feedbackId: string,
+    userId: string,
+): Promise<string | null> {
+    const admin = createAdminClient();
+    const { data: feedback } = await admin
+        .from('feedbacks')
+        .select('project_id')
+        .eq('id', feedbackId)
+        .single();
+
+    // No project to resolve — let the caller's own RLS check produce the error.
+    if (!feedback?.project_id) return null;
+
+    return checkProjectWorkspaceActive(feedback.project_id, userId);
 }
 
 // ---------------------------------------------------------------------------

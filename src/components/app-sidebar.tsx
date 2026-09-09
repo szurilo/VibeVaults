@@ -49,6 +49,7 @@ export function AppSidebar({
     selectedProjectId,
     user,
     tierInfo,
+    lockedWorkspaceIds = [],
 }: {
     workspaces: Workspace[]
     selectedWorkspaceId?: string
@@ -56,6 +57,8 @@ export function AppSidebar({
     selectedProjectId?: string
     user: User
     tierInfo?: { tier: TierSlug | null; isTrialing: boolean; trialStarted: boolean }
+    /** Workspaces whose OWNER has no active access — locked for every member. */
+    lockedWorkspaceIds?: string[]
 }) {
     const pathname = usePathname();
     const [isSigningOut, setIsSigningOut] = useState(false);
@@ -85,11 +88,39 @@ export function AppSidebar({
     const activeWorkspace = workspaces?.find(w => w.id === selectedWorkspaceId) || workspaces?.[0];
     const activeProject = projects?.find(p => p.id === selectedProjectId) || projects?.[0];
     const isOwner = activeWorkspace?.owner_id === user.id;
-    // Paywall state is the user's own trial/sub status. Only gates features
-    // when the active workspace is one they own — invited workspaces are
-    // gated by the inviting owner's subscription, not this user's.
+
+    // The lock is a property of the WORKSPACE, not of the viewer: a workspace is
+    // usable only while its owner pays, so a member of a lapsed owner is locked
+    // out exactly like the owner is. `lockedWorkspaceIds` is resolved server-side
+    // in dashboard/layout.tsx (the owner's billing row is invisible to members
+    // under RLS, so it cannot be derived here).
+    const lockedIds = new Set(lockedWorkspaceIds);
+    const lockSidebar = !!activeWorkspace && lockedIds.has(activeWorkspace.id);
+
+    // The viewer's OWN expiry, used for the tier badge and its CTA (which
+    // describe this user's billing, not the active workspace's state) and for
+    // the Create Workspace control.
     const isTrialExpired = !!tierInfo && isTierExpired(tierInfo);
-    const lockSidebar = isOwner && isTrialExpired;
+
+    // Creating a workspace is gated on the VIEWER's own billing, never on the
+    // active workspace's. The distinction matters: a member locked out of
+    // someone else's lapsed workspace needs Create Workspace as their escape
+    // hatch — it is how they start their own trial. `trialStarted` separates
+    // "my trial ran out" (lock it, a new workspace would be born locked) from
+    // "I never had one" (must stay open), because isTrialExpired() is also true
+    // for an invited member who has never owned anything.
+    const lockCreateWorkspace = isTrialExpired && !!tierInfo?.trialStarted;
+
+    // While viewing someone ELSE's paused workspace, hide the viewer's own tier
+    // badge and its Subscribe/Upgrade CTA. Not merely to reduce clutter: a
+    // Subscribe button sitting in the sidebar next to "this workspace is
+    // paused" reads as "pay to unlock this workspace", and the viewer's
+    // subscription cannot unlock a workspace somebody else owns. A member
+    // acting on it would be charged and see nothing change.
+    //
+    // Their own billing is one workspace-switch away, and the switcher stays
+    // clickable precisely so that route is always open.
+    const viewingLockedForeignWorkspace = lockSidebar && !isOwner;
 
     // Derive tier display label. "Expired" falls through for owners whose
     // trial ran out without subscribing — they should still see the badge
@@ -118,21 +149,31 @@ export function AppSidebar({
             </SidebarHeader>
 
             <SidebarContent className="bg-white px-2 py-4 gap-6">
-                {/* Workspace Group — switcher stays interactive even when
-                    the rest of the sidebar is locked, so a user viewing a
-                    paywalled owned workspace can always navigate to an
-                    invited one. */}
+                {/* Workspace Group. Two items deliberately stay interactive while
+                    the rest of the sidebar is locked, because both are exits:
+                      - the switcher, so a user on a paywalled workspace can
+                        always navigate to another one;
+                      - Users, which hosts the only way for a member to LEAVE a
+                        workspace and for an owner to remove a member or revoke a
+                        client. That route is excluded from the proxy paywall for
+                        the same reason (see src/lib/supabase/proxy.ts), and the
+                        sidebar is where people look for it — linking it only
+                        from the paywall pages hid it where nobody searches.
+                    Anything dimmed carries data-locked="true", which is what the
+                    specs assert against rather than Tailwind class strings. */}
                 <div className="flex flex-col gap-2">
                     <div className="px-2">
                         <WorkspaceSwitcher
                             workspaces={workspaces || []}
                             selectedWorkspaceId={selectedWorkspaceId}
                             user={user}
-                            isTrialExpired={isTrialExpired}
+                            lockedWorkspaceIds={lockedWorkspaceIds}
+                            lockCreateWorkspace={lockCreateWorkspace}
                             trialStarted={!!tierInfo?.trialStarted}
                         />
                     </div>
-                    <SidebarMenu className={lockSidebar ? "pointer-events-none opacity-50" : ""}>
+                    <SidebarMenu>
+                        {/* Never dimmed — see the note above. */}
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings/users"}>
                                 <Link href="/dashboard/settings/users" className="font-medium flex items-center gap-2">
@@ -142,7 +183,10 @@ export function AppSidebar({
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                         {isOwner && (
-                            <SidebarMenuItem>
+                            <SidebarMenuItem
+                                data-locked={lockSidebar ? "true" : undefined}
+                                className={lockSidebar ? "pointer-events-none opacity-50" : ""}
+                            >
                                 <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings"}>
                                     <Link href="/dashboard/settings" className="font-medium flex items-center gap-2">
                                         <Settings className="w-4 h-4" />
@@ -156,7 +200,10 @@ export function AppSidebar({
 
                 {/* Projects Group */}
                 {selectedWorkspaceId && (
-                <div className={`flex flex-col gap-2 ${lockSidebar ? "pointer-events-none opacity-50" : ""}`}>
+                <div
+                    data-locked={lockSidebar ? "true" : undefined}
+                    className={`flex flex-col gap-2 ${lockSidebar ? "pointer-events-none opacity-50" : ""}`}
+                >
                     <div className="px-2">
                         <ProjectSwitcher
                             projects={projects || []}
@@ -209,7 +256,7 @@ export function AppSidebar({
             </SidebarContent>
 
             <SidebarFooter className="bg-white border-t border-gray-100 p-4">
-                {tierLabel && (
+                {tierLabel && !viewingLockedForeignWorkspace && (
                     <div className="flex items-center justify-between px-2 pb-3">
                         <div className="flex items-center gap-1.5">
                             <Crown className={`w-3.5 h-3.5 ${isTrialExpired ? "text-red-500" : "text-amber-500"}`} />

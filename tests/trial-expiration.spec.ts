@@ -67,11 +67,11 @@ test.describe('Trial expiration lockout', () => {
 
         // The Users/Settings menu group is wrapped in a SidebarMenu that carries
         // the lock classes when the active workspace is owned + expired.
-        const usersLink = page.getByRole('link', { name: /^Users$/ });
-        await expect(usersLink).toBeVisible();
-        const lockedMenu = usersLink.locator('xpath=ancestor::ul[@data-sidebar="menu"][1]');
-        await expect(lockedMenu).toHaveClass(/pointer-events-none/);
-        await expect(lockedMenu).toHaveClass(/opacity-50/);
+        // `data-locked` is the stable hook for "this group is dimmed". The Users
+        // item is deliberately NOT in it — it hosts the exits and stays live.
+        await expect(page.locator('[data-locked="true"]').first()).toBeVisible();
+        await expect(page.getByRole('link', { name: /^Users$/ })).toBeVisible();
+        await expect(page.locator('[data-locked="true"] a', { hasText: /^Users$/ })).toHaveCount(0);
 
         // The workspace switcher must stay interactive so an expired owner can
         // navigate to an invited workspace. Its trigger should not inherit any

@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { sendMemberRemovedNotification } from '@/lib/notifications';
 import { notifyOwnerMemberDeparted } from '@/lib/workspace-notifications';
-import { checkWorkspaceLimit } from '@/lib/tier-helpers';
+import { checkWorkspaceLimit, getUserTier, isTrialExpired } from '@/lib/tier-helpers';
 
 export async function createWorkspaceAction(name: string) {
     const supabase = await createClient();
@@ -14,6 +14,19 @@ export async function createWorkspaceAction(name: string) {
 
     if (!user) {
         return { error: 'Not authenticated' };
+    }
+
+    // Billing gate, matching the locked Create Workspace control in the
+    // switcher. Without it a lapsed owner can still create workspaces: their
+    // `subscription_tier` is null, and getTierLimits() treats null as Pro (for
+    // trial users), so the limit check below would allow up to three.
+    //
+    // Gated on the caller's OWN plan having *run out*, not merely being absent:
+    // `trialStarted` false means they have never owned a workspace, and creating
+    // their first one is exactly what starts their trial.
+    const tierInfo = await getUserTier(user.id);
+    if (tierInfo.trialStarted && isTrialExpired(tierInfo)) {
+        return { error: 'Your subscription is inactive. Renew your plan to create a workspace.' };
     }
 
     // Check tier workspace limit before creating

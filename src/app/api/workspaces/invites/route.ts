@@ -17,7 +17,7 @@ import { isWorkspaceOwner } from "@/lib/role-helpers";
 import { NextResponse, after } from "next/server";
 import { sendWorkspaceInviteNotification, sendClientInviteNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
-import { checkMemberLimit } from "@/lib/tier-helpers";
+import { checkMemberLimit, checkWorkspaceActive } from "@/lib/tier-helpers";
 
 export async function POST(req: Request) {
     try {
@@ -40,6 +40,13 @@ export async function POST(req: Request) {
 
         if (!(await isWorkspaceOwner(supabase, user.id, workspaceId))) {
             return new NextResponse("Forbidden: Only owners can invite members", { status: 403 });
+        }
+
+        // Billing gate. Inviting anyone into a paused workspace would send them
+        // an email pointing at a dashboard they'd immediately be locked out of.
+        const paused = await checkWorkspaceActive(workspaceId, user.id);
+        if (paused) {
+            return new NextResponse(paused, { status: 403 });
         }
 
         // Check tier member limit (only for 'member' role — client invites are unlimited)

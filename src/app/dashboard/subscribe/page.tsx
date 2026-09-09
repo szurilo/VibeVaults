@@ -11,9 +11,11 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { PricingCards } from '@/components/landing/pricing-cards';
-import { getUserTier, isTrialExpired as isTierExpired } from '@/lib/tier-helpers';
+import { PaywallLockSync } from '@/components/paywall-lock-sync';
+import { getUserTier, isTrialExpired as isTierExpired, getViewerWorkspaceLiveness, isWorkspaceLive } from '@/lib/tier-helpers';
 import { STRIPE_PRICES } from '@/lib/tier-config';
 
 export default async function SubscribePage() {
@@ -38,17 +40,32 @@ export default async function SubscribePage() {
     const isTrialActive = tierInfo.isTrialing;
     const isSubscribed = !!tierInfo.tier;
 
-    // Does the user belong to any workspace they don't own? Those remain
-    // accessible even when their own trial/sub has expired — worth telling
-    // them so they don't think they've lost everything. The workspace
-    // switcher in the sidebar is the escape hatch to reach those workspaces.
-    let hasInvitedWorkspace = false;
-    if (isTrialExpired) {
-        const { data: memberWorkspaces } = await supabase
-            .from('workspaces')
-            .select('owner_id');
-        hasInvitedWorkspace = memberWorkspaces?.some(w => w.owner_id !== user.id) ?? false;
-    }
+    const [{ data: myWorkspaces }, liveness, cookieStore] = await Promise.all([
+        supabase.from('workspaces').select('id, owner_id'),
+        getViewerWorkspaceLiveness(supabase),
+        cookies(),
+    ]);
+
+    // Does the user belong to an invited workspace that is still LIVE? Those
+    // remain accessible even when their own trial/sub has expired — worth
+    // telling them so they don't think they've lost everything. The workspace
+    // switcher in the sidebar is the escape hatch to reach them.
+    //
+    // Liveness matters, not just ownership: an invited workspace whose own owner
+    // has lapsed is locked too, so counting it here would promise the user
+    // access they don't have.
+    const hasInvitedWorkspace = isTrialExpired
+        ? (myWorkspaces?.some(w => w.owner_id !== user.id && isWorkspaceLive(liveness, w.id)) ?? false)
+        : false;
+
+    // What the sidebar should render, which is a question about the ACTIVE
+    // WORKSPACE, not about this user's trial. The two come apart: a member whose
+    // own plan is healthy can land here with a paused invited workspace still
+    // selected, and `isTrialExpired` would then wrongly claim the sidebar is
+    // unlocked. Mirrors how dashboard/layout.tsx derives the same flag.
+    const selectedWorkspaceId = cookieStore.get('selectedWorkspaceId')?.value;
+    const activeWorkspace = myWorkspaces?.find(w => w.id === selectedWorkspaceId) ?? myWorkspaces?.[0];
+    const activeWorkspaceLocked = !!activeWorkspace && !isWorkspaceLive(liveness, activeWorkspace.id);
 
     // Calculate remaining trial days
     let trialDaysLeft = 0;
@@ -78,6 +95,11 @@ export default async function SubscribePage() {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] px-4 py-12">
+            {/* The ACTIVE WORKSPACE's state, not `true` and not this user's trial:
+                a healthy owner reaches this page voluntarily from the footer's
+                Upgrade link, and dimming their nav would strand them here. */}
+            <PaywallLockSync locked={activeWorkspaceLocked} />
+
             {/* Header */}
             <div className="text-center mb-10">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">{heading}</h1>

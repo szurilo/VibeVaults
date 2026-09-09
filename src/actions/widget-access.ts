@@ -19,6 +19,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { issueWidgetIdentity } from '@/lib/widget-helpers';
 import { sendWidgetAccessRecoveryEmail } from '@/lib/notifications';
 import { createActionRateLimiter } from '@/lib/action-rate-limit';
+import { getWorkspaceAccess } from '@/lib/tier-helpers';
 import { headers } from 'next/headers';
 import { after } from 'next/server';
 
@@ -72,6 +73,12 @@ export async function issueSelfWidgetLink(projectId: string): Promise<IssueSelfW
         .maybeSingle();
 
     if (!membership) return { ok: false, reason: 'no_access' };
+
+    // Billing gate. A fresh token for a paused workspace would be dead on
+    // arrival anyway — validateApiKey blocks the widget for a lapsed owner — so
+    // fail here rather than handing out a link that silently does nothing.
+    const access = await getWorkspaceAccess(project.workspace_id);
+    if (!access.ok) return { ok: false, reason: 'no_access' };
 
     if (!project.website_url) return { ok: false, reason: 'no_website_url' };
 

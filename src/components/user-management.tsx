@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from "sonner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { MailCheck, UserX, AlertCircle } from "lucide-react";
+import { MailCheck, UserX, AlertCircle, Lock } from "lucide-react";
+import Link from "next/link";
 import { Highlight } from "@/components/highlight";
 import {
     AlertDialog,
@@ -48,6 +49,8 @@ export function UserManagement({
     isOwner,
     currentUserId,
     currentUserEmail,
+    workspacePaused = false,
+    ownerEmail = null,
 }: {
     workspaceId: string;
     members: any[];
@@ -55,6 +58,14 @@ export function UserManagement({
     isOwner: boolean;
     currentUserId?: string;
     currentUserEmail?: string;
+    /**
+     * The workspace owner's plan has lapsed. This page stays reachable on
+     * purpose (it hosts the only exits — leaving, removing a member, revoking a
+     * client), so instead of locking the page we drop the one thing a paused
+     * workspace must not do: invite more people into it.
+     */
+    workspacePaused?: boolean;
+    ownerEmail?: string | null;
 }) {
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
@@ -216,6 +227,30 @@ export function UserManagement({
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className={`${isOwner ? "lg:col-span-2" : "col-span-full"} space-y-6`}>
+                {workspacePaused && (
+                    <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-4">
+                        <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-sm text-amber-900 leading-relaxed">
+                            {isOwner ? (
+                                <>
+                                    This workspace is paused because your subscription is inactive.
+                                    You can still manage who has access here.{' '}
+                                    <Link href="/dashboard/subscribe" className="font-semibold underline">
+                                        Renew your plan
+                                    </Link>{' '}
+                                    to unlock everything else.
+                                </>
+                            ) : (
+                                <>
+                                    This workspace is paused because its owner&apos;s subscription has
+                                    expired{ownerEmail ? <> ({ownerEmail})</> : null}. You can still
+                                    leave the workspace from here if you no longer need access.
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 <Card>
                     <CardHeader>
                         <CardTitle>Users</CardTitle>
@@ -433,7 +468,26 @@ export function UserManagement({
                 )}
             </div>
 
-            {isOwner && (
+            {isOwner && workspacePaused && (
+                <Card className="border-amber-200 bg-amber-50/60">
+                    <CardHeader>
+                        <CardTitle className="text-base">Inviting is paused</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            This workspace&apos;s subscription is inactive, so you can&apos;t invite
+                            anyone new right now — they would land on a dashboard they
+                            can&apos;t use. You can still remove members and revoke client
+                            access here.
+                        </p>
+                        <Button asChild className="w-full mt-4 cursor-pointer">
+                            <Link href="/dashboard/subscribe">Renew your plan</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
+
+            {isOwner && !workspacePaused && (
                 <Highlight id="invite-users" className="rounded-xl">
                     <Card>
                         <CardHeader>

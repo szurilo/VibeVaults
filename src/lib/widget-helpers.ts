@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { getTierLimits, type TierSlug } from "@/lib/tier-config";
-import { hasActiveAccess } from "@/lib/tier-helpers";
+import { getWorkspaceAccess } from "@/lib/tier-helpers";
 import { createHash, randomBytes } from "crypto";
 
 export const corsHeaders = {
@@ -60,28 +60,14 @@ export function isRateLimited(ip: string, endpoint?: string): boolean {
  * Checks the workspace owner's subscription/trial status.
  * Returns `{ ok: true, ownerTier }` when the widget may operate, or
  * `{ ok: false }` when the owner's access has lapsed (post-trial, unpaid).
+ *
+ * Thin wrapper over `getWorkspaceAccess()` — the dashboard gate (proxy, server
+ * actions, API routes) resolves through the same helper, so the widget and the
+ * dashboard can never disagree about whether a workspace is live.
  */
 export async function checkOwnerAccess(workspaceId: string): Promise<{ ok: boolean; ownerTier: TierSlug | null }> {
-    const adminSupabase = createAdminClient();
-    const { data: workspace } = await adminSupabase
-        .from('workspaces')
-        .select('owner_id')
-        .eq('id', workspaceId)
-        .single();
-
-    if (!workspace?.owner_id) return { ok: true, ownerTier: null };
-
-    const { data: profile } = await adminSupabase
-        .from('profiles')
-        .select('subscription_status, trial_ends_at, subscription_tier')
-        .eq('id', workspace.owner_id)
-        .single();
-
-    if (!hasActiveAccess(profile)) {
-        return { ok: false, ownerTier: null };
-    }
-
-    return { ok: true, ownerTier: (profile?.subscription_tier as TierSlug | null) ?? null };
+    const { ok, ownerTier } = await getWorkspaceAccess(workspaceId);
+    return { ok, ownerTier };
 }
 
 /**

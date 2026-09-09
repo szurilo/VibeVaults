@@ -13,7 +13,7 @@ import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { sendProjectCreatedNotification } from "@/lib/notifications";
-import { checkProjectLimit } from "@/lib/tier-helpers";
+import { checkProjectLimit, checkWorkspaceActive } from "@/lib/tier-helpers";
 import { shouldSendProjectEventImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
 import { issueWidgetIdentity } from "@/lib/widget-helpers";
 
@@ -85,6 +85,13 @@ export async function POST(req: Request) {
 
     if (!user || userError) {
         return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    // Billing gate before the limit gate: a paused workspace can't create
+    // anything, regardless of how much headroom its plan nominally had.
+    const paused = await checkWorkspaceActive(workspace_id, user.id);
+    if (paused) {
+        return new NextResponse(paused, { status: 403 });
     }
 
     // Check tier project limit for this workspace

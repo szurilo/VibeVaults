@@ -8,7 +8,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
-import { checkStorageLimit } from "@/lib/tier-helpers";
+import { checkStorageLimit, checkProjectWorkspaceActive } from "@/lib/tier-helpers";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_FILES_PER_REQUEST = 10;
@@ -64,6 +64,14 @@ export async function POST(request: Request) {
 
     if (!feedback) {
         return NextResponse.json({ error: "Feedback not found" }, { status: 404 });
+    }
+
+    // Billing gate before the storage gate: a paused workspace writes nothing,
+    // whatever its storage headroom. Presigning first would let a locked-out
+    // member upload straight to Storage, since the PUT never touches us again.
+    const paused = await checkProjectWorkspaceActive(feedback.project_id, user.id);
+    if (paused) {
+        return NextResponse.json({ error: paused }, { status: 403 });
     }
 
     // Check storage limit for workspace owner
