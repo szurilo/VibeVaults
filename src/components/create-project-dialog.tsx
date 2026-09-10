@@ -93,8 +93,13 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: CreateP
                 document.cookie = `selectedProjectId=${newProject.id}; path=/; max-age=31536000`;
                 setProjectName('');
                 setWebsiteUrl('');
-                // Refresh behind the dialog, then show the success step with
-                // the review link instead of closing.
+                // Move the page behind the dialog onto the new project's
+                // dashboard before showing the success step. The user may have
+                // started this from an entity-scoped route (a feedback thread
+                // belonging to the OLD project) which loads its row by URL id,
+                // so a plain refresh would leave them staring at the previous
+                // project's record once the dialog closes.
+                router.push('/dashboard');
                 router.refresh();
                 setCreated(newProject);
             } else {

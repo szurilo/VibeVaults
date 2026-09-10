@@ -89,7 +89,10 @@ export default async function AcceptInvitePage({ searchParams }: PageProps) {
             const result = await acceptInvite(token);
             if (result.ok) {
                 // Reuse existing deep-link handler to set selectedWorkspaceId cookie.
-                redirect(`/api/email-redirect?workspace=${result.workspaceId}&page=feedback`);
+                // page=home lands the new member on /dashboard, where the onboarding
+                // checklist lives — `page` defaults to 'feedback' when omitted, so this
+                // has to be passed explicitly.
+                redirect(`/api/email-redirect?workspace=${result.workspaceId}&page=home`);
             }
             // Fall through to invalid view on unexpected failure.
             return <InvalidInviteView />;

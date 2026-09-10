@@ -54,6 +54,9 @@ export async function GET(request: NextRequest) {
     let targetPath = '/dashboard';
 
     switch (page) {
+        case 'home':
+            targetPath = '/dashboard';
+            break;
         case 'feedback':
             targetPath = '/dashboard/feedback';
             break;

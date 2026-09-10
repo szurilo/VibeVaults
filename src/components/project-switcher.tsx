@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Plus, ChevronsUpDown, FolderOpen } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Avatar } from "@/components/ui/avatar";
@@ -14,6 +14,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { CreateProjectDialog } from '@/components/create-project-dialog';
+import { scopeChangeFallbackRoute } from '@/lib/dashboard-scope';
 
 interface Project {
     id: string;
@@ -30,6 +31,7 @@ export default function ProjectSwitcher({
     selectedWorkspaceId?: string
 }) {
     const router = useRouter();
+    const pathname = usePathname();
     const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
 
     useEffect(() => {
@@ -47,6 +49,17 @@ export default function ProjectSwitcher({
     const handleProjectChange = (projectId: string) => {
         // eslint-disable-next-line react-hooks/immutability
         document.cookie = `selectedProjectId=${projectId}; path=/; max-age=31536000`;
+
+        // An entity-scoped page (a single feedback thread) loads its row by id
+        // from the URL, so refreshing in place would keep showing a record from
+        // the project the user just left. Navigate back to its list instead.
+        const fallback = scopeChangeFallbackRoute(pathname);
+        if (fallback) {
+            router.push(fallback);
+            router.refresh();
+            return;
+        }
+
         // Force proper navigation to clear any feedback anchor and re-render with new project
         if (window.location.hash) {
             router.push(window.location.pathname + window.location.search);
