@@ -16,6 +16,10 @@
  * 3. /dashboard/settings/users must stay reachable while locked out: it hosts
  *    the only exits (a member leaving, an owner removing a member or revoking a
  *    client). Inviting is what gets dropped instead.
+ * 4. The tier badge and its Subscribe/Upgrade CTA describe the VIEWER's billing,
+ *    so they must not appear while an invited workspace is selected — paused or
+ *    healthy. In that sidebar they read as the workspace's plan, which the
+ *    viewer neither pays for nor can change.
  *
  * Not covered here: the server-side guard inside `createWorkspaceAction`. Server
  * actions aren't HTTP-addressable, so Playwright can't invoke one directly the
@@ -311,5 +315,73 @@ test.describe('member exits stay reachable while locked out', () => {
         // ACTIVE workspace's state would remove the escape hatch from a
         // workspace someone else stopped paying for.
         await expect(createItem).not.toHaveAttribute('title', /subscribe/i);
+    });
+});
+
+test.describe('the tier badge describes the viewer, not the active workspace', () => {
+    test.use({ storageState: AUTH_FILES.member });
+
+    let originalTrialEndsAt: string | null = null;
+    let originalStatus: string | null = null;
+    let originalTier: string | null = null;
+
+    test.beforeAll(async () => {
+        const seed = getSeedResult();
+        const { data } = await supabaseAdmin
+            .from('profiles')
+            .select('trial_ends_at, subscription_status, subscription_tier')
+            .eq('id', seed.ownerId)
+            .single();
+        originalTrialEndsAt = data?.trial_ends_at ?? null;
+        originalStatus = data?.subscription_status ?? null;
+        originalTier = data?.subscription_tier ?? null;
+
+        // The owner is paying, so the invited workspace is perfectly healthy —
+        // this is the case the paused-workspace tests above do NOT cover.
+        await supabaseAdmin
+            .from('profiles')
+            .update({
+                trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+                subscription_status: null,
+                subscription_tier: null,
+            })
+            .eq('id', seed.ownerId);
+    });
+
+    test.afterAll(async () => {
+        const seed = getSeedResult();
+        await supabaseAdmin
+            .from('profiles')
+            .update({
+                trial_ends_at: originalTrialEndsAt,
+                subscription_status: originalStatus,
+                subscription_tier: originalTier,
+            })
+            .eq('id', seed.ownerId);
+    });
+
+    test('no tier badge or Subscribe CTA on a HEALTHY invited workspace', async ({ page, context }) => {
+        const seed = getSeedResult();
+        await context.addCookies([{
+            name: 'selectedWorkspaceId',
+            value: seed.workspaceId,
+            url: 'http://127.0.0.1:3000',
+        }]);
+
+        await page.goto('/dashboard');
+        await page.waitForLoadState('networkidle');
+
+        // Sanity: nothing is paused here, so the paused-page hiding rule is not
+        // what is under test.
+        expect(page.url()).toContain('/dashboard');
+        expect(page.url()).not.toContain('workspace-paused');
+        await expect(page.locator('[data-locked="true"]')).toHaveCount(0);
+
+        // The seeded member owns a workspace of their own, so the badge exists
+        // for them elsewhere. Rendering it here labels somebody else's
+        // workspace with the viewer's plan, which reads as "this invited
+        // workspace is on my Trial/Pro" and is simply false.
+        await expect(page.getByRole('link', { name: /^(Subscribe|Upgrade)$/ })).toHaveCount(0);
+        await expect(page.getByText(/^(Trial|Expired|Starter|Pro|Business)( \(Pro\))?$/)).toHaveCount(0);
     });
 });

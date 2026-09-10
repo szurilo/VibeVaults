@@ -111,16 +111,20 @@ export function AppSidebar({
     // for an invited member who has never owned anything.
     const lockCreateWorkspace = isTrialExpired && !!tierInfo?.trialStarted;
 
-    // While viewing someone ELSE's paused workspace, hide the viewer's own tier
-    // badge and its Subscribe/Upgrade CTA. Not merely to reduce clutter: a
-    // Subscribe button sitting in the sidebar next to "this workspace is
-    // paused" reads as "pay to unlock this workspace", and the viewer's
-    // subscription cannot unlock a workspace somebody else owns. A member
-    // acting on it would be charged and see nothing change.
+    // While viewing a workspace the viewer does NOT own, hide their own tier
+    // badge and its Subscribe/Upgrade CTA. The badge describes the VIEWER's
+    // billing, which has no bearing on a workspace somebody else pays for, but
+    // sitting in that workspace's sidebar it reads as belonging to it. On a
+    // paused invited workspace that misreading is expensive: a member acting on
+    // "Subscribe" would be charged and see nothing change, because their
+    // subscription cannot unlock a workspace they don't own. On a healthy one
+    // it is merely wrong, which is reason enough — one rule for both is easier
+    // to keep true than a rule that only applies once things break.
     //
-    // Their own billing is one workspace-switch away, and the switcher stays
-    // clickable precisely so that route is always open.
-    const viewingLockedForeignWorkspace = lockSidebar && !isOwner;
+    // The `activeWorkspace` guard keeps the CTA reachable for a viewer with no
+    // workspace at all. Everyone else's own billing is one workspace-switch
+    // away, and the switcher stays clickable precisely so that route is open.
+    const viewingForeignWorkspace = !!activeWorkspace && !isOwner;
 
     // Derive tier display label. "Expired" falls through for owners whose
     // trial ran out without subscribing — they should still see the badge
@@ -256,7 +260,7 @@ export function AppSidebar({
             </SidebarContent>
 
             <SidebarFooter className="bg-white border-t border-gray-100 p-4">
-                {tierLabel && !viewingLockedForeignWorkspace && (
+                {tierLabel && !viewingForeignWorkspace && (
                     <div className="flex items-center justify-between px-2 pb-3">
                         <div className="flex items-center gap-1.5">
                             <Crown className={`w-3.5 h-3.5 ${isTrialExpired ? "text-red-500" : "text-amber-500"}`} />
