@@ -2,13 +2,14 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Gift } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 /**
- * Main Responsibility: Social proof section with a personal founder note,
- * early-access framing, and the two founding-member discount offers.
+ * Main Responsibility: Social proof section with a personal founder note
+ * and the founding-cohort ask (no discount: price was never the objection
+ * in outreach, and a permanent public discount undercut every other offer).
  *
  * Sensitive Dependencies:
  * - Founder avatar at /avatar.jpg in public folder.
@@ -69,56 +70,21 @@ export const FounderNote = () => {
                 </p>
                 <p className="font-semibold text-gray-900">
                   I&apos;m looking for a small group of founding agencies and dev studios to
-                  shape this product with me. In return, you get a serious
-                  discount — and a direct line to the person building it.
+                  shape this product with me. In return, you get a direct line
+                  to the person building it, and a say in what ships next.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Founding member offers */}
+          {/* CTA */}
           <div className="mt-10 pt-8 border-t border-gray-200">
-            <div className="flex items-center gap-2 mb-6">
-              <Gift size={20} className="text-secondary" />
-              <h4 className="text-lg font-bold text-gray-900">
-                Founding member exclusive — choose your deal
-              </h4>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4 mb-8">
-              <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-6 hover:border-primary/40 transition-colors">
-                <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3">
-                  Option A
-                </div>
-                <p className="text-2xl font-extrabold text-gray-900 mb-1">
-                  50% off for 3 months
-                </p>
-                <p className="text-sm text-gray-500">
-                  Try it at half price with less commitment. Perfect if you want
-                  to test the waters first.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border-2 border-secondary/20 bg-secondary/5 p-6 hover:border-secondary/40 transition-colors">
-                <div className="inline-flex items-center px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-bold mb-3">
-                  Option B — Best Value
-                </div>
-                <p className="text-2xl font-extrabold text-gray-900 mb-1">
-                  50% off for 1 year
-                </p>
-                <p className="text-sm text-gray-500">
-                  Lock in the biggest savings. Ideal for agencies ready to
-                  streamline their feedback workflow long-term.
-                </p>
-              </div>
-            </div>
-
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <Link
                 href="/auth/register"
                 className="group inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-bold text-lg bg-secondary text-white hover:bg-secondary/90 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0 transition-all duration-300 w-full sm:w-auto"
               >
-                Claim your founding member spot
+                Start your free trial
                 <ArrowRight
                   size={18}
                   className="group-hover:translate-x-1 transition-transform"
