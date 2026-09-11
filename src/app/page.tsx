@@ -12,17 +12,6 @@ import { Faq } from "@/components/landing/faq";
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Beta exclusivity banner */}
-      <div className="w-full bg-linear-to-r from-primary to-secondary text-white px-4 py-2.5 text-center text-sm font-semibold tracking-wide">
-        Early Access — Limited founding member spots.{" "}
-        <Link
-          href="/auth/register"
-          className="underline underline-offset-2 hover:no-underline font-bold"
-        >
-          Claim 50% off now
-        </Link>
-      </div>
-
       <SiteHeader />
 
       <main className="flex-1 flex flex-col items-center">
