@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest, reviewPausedError } from "@/lib/widget-helpers";
 import { getTierLimits } from "@/lib/tier-config";
@@ -123,68 +124,75 @@ export async function POST(request: Request) {
         return corsError(insertError.message, 500);
     }
 
-    // Notify all workspace members (digest-aware: immediate for first, queue for subsequent)
-    try {
-        const adminSupabase = createAdminClient();
+    // Notify all workspace members (digest-aware: immediate for first, queue for subsequent).
+    // Runs in `after()` so the widget gets its feedback_id as soon as the row
+    // is in: the fan-out awaits Resend serially per member, and a slow vendor
+    // used to hold the composer open for the whole wait. `after()` rather than
+    // a bare un-awaited promise because Vercel can freeze the instance once the
+    // response is sent and drop anything still in flight.
+    after(async () => {
+        try {
+            const adminSupabase = createAdminClient();
 
-        const { data: memberRows } = await adminSupabase
-            .from('workspace_members')
-            .select('user_id')
-            .eq('workspace_id', project.workspace_id);
+            const { data: memberRows } = await adminSupabase
+                .from('workspace_members')
+                .select('user_id')
+                .eq('workspace_id', project.workspace_id);
 
-        if (memberRows && memberRows.length > 0) {
-            const memberIds = memberRows.map(m => m.user_id);
-            const { data: profiles } = await adminSupabase
-                .from('profiles')
-                .select('email')
-                .in('id', memberIds);
+            if (memberRows && memberRows.length > 0) {
+                const memberIds = memberRows.map(m => m.user_id);
+                const { data: profiles } = await adminSupabase
+                    .from('profiles')
+                    .select('email')
+                    .in('id', memberIds);
 
-            if (profiles) {
-                const emailPayload = { content, sender, metadata: feedbackMetadata, projectName: project.name, workspaceId: project.workspace_id, projectId: project.id, feedbackId };
+                if (profiles) {
+                    const emailPayload = { content, sender, metadata: feedbackMetadata, projectName: project.name, workspaceId: project.workspace_id, projectId: project.id, feedbackId };
 
-                for (const p of profiles) {
-                    const email = p.email;
-                    if (!email || email === sender) continue;
+                    for (const p of profiles) {
+                        const email = p.email;
+                        if (!email || email === sender) continue;
 
-                    const prefs = await getNotificationPrefs(email, 'new_feedback');
-                    if (!prefs.shouldNotify) continue;
+                        const prefs = await getNotificationPrefs(email, 'new_feedback');
+                        if (!prefs.shouldNotify) continue;
 
-                    const sendNow = await shouldSendFeedbackImmediately(email, project.id);
+                        const sendNow = await shouldSendFeedbackImmediately(email, project.id);
 
-                    if (sendNow) {
-                        await sendFeedbackNotification({
-                            to: email,
-                            projectName: project.name,
-                            content,
-                            sender,
-                            metadata: feedbackMetadata,
-                            unsubscribeToken: prefs.unsubscribeToken,
-                            workspaceId: project.workspace_id,
-                            projectId: project.id,
-                            feedbackId
-                        });
-                        await recordEmailSent({
-                            recipientEmail: email,
-                            notificationType: 'new_feedback',
-                            projectId: project.id,
-                            feedbackId,
-                            payload: emailPayload
-                        });
-                    } else {
-                        await queueDigestEmail({
-                            recipientEmail: email,
-                            notificationType: 'new_feedback',
-                            projectId: project.id,
-                            feedbackId,
-                            payload: emailPayload
-                        });
+                        if (sendNow) {
+                            await sendFeedbackNotification({
+                                to: email,
+                                projectName: project.name,
+                                content,
+                                sender,
+                                metadata: feedbackMetadata,
+                                unsubscribeToken: prefs.unsubscribeToken,
+                                workspaceId: project.workspace_id,
+                                projectId: project.id,
+                                feedbackId
+                            });
+                            await recordEmailSent({
+                                recipientEmail: email,
+                                notificationType: 'new_feedback',
+                                projectId: project.id,
+                                feedbackId,
+                                payload: emailPayload
+                            });
+                        } else {
+                            await queueDigestEmail({
+                                recipientEmail: email,
+                                notificationType: 'new_feedback',
+                                projectId: project.id,
+                                feedbackId,
+                                payload: emailPayload
+                            });
+                        }
                     }
                 }
             }
+        } catch (e) {
+            console.error("VibeVaults: Email notification error", e);
         }
-    } catch (e) {
-        console.error("VibeVaults: Email notification error", e);
-    }
+    });
 
     return corsSuccess({ success: true, feedback_id: feedbackId });
 }
