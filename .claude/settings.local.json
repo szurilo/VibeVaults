@@ -185,7 +185,8 @@
       "WebFetch(domain:usersnap.com)",
       "WebFetch(domain:ruttl.com)",
       "WebFetch(domain:www.usepastel.com)",
-      "WebFetch(domain:usepastel.com)"
+      "WebFetch(domain:usepastel.com)",
+      "Bash(git fetch *)"
     ]
   },
   "outputStyle": "Concise"
