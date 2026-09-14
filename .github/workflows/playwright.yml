@@ -1,9 +1,12 @@
 name: Playwright Tests
+# Runs on pull requests only. A post-merge run on main was dropped on purpose:
+# main only ever receives dev through a PR that already had to pass this
+# suite, and production is gated by deploy.yml, not by this workflow, so the
+# extra run tested the same tree a second time and blocked nothing.
 on:
-  push:
-    branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
 jobs:
   test:
     timeout-minutes: 30
