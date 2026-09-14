@@ -1,0 +1,73 @@
+# Main Responsibility:
+#   Production deploy, in the only order that is safe: migrations FIRST, then
+#   the app. Every push to main runs `supabase db push` and only when that has
+#   succeeded asks Vercel to build and promote the commit.
+#
+# Sensitive Dependencies:
+#   - vercel.json sets git.deploymentEnabled.main = false, which switches off
+#     Vercel's own push-to-deploy for main. Without that, Vercel and this
+#     workflow race, and Vercel usually wins: new code goes live against the
+#     old schema for about a minute (real users, real 500s). Preview deploys
+#     for PRs and the dev branch are unaffected.
+#   - VERCEL_DEPLOY_HOOK_URL is a secret URL from Vercel (Project Settings ->
+#     Git -> Deploy Hooks, branch main). Anyone holding it can trigger a
+#     production build, so it lives only in GitHub secrets.
+#   - `supabase db push` is idempotent: with nothing pending it prints
+#     "Remote database is up to date" and exits 0. Running it on every push
+#     costs ~40s but removes any need to detect changed paths, and it also
+#     means a queued run that GitHub cancelled leaves nothing behind: the next
+#     run applies whatever is still pending and deploys the latest main.
+#   - The concurrency group queues runs instead of interleaving them. Two
+#     merges in quick succession must not run `supabase db push` against
+#     production at the same time.
+#   - A failed migration stops the deploy. The previous Vercel build keeps
+#     serving, which is the build that matches the schema it was written for.
+
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate, then deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.101.0
+
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_ID: ${{ secrets.PROJECT_ID }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: supabase link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
+
+      - name: Push migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: supabase db push
+
+      - name: Trigger Vercel production deploy
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "::error::VERCEL_DEPLOY_HOOK_URL secret is not set; migrations are applied but the app was NOT deployed."
+            exit 1
+          fi
+          curl -fsS -X POST "$VERCEL_DEPLOY_HOOK_URL"
+          echo
+          echo "Vercel deploy requested for $GITHUB_SHA"
