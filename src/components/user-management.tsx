@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from "sonner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { MailCheck, MailWarning, UserX, AlertCircle, Lock } from "lucide-react";
+import { MailCheck, MailWarning, UserX, AlertCircle, Lock, Clock } from "lucide-react";
 import Link from "next/link";
 import { Highlight } from "@/components/highlight";
 import {
@@ -25,6 +25,10 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+// Long enough for a healthy request with a couple of slow queries, short enough
+// that a platform stall surfaces as guidance rather than a frozen button.
+const INVITE_TIMEOUT_MS = 20_000;
 
 // Helper for '2 days ago' style timestamps without needing date-fns
 function formatRelativeTime(dateString: string) {
@@ -126,7 +130,11 @@ export function UserManagement({
                     email: email.trim(),
                     workspaceId,
                     role,
-                })
+                }),
+                // A Supabase stall once held this request for ~40s with the
+                // button stuck on "Sending..." and nothing else to look at.
+                // Bound the wait; the timeout branch below explains what to do.
+                signal: AbortSignal.timeout(INVITE_TIMEOUT_MS),
             });
 
             if (!res.ok) {
@@ -153,6 +161,20 @@ export function UserManagement({
             router.refresh();
         } catch (err) {
             const error = err as Error;
+            if (error.name === 'TimeoutError') {
+                // Aborting the fetch does not stop the server: the invite row
+                // and email can still land after this fires. Point at the
+                // pending list instead of inviting a blind retry, and keep the
+                // address in the input so a real retry is one click. The
+                // route's duplicate check rejects a second invite anyway.
+                toast("Still sending", {
+                    description: `This is taking longer than usual. The invite for ${email.trim()} may still go through, so check the pending list below before sending it again.`,
+                    icon: <Clock className="h-4 w-4 text-amber-500" />,
+                    duration: 10000,
+                });
+                router.refresh();
+                return;
+            }
             toast("Error", {
                 description: error.message || "Failed to send invite",
                 icon: <AlertCircle className="h-4 w-4 text-red-500" />,
