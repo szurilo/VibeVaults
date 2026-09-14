@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { checkStorageLimit, checkProjectWorkspaceActive } from "@/lib/tier-helpers";
+import { presignUploads, type PresignedUpload } from "@/lib/presigned-upload";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_FILES_PER_REQUEST = 10;
@@ -111,31 +112,12 @@ export async function POST(request: Request) {
         }
     }
 
-    // Generate presigned upload URLs
-    const uploads: { fileId: string; path: string; signedUrl: string; token: string; fileName: string; mimeType: string }[] = [];
-
-    for (const file of files) {
-        const fileId = crypto.randomUUID();
-        const ext = file.name.split('.').pop() || 'bin';
-        const storagePath = `${feedback.project_id}/${fileId}.${ext}`;
-
-        const { data, error: signError } = await adminSupabase.storage
-            .from('feedback-attachments')
-            .createSignedUploadUrl(storagePath);
-
-        if (signError || !data) {
-            console.error("[VibeVaults] Dashboard signed URL error:", signError);
-            return NextResponse.json({ error: `Failed to prepare upload for "${file.name}"` }, { status: 500 });
-        }
-
-        uploads.push({
-            fileId,
-            path: storagePath,
-            signedUrl: data.signedUrl,
-            token: data.token,
-            fileName: file.name,
-            mimeType: file.type,
-        });
+    // Generate presigned upload URLs (bounded wait + one retry, see presigned-upload.ts)
+    let uploads: PresignedUpload[];
+    try {
+        uploads = await presignUploads(adminSupabase, feedback.project_id, files);
+    } catch (err) {
+        return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to prepare upload.' }, { status: 500 });
     }
 
     return NextResponse.json({
