@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest, reviewPausedError } from "@/lib/widget-helpers";
+import { corsError, corsSuccess, optionsResponse, isRateLimited, authenticateWidgetRequest, reviewPausedError, pickReplyPinMetadata } from "@/lib/widget-helpers";
 import { sendAgencyReplyNotification } from "@/lib/notifications";
 import { getNotificationPrefs } from "@/lib/notification-prefs";
 import { shouldSendReplyImmediately, recordEmailSent, queueDigestEmail } from "@/lib/email-digest";
@@ -31,17 +31,25 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     if (isRateLimited(ip, "widget:reply")) return corsError("Too many requests. Please try again later.", 429);
 
-    const body = await request.json() as { feedbackId?: string; content?: string; apiKey?: string; hasAttachments?: boolean };
+    const body = await request.json() as { feedbackId?: string; content?: string; apiKey?: string; hasAttachments?: boolean; metadata?: unknown };
     const { feedbackId, content, apiKey, hasAttachments } = body;
+    // Optional reply pin. Whitelisted to { anchor, page_key } so a reply can
+    // never smuggle the console/network buffers a top-level report carries.
+    const replyMetadata = pickReplyPinMetadata(body.metadata);
+    if (replyMetadata === false) {
+        return corsError("Invalid reply pin.", 400);
+    }
 
     if (!feedbackId || !apiKey) {
         return corsError("Missing required fields", 400);
     }
     const replyContent = typeof content === "string" ? content.trim() : "";
 
-    if (!replyContent && !hasAttachments) {
+    // A pin on its own is a valid reply ("here too"), so it counts as content.
+    if (!replyContent && !hasAttachments && !replyMetadata) {
         return corsError("Reply must include text or attachments.", 400);
     }
+
 
     if (replyContent.length > 5000) {
         return corsError("Reply content is too long (max 5000 characters).", 400);
@@ -82,7 +90,8 @@ export async function POST(request: Request) {
             feedback_id: feedbackId,
             content: replyContent,
             author_role: 'client',
-            author_name: senderEmail
+            author_name: senderEmail,
+            metadata: replyMetadata
         })
         .select('id')
         .single();

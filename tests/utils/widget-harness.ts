@@ -27,6 +27,23 @@ export interface StubFeedback {
     attachments?: unknown[];
     anchor?: unknown;
     page_key?: string | null;
+    /** Anchored replies of the thread, as `/api/widget/feedback` projects them. */
+    pins?: StubReplyPin[];
+}
+
+export interface StubReplyPin {
+    reply_id: string;
+    anchor: unknown;
+    page_key: string | null;
+    created_at: string;
+}
+
+export interface StubReply {
+    id: string;
+    content: string;
+    author_name?: string;
+    created_at: string;
+    metadata?: { anchor: unknown; page_key: string } | null;
 }
 
 /** Builds the anchor shape `public/widget.js` writes into feedback metadata. */
@@ -54,6 +71,14 @@ export interface Harness {
     extraParams?: string;
     /** Override for the stubbed POST /api/widget response (default: success). */
     submitResponse?: { status: number; body: string };
+    /** Rows the stubbed reply GET returns for any thread. */
+    replies?: StubReply[];
+    /**
+     * Serve a stand-in for snapdom that rasterizes to a blank canvas, so a
+     * screenshot actually lands in the attachments. Off by default: most tests
+     * want the capture-failure path and no CDN dependency.
+     */
+    fakeSnapdom?: boolean;
 }
 
 export interface MountedWidget {
@@ -61,8 +86,10 @@ export interface MountedWidget {
     submitted: () => Record<string, unknown> | null;
     /** The `key` query param of the most recent config GET, if any. */
     lastConfigKey: () => string | null;
+    /** The most recent POST body the widget sent to /api/widget/reply, if any. */
+    repliedWith: () => Record<string, unknown> | null;
     /** Saved pin markers currently painted, in DOM order. */
-    markers: () => Promise<{ label: string; cluster: boolean; approximate: boolean }[]>;
+    markers: () => Promise<{ label: string; cluster: boolean; approximate: boolean; sub: boolean; pending: boolean }[]>;
 }
 
 
@@ -74,13 +101,22 @@ export async function mountWidget(page: Page, opts: Harness): Promise<MountedWid
       <script src="${HOST}/widget.js" data-key="${API_KEY}"></script></body></html>`;
 
     let submitted: Record<string, unknown> | null = null;
+    let repliedWith: Record<string, unknown> | null = null;
     let lastConfigKey: string | null = null;
 
     await page.route('**', async (route: Route) => {
         const url = route.request().url();
         // snapdom is fetched from a CDN; failing it fast keeps the tests offline
         // and exercises the capture-failure path rather than hanging on it.
-        if (url.includes('cdn.jsdelivr.net')) return route.abort();
+        if (url.includes('cdn.jsdelivr.net')) {
+            if (!opts.fakeSnapdom) return route.abort();
+            return route.fulfill({
+                status: 200,
+                contentType: 'application/javascript',
+                body: `window.snapdom = { toCanvas: () => { const c = document.createElement('canvas');
+                    c.width = document.body.scrollWidth; c.height = document.body.scrollHeight; return Promise.resolve(c); } };`,
+            });
+        }
         if (url.includes('/api/widget/capture-info')) return route.fulfill({ status: 200, body: '{}' });
         if (url.includes('/api/widget/stream')) return route.abort();
         if (url.includes('/api/widget/errors')) return route.fulfill({ status: 200, body: '{}' });
@@ -92,7 +128,15 @@ export async function mountWidget(page: Page, opts: Harness): Promise<MountedWid
             });
         }
         if (url.includes('/api/widget/reply')) {
-            return route.fulfill({ status: 200, contentType: 'application/json', body: '{"replies":[]}' });
+            if (route.request().method() === 'POST') {
+                repliedWith = JSON.parse(route.request().postData() || '{}');
+                return route.fulfill({ status: 200, contentType: 'application/json', body: '{"success":true,"replyId":"harness-reply"}' });
+            }
+            return route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ replies: opts.replies ?? [] }),
+            });
         }
         if (url.includes('/api/widget/feedback')) {
             return route.fulfill({
@@ -141,6 +185,7 @@ export async function mountWidget(page: Page, opts: Harness): Promise<MountedWid
 
     return {
         submitted: () => submitted,
+        repliedWith: () => repliedWith,
         lastConfigKey: () => lastConfigKey,
         markers: () =>
             page.evaluate(() => {
@@ -149,6 +194,8 @@ export async function mountWidget(page: Page, opts: Harness): Promise<MountedWid
                     label: (m.textContent || '').trim(),
                     cluster: m.classList.contains('cluster'),
                     approximate: m.classList.contains('approximate'),
+                    sub: m.classList.contains('sub'),
+                    pending: m.classList.contains('pending-reply'),
                 }));
             }),
     };

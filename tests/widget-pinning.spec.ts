@@ -206,14 +206,16 @@ test.describe('on-page pin layer', () => {
         await page.setViewportSize({ width: 1280, height: 800 });
     });
 
-    test('draws only anchored pins belonging to this page, numbered oldest first', async ({ page }) => {
+    test('draws only anchored pins belonging to this page, numbered project-wide by age', async ({ page }) => {
+        // f0 lives on another page and is not drawn, but it still takes number 1:
+        // numbering is project-wide so a label means one thing on every page.
         const widget = await mountWidget(page, { body: LAYOUT, feedback: PINS });
         await openWidget(page);
         await expect.poll(() => widget.markers().then((m) => m.length)).toBe(2);
 
         const markers = await widget.markers();
         expect(markers.some((m) => m.cluster && m.label === '2')).toBe(true);
-        expect(markers.some((m) => !m.cluster && m.label === '3')).toBe(true);
+        expect(markers.some((m) => !m.cluster && m.label === '4')).toBe(true);
     });
 
     test('overlapping pins cluster and fan out on click', async ({ page }) => {
@@ -509,4 +511,193 @@ test.describe('dashboard anchor description', () => {
         expect(describeAnchorConfidence({ selector: 'body > div', selectorKind: 'structural' })!.tone).toBe('ok');
         expect(describeAnchorConfidence({ selector: 'div > p', selectorKind: 'ambiguous' })!.tone).toBe('warn');
     });
+});
+
+test.describe('reply pins', () => {
+    // One report on this page (number 2: f0 on another page is older and takes
+    // 1), far from the dead-air gap so a reply pin dropped there never clusters
+    // with its parent.
+    const THREAD: StubFeedback[] = [
+        {
+            id: 'f3', content: 'card three', created_at: '2026-08-27T10:02:00Z',
+            anchor: anchor('#c3', { ref: 'pct', d: 0.5 }, { ref: 'pct', d: 0.5 }), page_key: PAGE_KEY,
+        },
+        {
+            id: 'f0', content: 'other page', created_at: '2026-08-27T09:00:00Z',
+            anchor: anchor('#c1', { ref: 'pct', d: 0.9 }, { ref: 'pct', d: 0.5 }), page_key: `${PAGE_KEY}other`,
+        },
+    ];
+
+
+    const detailOpen = (page: Page) => page.evaluate(() =>
+        (document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!.querySelector('.view-detail') as HTMLElement).style.display === 'flex');
+
+    /** Thumbnails in the reply bar; the screenshot is the pin's only presence there. */
+    const replyThumbs = (page: Page) => page.evaluate(() =>
+        document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!
+            .querySelectorAll('#vv-reply-attach-previews .reply-attach-preview:not(.shimmer)').length);
+
+    const armed = (page: Page) => page.evaluate(() =>
+        !!document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!.querySelector('.capture-overlay'));
+
+    /** Opens the f3 thread by clicking its marker. */
+    async function openThread(page: Page) {
+        await page.evaluate(() => {
+            const r = document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!;
+            (r.querySelector('.pin-marker:not(.pending):not(.cluster)') as HTMLElement).click();
+        });
+        await expect.poll(() => detailOpen(page)).toBe(true);
+        await expect.poll(() => page.evaluate(() =>
+            !!document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!.querySelector('#vv-reply-pin-btn'))).toBe(true);
+    }
+
+    /** Arms placement from the reply bar and drops the pin in the dead-air gap. */
+    async function dropReplyPin(page: Page) {
+        await clickAction(page, '#vv-reply-pin-btn');
+        expect(await armed(page)).toBe(true);
+        const gap = (await page.locator('.dead-air').boundingBox())!;
+        const x = Math.round(gap.x + gap.width / 2);
+        const y = Math.round(gap.y + gap.height / 2);
+        await page.mouse.move(x, y);
+        await page.waitForTimeout(60);
+        await page.mouse.click(x, y);
+        await expect.poll(() => armed(page)).toBe(false);
+    }
+
+    test.beforeEach(async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 800 });
+    });
+
+    test('the reply bar offers a pin instead of the old element picker', async ({ page }) => {
+        const widget = await mountWidget(page, { body: LAYOUT, feedback: THREAD });
+        await openWidget(page);
+        await expect.poll(() => widget.markers().then((m) => m.length)).toBe(1);
+        await openThread(page);
+
+        expect(await page.evaluate(() => ({
+            pin: !!document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!.querySelector('#vv-reply-pin-btn'),
+            picker: !!document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!.querySelector('#vv-reply-capture-btn'),
+        }))).toEqual({ pin: true, picker: false });
+    });
+
+    test('placing a reply pin reopens the thread, not the composer', async ({ page }) => {
+        const widget = await mountWidget(page, { body: LAYOUT, feedback: THREAD });
+        await openWidget(page);
+        await expect.poll(() => widget.markers().then((m) => m.length)).toBe(1);
+        await openThread(page);
+        await dropReplyPin(page);
+
+        expect(await isOpen(page, '#vv-composer')).toBe(false);
+        expect(await isOpen(page, '.popup')).toBe(true);
+        expect(await detailOpen(page)).toBe(true);
+        // No chip in the bar: the pending marker on the page carries the label
+        // the pin will get (parent 2, first reply pin).
+        expect(await page.evaluate(() =>
+            !!document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!.querySelector('#vv-reply-pin-chip'))).toBe(false);
+        const markers = await widget.markers();
+        expect(markers.find((m) => m.pending)).toMatchObject({ label: '2a', sub: true });
+    });
+
+    test('sending a pinned reply posts the anchor and keeps the pin on the page', async ({ page }) => {
+        const widget = await mountWidget(page, { body: LAYOUT, feedback: THREAD });
+        await openWidget(page);
+        await expect.poll(() => widget.markers().then((m) => m.length)).toBe(1);
+        await openThread(page);
+        await dropReplyPin(page);
+
+        await page.evaluate(() => {
+            const r = document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!;
+            (r.querySelector('#vv-reply-text') as HTMLInputElement).value = 'same thing here';
+            (r.querySelector('#vv-send-reply') as HTMLElement).click();
+        });
+
+        await expect.poll(() => widget.repliedWith()).not.toBeNull();
+        const body = widget.repliedWith()!;
+        expect(body.content).toBe('same thing here');
+        const metadata = body.metadata as Record<string, unknown>;
+        expect(metadata.anchor).toBeTruthy();
+        expect(metadata.page_key).toBe(PAGE_KEY);
+
+        // The stub list never returns the reply, so the '2a' still drawn is the
+        // optimistic copy surviving the refetch; the pending one is gone.
+        await expect.poll(() => widget.markers().then((m) => m.map((x) => x.label).sort())).toEqual(['2', '2a']);
+        expect((await widget.markers()).some((m) => m.pending)).toBe(false);
+    });
+
+    test('Escape cancels placement and returns to the thread', async ({ page }) => {
+        const widget = await mountWidget(page, { body: LAYOUT, feedback: THREAD });
+        await openWidget(page);
+        await expect.poll(() => widget.markers().then((m) => m.length)).toBe(1);
+        await openThread(page);
+
+        await clickAction(page, '#vv-reply-pin-btn');
+        expect(await armed(page)).toBe(true);
+        await page.keyboard.press('Escape');
+        expect(await armed(page)).toBe(false);
+        expect(await detailOpen(page)).toBe(true);
+        expect((await widget.markers()).some((m) => m.pending)).toBe(false);
+    });
+
+    test('the screenshot thumbnail stands for the pin: removing it drops the pin', async ({ page }) => {
+        // A separate "remove pin" control was noise for reviewers, so the pin
+        // has no chip of its own; the thumbnail is its only handle in the bar.
+        const widget = await mountWidget(page, { body: LAYOUT, feedback: THREAD, fakeSnapdom: true });
+        await openWidget(page);
+        await expect.poll(() => widget.markers().then((m) => m.length)).toBe(1);
+        await openThread(page);
+        await dropReplyPin(page);
+
+        await expect.poll(() => replyThumbs(page)).toBe(1);
+        expect((await widget.markers()).some((m) => m.pending)).toBe(true);
+
+        await page.evaluate(() => {
+            (document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!
+                .querySelector('#vv-reply-attach-previews .remove-attach') as HTMLElement).click();
+        });
+        await expect.poll(() => replyThumbs(page)).toBe(0);
+        await expect.poll(() => widget.markers().then((m) => m.some((x) => x.pending))).toBe(false);
+        await expect.poll(() => widget.markers().then((m) => m.length)).toBe(1);
+    });
+
+    test('saved reply pins render under their parent\'s number, on another page too', async ({ page }) => {
+        // f0 is pinned elsewhere but one of its replies was pinned here, so this
+        // page shows '1a' alone; f3's two reply pins read '2a' and '2b'.
+        const feedback: StubFeedback[] = [
+            {
+                ...THREAD[0],
+                pins: [
+                    { reply_id: 'r1', created_at: '2026-08-27T10:03:00Z', page_key: PAGE_KEY, anchor: anchor('#see-work', { ref: 'pct', d: 0.5 }, { ref: 'pct', d: 0.5 }) },
+                    { reply_id: 'r2', created_at: '2026-08-27T10:04:00Z', page_key: PAGE_KEY, anchor: anchor('#book-call', { ref: 'pct', d: 0.5 }, { ref: 'pct', d: 0.5 }) },
+                    { reply_id: 'r3', created_at: '2026-08-27T10:05:00Z', page_key: `${PAGE_KEY}other`, anchor: anchor('#c2', { ref: 'pct', d: 0.5 }, { ref: 'pct', d: 0.5 }) },
+                ],
+            },
+            {
+                ...THREAD[1],
+                pins: [
+                    { reply_id: 'r0', created_at: '2026-08-27T09:30:00Z', page_key: PAGE_KEY, anchor: anchor('#c1', { ref: 'pct', d: 0.5 }, { ref: 'pct', d: 0.5 }) },
+                ],
+            },
+        ];
+        const widget = await mountWidget(page, { body: LAYOUT, feedback, replies: [
+            { id: 'r1', content: 'here too', created_at: '2026-08-27T10:03:00Z', metadata: { anchor: feedback[0].pins![0].anchor, page_key: PAGE_KEY } },
+            { id: 'r3', content: 'and on the other page', created_at: '2026-08-27T10:05:00Z', metadata: { anchor: feedback[0].pins![2].anchor, page_key: `${PAGE_KEY}other` } },
+        ] });
+        await openWidget(page);
+
+        await expect.poll(() => widget.markers().then((m) => m.map((x) => x.label).sort())).toEqual(['1a', '2', '2a', '2b']);
+        const markers = await widget.markers();
+        expect(markers.filter((m) => m.sub).map((m) => m.label).sort()).toEqual(['1a', '2a', '2b']);
+
+        // A reply pin opens its parent's thread, where the bubble names the pin
+        // and, for one left elsewhere, the page it is on.
+        await page.evaluate(() => {
+            const r = document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!;
+            (Array.from(r.querySelectorAll('.pin-marker.sub')).find((m) => (m.textContent || '').trim() === '2a') as HTMLElement).click();
+        });
+        await expect.poll(() => detailOpen(page)).toBe(true);
+        await expect.poll(() => page.evaluate(() =>
+            Array.from(document.querySelector('#vibe-vaults-widget-host')!.shadowRoot!.querySelectorAll('.msg-pin')).map((n) => (n.textContent || '').trim())))
+            .toEqual(['Pin 2a', 'Pin 2c · /other']);
+    });
+
 });

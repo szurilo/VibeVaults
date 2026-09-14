@@ -5,6 +5,24 @@ export async function OPTIONS() {
     return optionsResponse();
 }
 
+/**
+ * Projects the anchored replies of a thread into the widget's `pins` field,
+ * oldest first so the letter suffix a pin gets in the widget is stable as
+ * newer replies arrive.
+ */
+function replyPinsOf(replies: unknown) {
+    if (!Array.isArray(replies)) return [];
+    return replies
+        .filter((r) => r && r.anchor)
+        .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
+        .map((r) => ({
+            reply_id: r.id as string,
+            anchor: r.anchor,
+            page_key: (r.page_key as string | null) ?? null,
+            created_at: r.created_at as string,
+        }));
+}
+
 export async function GET(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     if (isRateLimited(ip, "widget:feedback")) return corsError("Too many requests. Please try again later.", 429);
@@ -37,7 +55,7 @@ export async function GET(request: Request) {
             created_at,
             anchor: metadata->anchor,
             page_key: metadata->>page_key,
-            feedback_replies(id),
+            feedback_replies(id, created_at, anchor: metadata->anchor, page_key: metadata->>page_key),
             feedback_attachments!feedback_attachments_feedback_id_fkey(id, file_name, file_url, file_size, mime_type)
         `)
         .eq('project_id', project.id)
@@ -64,6 +82,9 @@ export async function GET(request: Request) {
         anchor: (f as any).anchor ?? null,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         page_key: (f as any).page_key ?? null,
+        // Reply pins ("1a", "1b"): replies in this thread that were anchored to
+        // a spot on the page. Additive; plain replies are left out entirely.
+        pins: replyPinsOf(f.feedback_replies),
     }));
 
     return corsSuccess({ feedback: result });

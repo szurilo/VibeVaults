@@ -68,8 +68,8 @@ export function DangerZoneCard({
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 border border-destructive/20 rounded-lg bg-white/50">
-                    <div className="space-y-1">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 border border-destructive/20 rounded-lg bg-white/50">
+                    <div className="min-w-0 space-y-1">
                         <h3 className="font-medium text-gray-900">Delete {entityName}</h3>
                         <p className="text-sm text-gray-500">
                             {description}
@@ -78,7 +78,7 @@ export function DangerZoneCard({
 
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="destructive" disabled={loading} size="sm" className="cursor-pointer">
+                            <Button variant="destructive" disabled={loading} size="sm" className="cursor-pointer shrink-0 self-start sm:self-auto">
                                 {loading ? "Deleting..." : `Delete ${entityName}`}
                             </Button>
                         </AlertDialogTrigger>

@@ -164,8 +164,8 @@ export function WorkspaceSettingsCard({ workspace }: WorkspaceSettingsCardProps)
 
                             <div className="space-y-3">
                                 <Label>Brand Logo</Label>
-                                <div className="flex items-center gap-6">
-                                    <Avatar className="h-16 w-16 rounded-md border border-gray-200 shadow-sm bg-gray-50 flex items-center justify-center">
+                                <div className="flex items-center gap-4 sm:gap-6">
+                                    <Avatar className="h-16 w-16 shrink-0 rounded-md border border-gray-200 shadow-sm bg-gray-50 flex items-center justify-center">
                                         {logoUrl ? (
                                             <AvatarImage src={logoUrl} alt="Brand Logo" className="object-contain" />
                                         ) : (
@@ -175,8 +175,8 @@ export function WorkspaceSettingsCard({ workspace }: WorkspaceSettingsCardProps)
                                         )}
                                     </Avatar>
 
-                                    <div className="flex flex-col gap-2">
-                                        <div className="flex items-center gap-2">
+                                    <div className="flex min-w-0 flex-col gap-2">
+                                        <div className="flex flex-wrap items-center gap-2">
                                             <Button
                                                 type="button"
                                                 variant="outline"

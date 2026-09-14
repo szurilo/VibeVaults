@@ -23,6 +23,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { getSeedResult } from './utils/seed-result';
 import { AUTH_FILES } from './fixtures/test-data';
+import { supabaseAdmin } from './utils/supabase-admin';
 
 // Run serially — these tests depend on each other (first creates feedback, second reads it)
 test.describe.configure({ mode: 'serial' });
@@ -136,5 +137,54 @@ test.describe('Dashboard feedback interaction', () => {
 
         // Detail view should show status and content
         await expect(page.getByText('Status')).toBeVisible({ timeout: 10_000 });
+    });
+
+    test('a pinned reply shows where it was pinned, lettered like the widget', async ({ page }) => {
+        // The widget paints a reply pin as "<n>b"; the dashboard cannot know n
+        // (numbering is widget-side, project-wide by age) but mirrors the letter
+        // so the two can be matched up. Rows are inserted directly: the thread
+        // has to exist before the page is opened.
+        const seed = getSeedResult();
+        const { data: fb, error } = await supabaseAdmin
+            .from('feedbacks')
+            .insert({
+                project_id: seed.projectId,
+                content: `E2E reply-pin parent ${Date.now()}`,
+                type: 'Bug',
+                sender: seed.clientEmail,
+                metadata: { page_key: 'https://example.com/' },
+            })
+            .select('id')
+            .single();
+        if (error || !fb) throw new Error(`parent insert failed: ${error?.message}`);
+
+        try {
+            const anchor = { selector: '#pricing-cta', selectorKind: 'id', offset: { x: { ref: 'pct', d: 0.5 }, y: { ref: 'end', d: 12 } } };
+            // The third reply was pinned in empty space: no selector, only
+            // fallback coordinates. It must still get a tile.
+            const freeAnchor = { fallback: { docX: 1935, docY: 450, viewportW: 1280, docW: 1280 }, viewportW: 1280 };
+            const { error: replyError } = await supabaseAdmin.from('feedback_replies').insert([
+                { feedback_id: fb.id, content: 'plain reply', author_role: 'client', author_name: seed.clientEmail, created_at: '2026-09-14T10:00:00Z' },
+                { feedback_id: fb.id, content: 'same here', author_role: 'client', author_name: seed.clientEmail, created_at: '2026-09-14T10:01:00Z', metadata: { anchor, page_key: 'https://example.com/pricing' } },
+                { feedback_id: fb.id, content: 'and in the gap', author_role: 'client', author_name: seed.clientEmail, created_at: '2026-09-14T10:02:00Z', metadata: { anchor: freeAnchor, page_key: 'https://example.com/' } },
+            ]);
+            if (replyError) throw new Error(`reply insert failed: ${replyError.message}`);
+
+            await page.goto(`/dashboard/feedback/${fb.id}`);
+            const tile = page.getByText('Reply pin a', { exact: false });
+            await expect(tile).toBeVisible({ timeout: 10_000 });
+            // Selector, offset phrasing, and the page it was left on (which
+            // differs from the parent's) all come through.
+            await expect(page.getByText('#pricing-cta')).toBeVisible();
+            await expect(page.getByText('12px below')).toBeVisible();
+            await expect(page.getByText('on /pricing')).toBeVisible();
+            // Only the anchored replies get a tile, lettered by age.
+            await expect(page.getByText('Reply pin b', { exact: false })).toBeVisible();
+            await expect(page.getByText('Free position on the page')).toBeVisible();
+            await expect(page.getByText('Reply pin', { exact: false })).toHaveCount(2);
+        } finally {
+            await supabaseAdmin.from('feedback_replies').delete().eq('feedback_id', fb.id);
+            await supabaseAdmin.from('feedbacks').delete().eq('id', fb.id);
+        }
     });
 });

@@ -72,6 +72,11 @@ export default function WidgetDataDoc() {
                     <a href="#query-strings">below</a>. A pin on <code>/orders?customer=jane@example.com</code> is stored
                     against <code>/orders</code>.
                 </p>
+                <p>
+                    A reply pinned inside a conversation records only these two things, the anchor and the page path, plus
+                    its screenshot. Replies never carry the console or failed-request buffers described next; those travel
+                    with the original report alone.
+                </p>
 
                 <h2 id="console-logs">Console logs</h2>
                 <p>

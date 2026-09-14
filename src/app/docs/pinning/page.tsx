@@ -68,8 +68,23 @@ export default function PinningDoc() {
 
                 <h2 id="reading-pins">Reading what other people left</h2>
                 <p>
-                    Pins are numbered in the order they were created, so pin 1 is the oldest. Click one to open its
-                    conversation in the panel and reply there. Replies appear live for everyone with the site open.
+                    Pins are numbered in the order they were created across the whole project, so pin 1 is the oldest and a
+                    number means the same thing on every page. Click one to open its conversation in the panel and reply
+                    there. Replies appear live for everyone with the site open.
+                </p>
+
+                <h3 id="reply-pins">Pinning inside a conversation</h3>
+                <p>
+                    A reply can carry a pin of its own. Use the pin button in the reply bar, click the spot, and the reply
+                    picks up a screenshot of it, exactly like a new report does. These show on the page as lettered pins
+                    under the report&apos;s number, <strong>1a</strong>, <strong>1b</strong> and so on, and clicking one
+                    opens the same conversation.
+                </p>
+                <p>
+                    Two things this is for: pointing at the same problem somewhere else on the site without starting a
+                    second thread, and showing what a spot looks like after a fix went out. A reply pin can sit on a
+                    different page than the report it belongs to; it renders there alone with its parent&apos;s number, and
+                    the reply names the page.
                 </p>
                 <p>
                     When several pins land close together they collapse into a single dark marker showing how many are stacked
