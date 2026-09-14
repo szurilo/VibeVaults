@@ -42,6 +42,16 @@ export interface FeedbackMetadata {
     page_key?: string
 }
 
+/**
+ * A reply's optional pin. Deliberately only these two keys: the console and
+ * failed-request buffers belong to the report, never to a reply, and
+ * `pickReplyPinMetadata()` in `widget-helpers.ts` enforces that on the way in.
+ */
+export interface ReplyPinMetadata {
+    anchor?: FeedbackAnchor
+    page_key?: string
+}
+
 export interface FeedbackData {
     id: string
     content: string

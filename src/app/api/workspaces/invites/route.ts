@@ -143,7 +143,11 @@ export async function POST(req: Request) {
             .eq('id', workspaceId)
             .single();
 
-        // Send email via Resend
+        // Send email via Resend. The invite row is kept even if the email fails:
+        // the owner can cancel + re-send from the roster, and a silent 200 here
+        // used to show "Invite Sent" with nothing in the invitee's inbox.
+        let emailSent = true;
+
         if (role === 'member') {
             const BASE_URL = process.env.NEXT_PUBLIC_APP_URL!;
 
@@ -154,13 +158,17 @@ export async function POST(req: Request) {
 
             const { unsubscribeToken: wsUnsubToken } = await getNotificationPrefs(email, 'replies');
 
-            await sendWorkspaceInviteNotification({
+            const { error: emailError } = await sendWorkspaceInviteNotification({
                 to: email,
                 inviterName: user.user_metadata?.full_name || user.email || 'A colleague',
                 workspaceName: workspace?.name || 'a workspace',
                 inviteLink,
                 unsubscribeToken: wsUnsubToken
             });
+            if (emailError) {
+                console.error('Failed to send member invite email:', emailError);
+                emailSent = false;
+            }
         }
 
         // For 'client' role, send a workspace-level invite email listing all projects
@@ -191,12 +199,16 @@ export async function POST(req: Request) {
 
             const { unsubscribeToken } = await getNotificationPrefs(email, 'replies');
 
-            await sendClientInviteNotification({
+            const { error: emailError } = await sendClientInviteNotification({
                 to: email,
                 workspaceName: workspace?.name || 'a workspace',
                 projects: projectList,
                 unsubscribeToken
             });
+            if (emailError) {
+                console.error('Failed to send client invite email:', emailError);
+                emailSent = false;
+            }
         }
 
         // Send in-app notification if the invited user already has an account
@@ -233,7 +245,7 @@ export async function POST(req: Request) {
             }
         }
 
-        return NextResponse.json(invite);
+        return NextResponse.json({ ...invite, emailSent });
     } catch (error) {
         console.error("Invite error:", error);
         const msg = error instanceof Error ? error.message : 'Internal Server Error';

@@ -216,6 +216,51 @@ test.describe('POST /api/widget/reply', () => {
         expect(row?.author_role).toBe('client');
     });
 
+    test('a reply pin is stored whitelisted and projected back on the feedback list', async ({ request }) => {
+        // Only { anchor, page_key } may survive: a reply must never carry the
+        // console/network buffers, and a pin alone is a valid reply.
+        const seed = getSeedResult();
+        const anchor = { selector: '#hero', selectorKind: 'id', offset: { x: { ref: 'pct', d: 0.5 }, y: { ref: 'pct', d: 0.5 } } };
+        const res = await request.post('/api/widget/reply', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
+            data: {
+                feedbackId,
+                content: '',
+                apiKey: seed.apiKey,
+                metadata: { anchor, page_key: 'https://example.com/pricing', logs: [{ type: 'log', content: 'must not be stored' }] },
+            },
+        });
+        expect(res.status()).toBe(200);
+        const body = await res.json();
+        expect(body.replyId).toBeTruthy();
+        createdReplyIds.push(body.replyId);
+
+        const { data: row } = await supabaseAdmin
+            .from('feedback_replies')
+            .select('metadata')
+            .eq('id', body.replyId)
+            .single();
+        expect(row?.metadata).toEqual({ anchor, page_key: 'https://example.com/pricing' });
+
+        const list = await request.get(`/api/widget/feedback?key=${seed.apiKey}`, {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
+        });
+        expect(list.status()).toBe(200);
+        const listed = (await list.json()).feedback.find((f: { id: string }) => f.id === feedbackId);
+        expect(listed.pins).toEqual([
+            expect.objectContaining({ reply_id: body.replyId, anchor, page_key: 'https://example.com/pricing' }),
+        ]);
+    });
+
+    test('a malformed reply pin is rejected outright', async ({ request }) => {
+        const seed = getSeedResult();
+        const res = await request.post('/api/widget/reply', {
+            headers: { Authorization: `Bearer ${seed.widgetTokens.client}` },
+            data: { feedbackId, content: 'text', apiKey: seed.apiKey, metadata: { anchor: 'nope' } },
+        });
+        expect(res.status()).toBe(400);
+    });
+
     test('no Bearer token → 401 and no reply row written', async ({ request }) => {
         const seed = getSeedResult();
         const marker = `anon-reply-${Date.now()}`;

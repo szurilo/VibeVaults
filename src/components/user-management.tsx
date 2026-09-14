@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from "sonner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { MailCheck, UserX, AlertCircle, Lock } from "lucide-react";
+import { MailCheck, MailWarning, UserX, AlertCircle, Lock } from "lucide-react";
 import Link from "next/link";
 import { Highlight } from "@/components/highlight";
 import {
@@ -134,10 +134,21 @@ export function UserManagement({
                 throw new Error(error);
             }
 
-            toast("Invite Sent", {
-                description: `Successfully sent invitation to ${email.trim()}`,
-                icon: <MailCheck className="h-4 w-4 text-green-500" />,
-            });
+            const { emailSent } = await res.json() as { emailSent?: boolean };
+            if (emailSent === false) {
+                // The invite row exists (it shows up as pending below), only the
+                // email failed. Say so instead of claiming it was sent.
+                toast("Invite saved, email not sent", {
+                    description: `We couldn't email ${email.trim()}. Cancel the pending invite and try again, or contact support.`,
+                    icon: <MailWarning className="h-4 w-4 text-amber-500" />,
+                    duration: 8000,
+                });
+            } else {
+                toast("Invite Sent", {
+                    description: `Successfully sent invitation to ${email.trim()}`,
+                    icon: <MailCheck className="h-4 w-4 text-green-500" />,
+                });
+            }
             setEmail('');
             router.refresh();
         } catch (err) {

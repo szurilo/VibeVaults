@@ -123,6 +123,13 @@
     let replyAttachments = []; // Files queued for upload with reply
     let pinAttachments = []; // Files queued for upload with a pinned report
     let pendingAnchor = null; // Anchor for the pin currently being composed
+    // Reply pins: `pinTarget` is the thread a placement is armed for (null =
+    // new report), `pendingReplyPin` the { anchor, page_key } waiting on the
+    // reply being typed, and `optimisticReplyPins` keeps a just-sent pin on the
+    // page until the list endpoint echoes it back (feedbackId -> pins[]).
+    let pinTarget = null;
+    let pendingReplyPin = null;
+    const optimisticReplyPins = new Map();
     let pinTrackingFrame = null;
 
     // --- Metadata & Logs Collection ---
@@ -428,7 +435,10 @@
 
     const refreshReplyPreviews = () => {
       renderAttachPreviews(replyAttachments, '#vv-reply-attach-previews', (idx) => {
-        replyAttachments.splice(idx, 1);
+        // The screenshot thumbnail is the only thing in the bar that stands for
+        // a reply pin, so removing it removes the pin too.
+        const removed = replyAttachments.splice(idx, 1)[0];
+        if (removed && removed.name === 'screenshot.jpg' && pendingReplyPin) clearPendingReplyPin();
         refreshReplyPreviews();
       });
     };
@@ -714,6 +724,15 @@
     .pin-marker.pending { background: #f59e0b; }
     .pin-marker.cluster { background: #0f172a; }
     .pin-marker.cluster span { font-size: 10px; }
+    /* Reply pins ("1b") sit under a report; the pending one is the pin attached
+       to the reply still being typed. */
+    .pin-marker.sub { background: #6366f1; }
+    .pin-marker.sub span { font-size: 9px; letter-spacing: -0.2px; }
+    .pin-marker.pending-reply { background: #f59e0b; }
+    .msg-pin {
+      display: inline-flex; align-items: center; margin: 0 0 4px; padding: 2px 8px; border-radius: 999px;
+      background: #eef2ff; color: #3730a3; font-size: 10px; font-weight: 700; letter-spacing: 0.2px;
+    }
 
     /* --- Pin composer ------------------------------------------------------ */
     .composer {
@@ -1268,6 +1287,16 @@
         const pendingLocal = cachedFeedback.filter((f) => optimisticIds.has(f.id) && !serverIds.has(f.id));
         Array.from(optimisticIds).forEach((id) => { if (serverIds.has(id)) optimisticIds.delete(id); });
 
+        // Same for reply pins, which live inside their parent's `pins`.
+        server.forEach((f) => {
+          const local = optimisticReplyPins.get(f.id);
+          if (!local) return;
+          const echoed = new Set((f.pins || []).map((p) => p.reply_id));
+          const still = local.filter((p) => !echoed.has(p.reply_id));
+          if (still.length) { f.pins = (f.pins || []).concat(still); optimisticReplyPins.set(f.id, still); }
+          else optimisticReplyPins.delete(f.id);
+        });
+
         const merged = pendingLocal.concat(server);
         cachedFeedback = merged;
         if (merged.length > 0) {
@@ -1355,6 +1384,7 @@
     const renderReplySection = () => {
       const section = wrapper.querySelector('#vv-reply-section');
       replyAttachments = [];
+      clearPendingReplyPin();
       if (reviewPaused) {
         section.innerHTML = `
         <div style="padding: 10px 20px; font-size: 12px; color: #92400e; background: #fffbeb; border-top: 1px solid #fde68a;">
@@ -1369,8 +1399,8 @@
         section.innerHTML = `
         <div class="reply-attach-previews" id="vv-reply-attach-previews"></div>
         <div class="chat-input" style="border-top: none; padding: 0;">
-          <button type="button" id="vv-reply-capture-btn" style="background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; cursor: pointer; display: flex; align-items: center; color: #6b7280;" title="Screenshot">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          <button type="button" id="vv-reply-pin-btn" style="background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; cursor: pointer; display: flex; align-items: center; color: #6b7280;" title="Pin a spot on the page">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
           </button>
           <button type="button" id="vv-reply-attach-btn" style="background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; cursor: pointer; display: flex; align-items: center; color: #6b7280;" title="Attach files">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
@@ -1385,8 +1415,9 @@
         section.querySelector('#vv-reply-text').onkeydown = (e) => {
           if (e.key === 'Enter') sendReply();
         };
-        // Reply screenshot capture
-        section.querySelector('#vv-reply-capture-btn').onclick = () => captureReplyScreenshot();
+        // Reply pin: arms one placement for this thread. The screenshot comes
+        // with the pin, so there is no separate capture button any more.
+        section.querySelector('#vv-reply-pin-btn').onclick = () => armPin(selectedFeedbackId);
         // Reply file attachment
         const replyFileInput = section.querySelector('#vv-reply-file-input');
         section.querySelector('#vv-reply-attach-btn').onclick = () => replyFileInput.click();
@@ -1427,6 +1458,20 @@
       return `<div class="msg-attachments">${items}</div>`;
     };
 
+    // A reply that carries a pin shows its label ("Pin 1b"), plus the path
+    // when the pin was left on a different page than the one open now.
+    const renderReplyPinTag = (r) => {
+      const meta = r.metadata;
+      if (!meta || !meta.anchor) return '';
+      const parent = cachedFeedback.find((f) => f.id === selectedFeedbackId);
+      const label = parent ? replyPinLabel(parent, r.id) : null;
+      let where = '';
+      if (meta.page_key && meta.page_key !== currentPageKey()) {
+        try { where = ' \u00b7 ' + escapeHtml(new URL(meta.page_key).pathname); } catch (_) { where = ''; }
+      }
+      return '<div class="msg-pin">Pin ' + escapeHtml(label || '') + where + '</div>';
+    };
+
     const renderReplyBubble = (r) => {
       const side = r.author_name === clientEmail ? 'self' : 'other';
       return `
@@ -1436,6 +1481,7 @@
         <span style="color:#d1d5db;">•</span>
         <span>${new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
+      ${renderReplyPinTag(r)}
       ${r.content ? `<div class="message ${side}">${escapeHtml(r.content)}</div>` : ''}
       ${renderReplyAttachments(r.attachments)}
     </div>
@@ -1601,23 +1647,6 @@
       return { feedbackId: data.feedback_id };
     };
 
-    // --- Screenshot shimmer placeholder ---
-    const showCaptureShimmer = () => {
-      const container = wrapper.querySelector('#vv-reply-attach-previews');
-      if (!container) return;
-      const cls = 'reply-attach-preview';
-      const el = document.createElement('div');
-      el.className = cls + ' shimmer';
-      el.id = 'vv-capture-shimmer';
-      el.innerHTML = '<span class="shimmer-label">Processing...</span>';
-      container.prepend(el);
-    };
-
-    const removeCaptureShimmer = () => {
-      const el = wrapper.querySelector('#vv-capture-shimmer');
-      if (el) el.remove();
-    };
-
     // --- Shared screenshot capture ------------------------------------------
     // Main responsibility: rasterize the current viewport, optionally annotate
     // it with an element highlight and/or a pin marker, and hand back a JPEG
@@ -1753,147 +1782,6 @@
           runCapture();
         }
       });
-    };
-
-    // --- Element picker (reply screenshots only) ---
-    // New feedback is always pinned now, so this survives purely for the
-    // "screenshot something" button inside a reply thread.
-    const captureReplyScreenshot = () => {
-      wrapper.querySelector('.popup').classList.remove('open');
-      wrapper.querySelector('.badge').style.display = 'block';
-
-      const overlay = document.createElement('div');
-      overlay.style.position = 'fixed';
-      overlay.style.top = '0';
-      overlay.style.left = '0';
-      overlay.style.width = '100vw';
-      overlay.style.height = '100vh';
-      overlay.style.zIndex = '999998';
-      overlay.style.cursor = 'crosshair';
-
-      const highlightBox = document.createElement('div');
-      highlightBox.style.position = 'fixed';
-      highlightBox.style.border = '2px solid #209CEE';
-      highlightBox.style.background = 'rgba(32, 156, 238, 0.1)';
-      highlightBox.style.pointerEvents = 'none';
-      highlightBox.style.transition = 'all 0.1s ease-out';
-      highlightBox.style.zIndex = '999999';
-      overlay.appendChild(highlightBox);
-      document.body.appendChild(overlay);
-
-      const banner = document.createElement('div');
-      banner.innerHTML = `
-      <div style="background: #1f2937; color: white; padding: 12px 20px; font-family: sans-serif; font-size: 14px; font-weight: 500; border-radius: 8px; display: flex; align-items: center; gap: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
-        <span>Hover over an element and click to capture</span>
-        <button id="vv-cancel-capture" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">Cancel</button>
-      </div>
-    `;
-      banner.style.position = 'fixed';
-      banner.style.top = '20px';
-      banner.style.left = '50%';
-      banner.style.transform = 'translateX(-50%)';
-      banner.style.zIndex = '999999';
-      document.body.appendChild(banner);
-
-      let currentTarget = null;
-
-      const handleMouseMove = (e) => {
-        overlay.style.pointerEvents = 'none';
-        const target = document.elementFromPoint(e.clientX, e.clientY);
-        overlay.style.pointerEvents = 'auto';
-
-        if (!target || target === document.body || target === document.documentElement) return;
-        if (target.closest('#vibe-vaults-widget-host') || target.closest('[id^="vv-"]')) return;
-
-        currentTarget = target;
-        const rect = target.getBoundingClientRect();
-        highlightBox.style.top = rect.top + 'px';
-        highlightBox.style.left = rect.left + 'px';
-        highlightBox.style.width = rect.width + 'px';
-        highlightBox.style.height = rect.height + 'px';
-      };
-
-      const handleScroll = () => {
-        if (!currentTarget || !currentTarget.isConnected) return;
-        const rect = currentTarget.getBoundingClientRect();
-        highlightBox.style.top = rect.top + 'px';
-        highlightBox.style.left = rect.left + 'px';
-        highlightBox.style.width = rect.width + 'px';
-        highlightBox.style.height = rect.height + 'px';
-      };
-
-      const cleanup = () => {
-        overlay.remove();
-        banner.remove();
-        wrapper.querySelector('.popup').classList.add('open');
-        wrapper.querySelector('.badge').style.display = 'none';
-        document.removeEventListener('keydown', handleKeyDown);
-        window.removeEventListener('scroll', handleScroll, true);
-      };
-
-      const handleKeyDown = (e) => {
-        if (e.key === 'Escape') cleanup();
-      };
-
-      document.addEventListener('keydown', handleKeyDown);
-      window.addEventListener('scroll', handleScroll, true);
-      overlay.addEventListener('mousemove', handleMouseMove);
-      overlay.addEventListener('click', async (e) => {
-        e.preventDefault(); e.stopPropagation();
-
-        // Snapshot rect before removing overlay — fixed-position highlight box
-        // isn't captured reliably by snapdom, so we draw it on the canvas ourselves.
-        const targetRect = currentTarget ? currentTarget.getBoundingClientRect() : null;
-
-        // Remove overlay/banner up front so snapdom doesn't see them at all
-        overlay.remove();
-        banner.remove();
-        overlay.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('keydown', handleKeyDown);
-        window.removeEventListener('scroll', handleScroll, true);
-
-        const capBtn = wrapper.querySelector('#vv-reply-capture-btn');
-        const originalText = capBtn ? capBtn.innerHTML : '';
-        if (capBtn) { capBtn.innerHTML = 'Capturing...'; capBtn.disabled = true; }
-
-        // Reopen popup and show shimmer placeholder so user sees progress while capturing
-        wrapper.querySelector('.popup').classList.add('open');
-        wrapper.querySelector('.badge').style.display = 'none';
-        showCaptureShimmer();
-
-        const finishCapture = async (dataUrl) => {
-          removeCaptureShimmer();
-          cleanup();
-          const res = await fetch(dataUrl);
-          const blob = await res.blob();
-          const screenshotFile = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' });
-
-          replyAttachments = replyAttachments.filter(f => f.name !== 'screenshot.jpg');
-          if (replyAttachments.length >= MAX_FILES) {
-            showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
-            if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
-            return;
-          }
-          replyAttachments.unshift(screenshotFile);
-          refreshReplyPreviews();
-          if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
-        };
-
-        // captureViewport owns the failure telemetry, so this only has to
-        // unwind the UI back to a usable state.
-        const onCaptureError = () => {
-          removeCaptureShimmer();
-          cleanup();
-          if (capBtn) { capBtn.innerHTML = originalText; capBtn.disabled = false; }
-          showWidgetToast('Screenshot capture failed. Please try again.');
-        };
-
-        captureViewport({ highlightRect: targetRect })
-          .then(finishCapture)
-          .catch(onCaptureError);
-      });
-
-      banner.querySelector('#vv-cancel-capture').onclick = (e) => { e.preventDefault(); e.stopPropagation(); cleanup(); };
     };
 
     // --- Pin mode + composer -------------------------------------------------
@@ -2083,32 +1971,84 @@
       if (progress) progress.style.display = 'none';
     };
 
-    // The composer opens immediately and the screenshot arrives into it a moment
-    // later, so the user can start typing while snapdom works. The live marker
-    // lives in the shadow DOM, which snapdom excludes, so the pin is drawn onto
-    // the canvas instead of being captured.
-    const capturePinScreenshot = (x, y) => {
-      const previews = wrapper.querySelector('#vv-composer-previews');
+    // The composer (or reply bar) is usable immediately and the screenshot
+    // arrives into it a moment later, so the user can start typing while
+    // snapdom works. The live marker lives in the shadow DOM, which snapdom
+    // excludes, so the pin is drawn onto the canvas instead of being captured.
+    // `slot` says where the shimmer goes and which attachment list receives
+    // the file; the composer and the reply bar share everything else.
+    const captureScreenshotInto = (x, y, slot) => {
+      const previews = wrapper.querySelector(slot.previews);
+      if (!previews) return;
       const shim = document.createElement('div');
-      shim.className = 'attach-preview shimmer';
-      shim.id = 'vv-composer-shimmer';
+      shim.className = slot.previewClass + ' shimmer';
+      shim.id = 'vv-capture-shimmer';
       shim.innerHTML = '<span class="shimmer-label">Capturing...</span>';
       previews.prepend(shim);
 
       captureViewport({ pinPoint: { x, y } })
         .then(async (dataUrl) => {
           const blob = await (await fetch(dataUrl)).blob();
-          pinAttachments = pinAttachments.filter(f => f.name !== 'screenshot.jpg');
-          pinAttachments.unshift(new File([blob], 'screenshot.jpg', { type: 'image/jpeg' }));
+          slot.replaceScreenshot(new File([blob], 'screenshot.jpg', { type: 'image/jpeg' }));
         })
         .catch(() => {
           showWidgetToast('Screenshot capture failed, but your pin was kept.');
         })
         .finally(() => {
-          const el = wrapper.querySelector('#vv-composer-shimmer');
+          const el = wrapper.querySelector('#vv-capture-shimmer');
           if (el) el.remove();
-          refreshComposerPreviews();
+          slot.refresh();
         });
+    };
+
+    const composerSlot = {
+      previews: '#vv-composer-previews',
+      previewClass: 'attach-preview',
+      replaceScreenshot: (file) => {
+        pinAttachments = pinAttachments.filter(f => f.name !== 'screenshot.jpg');
+        pinAttachments.unshift(file);
+      },
+      refresh: refreshComposerPreviews,
+    };
+
+    const replySlot = {
+      previews: '#vv-reply-attach-previews',
+      previewClass: 'reply-attach-preview',
+      replaceScreenshot: (file) => {
+        replyAttachments = replyAttachments.filter(f => f.name !== 'screenshot.jpg');
+        if (replyAttachments.length >= MAX_FILES) {
+          showWidgetToast('Maximum ' + MAX_FILES + ' files allowed.');
+          return;
+        }
+        replyAttachments.unshift(file);
+      },
+      refresh: refreshReplyPreviews,
+    };
+
+    // --- Reply pins ----------------------------------------------------------
+    // A reply can carry its own pin ("1b" under report 1) so a reviewer can say
+    // "same bug here too" or "still broken after the fix" inside the thread
+    // instead of opening a second one. Placement reuses the report flow; the
+    // difference is only where the result lands: on the reply being typed.
+    // Deliberately no chip in the reply bar: the pending marker on the page and
+    // the screenshot thumbnail already say a pin is attached, and a third
+    // control to remove it separately was noise for the reviewer.
+
+    const clearPendingReplyPin = () => {
+      pendingReplyPin = null;
+      rebuildLivePins();
+    };
+
+    const attachReplyPin = (anchor, x, y) => {
+      const feedbackId = pinTarget;
+      disarmPin();
+      // The thread was switched or closed while placement was armed; there is
+      // nothing to attach the pin to any more.
+      if (!feedbackId || feedbackId !== selectedFeedbackId || !wrapper.querySelector('#vv-reply-text')) return;
+      pendingReplyPin = { anchor, page_key: currentPageKey() };
+      rebuildLivePins();
+      wrapper.querySelector('#vv-reply-text').focus();
+      captureScreenshotInto(x, y, replySlot);
     };
 
     const openComposer = (anchor, x, y) => {
@@ -2131,7 +2071,7 @@
       positionComposer(x, y);
       watchComposerSize();
       composer.querySelector('#vv-composer-text').focus();
-      capturePinScreenshot(x, y);
+      captureScreenshotInto(x, y, composerSlot);
     };
 
     const sendPinnedFeedback = async () => {
@@ -2209,15 +2149,39 @@
     const PIN_CLUSTER_RADIUS = 30;
     const CLUSTER_FAN_RADIUS = 34;
 
-    // Pins belong to the page they were left on. Anything without an anchor
-    // (reported from the dashboard, or before pinning existed) stays list-only.
-    const pinnedFeedbackForPage = () => {
-      const key = currentPageKey();
+    // Numbering is project-wide by age so a label means one thing on every
+    // page: a reply pin on /pricing under a report pinned on / still reads
+    // "4b" there, and never collides with /pricing's own "1". Only threads that
+    // carry a pin (their own, or a reply's) take a number, which is also why a
+    // dashboard report gains one the moment someone pins a reply to it.
+    const numberedThreads = () => {
+      const pendingParent = pendingReplyPin ? selectedFeedbackId : null;
       return cachedFeedback
-        .filter((f) => f.anchor && f.page_key === key)
+        .filter((f) => f.anchor || (f.pins && f.pins.length) || f.id === pendingParent)
         .slice()
         .reverse();
     };
+
+    // a..z, then aa, ab... Nobody should get there, but the label must not
+    // fall off the alphabet if they do.
+    const pinLetter = (index) => {
+      let out = '';
+      let i = index + 1;
+      while (i > 0) { i -= 1; out = String.fromCharCode(97 + (i % 26)) + out; i = Math.floor(i / 26); }
+      return out;
+    };
+
+    const threadNumberOf = (feedbackId) => {
+      const i = numberedThreads().findIndex((f) => f.id === feedbackId);
+      return i < 0 ? null : i + 1;
+    };
+
+    const replyPinLabel = (feedback, replyId) => {
+      const n = threadNumberOf(feedback.id);
+      const j = (feedback.pins || []).findIndex((p) => p.reply_id === replyId);
+      return n && j >= 0 ? n + pinLetter(j) : null;
+    };
+
 
     // Resolving a selector per pin per frame is too expensive on scroll, so the
     // element is cached and only re-queried when it drops out of the document.
@@ -2268,24 +2232,50 @@
       if (!isOpen) return;
 
       const placed = [];
+      const solo = [];
       livePins.forEach((pin) => {
         const pos = positionOf(pin);
         if (!pos) return;
         // Off-screen pins are skipped rather than rendered outside the viewport.
         if (pos.x < -60 || pos.y < -60 || pos.x > window.innerWidth + 60 || pos.y > window.innerHeight + 60) return;
-        placed.push({ pin, x: pos.x, y: pos.y, state: pos.state });
+        // The pin being placed right now must not vanish into a count badge
+        // beside its parent, so it never clusters.
+        (pin.pending ? solo : placed).push({ pin, x: pos.x, y: pos.y, state: pos.state });
       });
+
+      const markerFor = (m, x, y) => {
+        const el = document.createElement('div');
+        el.className = 'pin-marker'
+          + (m.state === 'approximate' ? ' approximate' : '')
+          + (m.pin.sub ? ' sub' : '')
+          + (m.pin.pending ? ' pending-reply' : '');
+        el.innerHTML = '<span>' + m.pin.label + '</span>';
+        el.title = m.pin.pending
+          ? 'This pin is attached to the reply you are writing'
+          : m.state === 'approximate'
+            ? 'This pin\u2019s anchor is gone, so its position may have shifted'
+            : m.pin.content.slice(0, 120);
+        placeMarker(el, x, y);
+        if (!m.pin.pending) {
+          el.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            expandedCluster = null;
+            isOpen = true;
+            wrapper.querySelector('.popup').classList.add('open');
+            setListOpen(true);
+            openFeedbackDetail(m.pin.feedbackId);
+          };
+        }
+        layer.appendChild(el);
+      };
+
+      solo.forEach((m) => markerFor(m, m.x, m.y));
 
       clusterPins(placed).forEach((cluster) => {
         const isExpanded = expandedCluster !== null && cluster.members.some((m) => m.pin.id === expandedCluster);
         if (cluster.members.length === 1 || isExpanded) {
           cluster.members.forEach((m, i) => {
-            const el = document.createElement('div');
-            el.className = 'pin-marker' + (m.state === 'approximate' ? ' approximate' : '');
-            el.innerHTML = '<span>' + m.pin.number + '</span>';
-            el.title = m.state === 'approximate'
-              ? 'This pin\u2019s anchor is gone, so its position may have shifted'
-              : m.pin.content.slice(0, 120);
             let x = m.x;
             let y = m.y;
             if (cluster.members.length > 1) {
@@ -2293,17 +2283,7 @@
               x += Math.cos(angle) * CLUSTER_FAN_RADIUS;
               y += Math.sin(angle) * CLUSTER_FAN_RADIUS;
             }
-            placeMarker(el, x, y);
-            el.onclick = (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              expandedCluster = null;
-              isOpen = true;
-              wrapper.querySelector('.popup').classList.add('open');
-              setListOpen(true);
-              openFeedbackDetail(m.pin.id);
-            };
-            layer.appendChild(el);
+            markerFor(m, x, y);
           });
           return;
         }
@@ -2328,14 +2308,35 @@
       livePinFrame = requestAnimationFrame(() => { livePinFrame = null; paintLivePins(); });
     };
 
-    // Rebuilt from the cached list after every fetch; numbering is by age so a
-    // pin keeps its number as newer ones arrive.
+    // Rebuilt from the cached list after every fetch. Pins belong to the page
+    // they were left on; a thread's own pin and its reply pins are filtered by
+    // page independently, so a reply pinned elsewhere renders alone there with
+    // its parent's number. Anything without an anchor stays list-only.
     const rebuildLivePins = () => {
       const existing = new Map(livePins.map((p) => [p.id, p]));
-      livePins = pinnedFeedbackForPage().map((f, i) => {
-        const prev = existing.get(f.id);
-        return { id: f.id, anchor: f.anchor, content: f.content || '', number: i + 1, el: prev ? prev.el : null };
+      const key = currentPageKey();
+      const next = [];
+      const keep = (id, pin) => {
+        const prev = existing.get(id);
+        next.push(Object.assign({ id, el: prev ? prev.el : null }, pin));
+      };
+      numberedThreads().forEach((f, i) => {
+        const number = i + 1;
+        const content = f.content || '';
+        if (f.anchor && f.page_key === key) {
+          keep(f.id, { feedbackId: f.id, anchor: f.anchor, content, label: String(number) });
+        }
+        (f.pins || []).forEach((p, j) => {
+          if (!p.anchor || p.page_key !== key) return;
+          keep('r:' + p.reply_id, { feedbackId: f.id, replyId: p.reply_id, anchor: p.anchor, content, label: number + pinLetter(j), sub: true });
+        });
+        // The pin waiting on the reply being typed tracks its anchor like a
+        // saved one would, so it does not drift if the page scrolls meanwhile.
+        if (pendingReplyPin && f.id === selectedFeedbackId && pendingReplyPin.page_key === key) {
+          keep('pending-reply', { feedbackId: f.id, anchor: pendingReplyPin.anchor, content, label: number + pinLetter((f.pins || []).length), sub: true, pending: true });
+        }
       });
+      livePins = next;
       paintLivePins();
     };
 
@@ -2402,7 +2403,8 @@
         if (expandedCluster !== null) { expandedCluster = null; paintLivePins(); return; }
         const x = e.clientX;
         const y = e.clientY;
-        openComposer(resolveAnchor(x, y), x, y);
+        const anchor = resolveAnchor(x, y);
+        if (pinTarget) attachReplyPin(anchor, x, y); else openComposer(anchor, x, y);
       });
 
       state.onKeyDown = (e) => {
@@ -2426,10 +2428,13 @@
       wrapper.classList.toggle('chrome-hidden', pinArmed || composing);
     };
 
-    const armPin = () => {
+    // `replyTo` arms placement for a reply pin on that thread; without it the
+    // click opens the composer for a new report.
+    const armPin = (replyTo) => {
       if (pinArmed) return;
       pinArmed = true;
-      wrapper.querySelector('#vv-action-pin').classList.add('active');
+      pinTarget = replyTo || null;
+      if (!pinTarget) wrapper.querySelector('#vv-action-pin').classList.add('active');
       syncChromeVisibility();
       buildPinOverlay();
       if (!cachedFeedback.length) fetchAllFeedback();
@@ -2439,6 +2444,7 @@
     const disarmPin = () => {
       if (!pinArmed) return;
       pinArmed = false;
+      pinTarget = null;
       const btn = wrapper.querySelector('#vv-action-pin');
       if (btn) btn.classList.remove('active');
       syncChromeVisibility();
@@ -2463,18 +2469,37 @@
       const textEl = wrapper.querySelector('#vv-reply-text');
       if (!textEl) return;
       const text = textEl.value.trim();
-      if ((!text && replyAttachments.length === 0) || !selectedFeedbackId || !widgetToken) return;
+      if ((!text && replyAttachments.length === 0 && !pendingReplyPin) || !selectedFeedbackId || !widgetToken) return;
       const btn = wrapper.querySelector('#vv-send-reply');
       btn.disabled = true;
+      const feedbackId = selectedFeedbackId;
+      const replyPin = pendingReplyPin;
 
       try {
         const res = await fetch(API_REPLY, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ feedbackId: selectedFeedbackId, content: text || '', apiKey, hasAttachments: replyAttachments.length > 0 })
+          body: JSON.stringify({
+            feedbackId,
+            content: text || '',
+            apiKey,
+            hasAttachments: replyAttachments.length > 0,
+            // Additive: only present when a pin was placed for this reply.
+            ...(replyPin ? { metadata: replyPin } : {}),
+          })
         });
         if (res.ok) {
           const replyData = await res.json();
+          // Same read-after-write guard as a new report: the pin stays on the
+          // page from the widget's own copy until the list endpoint echoes it.
+          if (replyPin && replyData.replyId) {
+            const pin = { reply_id: replyData.replyId, anchor: replyPin.anchor, page_key: replyPin.page_key, created_at: new Date().toISOString() };
+            optimisticReplyPins.set(feedbackId, (optimisticReplyPins.get(feedbackId) || []).concat(pin));
+            const parent = cachedFeedback.find((f) => f.id === feedbackId);
+            if (parent) parent.pins = (parent.pins || []).concat(pin);
+          }
+          pendingReplyPin = null;
+          rebuildLivePins();
           // Upload reply attachments if any
           if (replyAttachments.length > 0) {
             try {

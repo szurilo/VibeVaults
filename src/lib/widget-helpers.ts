@@ -263,3 +263,26 @@ export function reviewPausedError() {
         { status: 403, headers: corsHeaders },
     );
 }
+
+/**
+ * Narrows the optional `metadata` on a widget reply to the reply-pin shape.
+ * Returns `null` when no pin was sent, `false` when something was sent but is
+ * not a pin, and the whitelisted `{ anchor, page_key }` object otherwise.
+ * Only these two keys survive: a reply must never carry the console-log or
+ * failed-request buffers, and the size cap keeps a hostile client from
+ * parking a megabyte of JSON in the row.
+ */
+const REPLY_PIN_MAX_BYTES = 4096;
+
+export function pickReplyPinMetadata(
+    raw: unknown,
+): { anchor: Record<string, unknown>; page_key: string } | null | false {
+    if (raw === undefined || raw === null) return null;
+    if (typeof raw !== "object" || Array.isArray(raw)) return false;
+    const { anchor, page_key } = raw as { anchor?: unknown; page_key?: unknown };
+    if (!anchor || typeof anchor !== "object" || Array.isArray(anchor)) return false;
+    if (typeof page_key !== "string" || page_key.length === 0 || page_key.length > 2048) return false;
+    const picked = { anchor: anchor as Record<string, unknown>, page_key };
+    if (JSON.stringify(picked).length > REPLY_PIN_MAX_BYTES) return false;
+    return picked;
+}
