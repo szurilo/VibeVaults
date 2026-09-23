@@ -27,7 +27,7 @@ const faqs: { question: string; answer: string; link?: { match: string; href: st
     },
     {
         question: "Who is VibeVaults for?",
-        answer: "VibeVaults is built for web agencies, dev studios, and freelancers who build websites for clients. If you run feedback rounds with clients on live sites, VibeVaults is designed for you. It is not a survey tool or a bug tracker for end users; it is a client collaboration tool for the people who build and review websites.",
+        answer: "VibeVaults is built for web agencies, dev studios, and freelancers who build websites for clients. If you run feedback rounds with clients on the sites you build, from staging to launch, VibeVaults is designed for you. It is not a survey tool or a bug tracker for end users; it is a client collaboration tool for the people who build and review websites.",
     },
     {
         question: "Does VibeVaults work on all websites?",
@@ -52,7 +52,7 @@ const faqs: { question: string; answer: string; link?: { match: string; href: st
     },
     {
         question: "Can I integrate VibeVaults with my project management tools?",
-        answer: "Not yet. Today, all feedback lives in the VibeVaults dashboard, where your whole team can view, discuss, and resolve it. Direct integrations with project management tools are on our roadmap. As a founding member you can tell us which integration to build first.",
+        answer: "Not yet. Today, all feedback lives in the VibeVaults dashboard, where your whole team can view, discuss, and resolve it. Direct integrations with project management tools are on our roadmap. As an early customer you can tell us which integration to build first.",
     },
 ];
 
