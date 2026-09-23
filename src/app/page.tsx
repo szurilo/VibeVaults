@@ -24,7 +24,7 @@ export default function Home() {
               "name": "VibeVaults",
               "operatingSystem": "Web",
               "applicationCategory": "BusinessApplication",
-              "description": "VibeVaults is a visual feedback widget for websites. The feedback tool for modern agencies: collect visual feedback directly on live client sites, share progress, and ship faster.",
+              "description": "VibeVaults is a visual feedback widget for websites. The feedback tool for modern agencies: collect visual feedback directly on client sites, from staging to launch, share progress, and ship faster.",
               "offers": {
                 "@type": "AggregateOffer",
                 "lowPrice": "29.00",
@@ -43,30 +43,19 @@ export default function Home() {
               Ship client sites faster without the <span className="text-primary font-black italic">feedback chaos.</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-500 max-w-3xl mb-12 leading-relaxed mx-auto">
-              VibeVaults is a visual feedback widget for websites. Clients comment right on the live site. No logins, no browser extensions, and you never pay per client. Send a link, they start marking up, you ship faster.
+              VibeVaults is a visual feedback widget for websites. Clients comment right on the site you&apos;re building. No logins, no browser extensions, and you never pay per client. Send a link, they start marking up, you ship faster.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-5">
               <Link href="/auth/register" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 bg-secondary text-white hover:bg-secondary/90 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0">
-                Claim your founding member spot
+                Start free trial
               </Link>
               <Link href="#demo" className="inline-flex items-center justify-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 border-2 border-gray-200 text-gray-700 hover:border-primary hover:text-primary hover:shadow-lg hover:-translate-y-1 active:translate-y-0">
                 See it in action
               </Link>
             </div>
-            <div className="flex justify-center mb-20">
-              <a
-                href="https://www.uneed.best/tool/vibevaults"
-                target="_blank"
-                className="inline-flex items-center hover:opacity-80 transition-opacity"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="https://www.uneed.best/EMBED1B.png"
-                  alt="VibeVaults is featured on Uneed"
-                  className="h-12 w-auto"
-                />
-              </a>
-            </div>
+            <p className="text-sm text-gray-400">
+              14-day free trial &middot; No credit card required
+            </p>
           </div>
         </section>
 
@@ -97,7 +86,7 @@ export default function Home() {
               Choose the plan that fits your team. Scale up as you grow.
             </p>
             <PricingCards
-              ctaLabel="Claim your founding member spot"
+              ctaLabel="Start free trial"
               staticCtaHref="/auth/register"
               showTrialNote={true}
             />

@@ -114,7 +114,7 @@ export const bugherdComparison: ComparisonData = {
         },
         {
             question: "Does VibeVaults integrate with Jira or Trello?",
-            answer: "Not yet. Today all feedback lives in the VibeVaults dashboard where your team views, discusses, and resolves it. Native integrations are on the roadmap, and as a founding member you can tell us which one to build first. If you need two-way Jira/Trello sync today, BugHerd already offers it.",
+            answer: "Not yet. Today all feedback lives in the VibeVaults dashboard where your team views, discusses, and resolves it. Native integrations are on the roadmap, and as an early customer you can tell us which one to build first. If you need two-way Jira/Trello sync today, BugHerd already offers it.",
         },
         {
             question: "Is VibeVaults cheaper than BugHerd?",

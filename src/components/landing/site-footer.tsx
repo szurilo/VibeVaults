@@ -92,15 +92,30 @@ export function SiteFooter() {
                     <div className="text-sm text-gray-500">
                         &copy; {new Date().getFullYear()} VibeVaults. All rights reserved.
                     </div>
-                    <a
-                        href="https://www.linkedin.com/company/vibevaults/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="VibeVaults on LinkedIn"
-                        className="text-gray-600 hover:text-primary transition-colors inline-flex items-center"
-                    >
-                        <LinkedinIcon className="w-4 h-4" />
-                    </a>
+                    <div className="flex items-center gap-5">
+                        <a
+                            href="https://www.uneed.best/tool/vibevaults"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center opacity-70 hover:opacity-100 transition-opacity"
+                        >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src="https://www.uneed.best/EMBED1B.png"
+                                alt="VibeVaults is featured on Uneed"
+                                className="h-7 w-auto"
+                            />
+                        </a>
+                        <a
+                            href="https://www.linkedin.com/company/vibevaults/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="VibeVaults on LinkedIn"
+                            className="text-gray-600 hover:text-primary transition-colors inline-flex items-center"
+                        >
+                            <LinkedinIcon className="w-4 h-4" />
+                        </a>
+                    </div>
                 </div>
             </div>
         </footer>
