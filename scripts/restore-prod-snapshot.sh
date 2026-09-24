@@ -15,7 +15,11 @@
 #     contents (backups/{roles,schema,data}.sql) change, this script breaks.
 #   - Local Supabase must be running (`supabase start`). psql is executed inside
 #     the supabase_db_* container, so no host psql install is required.
-#   - `gh` CLI, authenticated, for artifact download (skip with --file).
+#   - `gh` CLI, authenticated, for downloading from the backup repo (skip with --file).
+#   - Backups are age-encrypted (`.tar.gz.age`). Decrypting needs the `age` CLI
+#     (sudo apt install age) and the private key, read from $VV_AGE_KEY
+#     (default ~/.config/vibevaults/backup-age-key.txt). The key is kept offline;
+#     it is never in this repo or on GitHub.
 #
 # SAFETY: this NEVER touches your local dev database. It creates, and drops on
 # each run, a SEPARATE database (default: prod_rehearsal) in the same Postgres
@@ -29,6 +33,7 @@ cd "$REPO_ROOT"
 CONTAINER="${VV_DB_CONTAINER:-supabase_db_VibeVaults}"
 SCRATCH_DB="${VV_SCRATCH_DB:-prod_rehearsal}"
 BACKUP_REPO="${VV_BACKUP_REPO:-szurilo/VibeVaults-backups}"
+AGE_KEY="${VV_AGE_KEY:-$HOME/.config/vibevaults/backup-age-key.txt}"
 BASE_REF="origin/main"
 ARCHIVE=""
 KEEP=0
@@ -51,7 +56,9 @@ Restores the latest prod backup into a throwaway local database and applies
 any migrations on this branch that are not yet on the base ref.
 
 Options:
-  --file <path.tar.gz>  Use a local backup archive instead of downloading.
+  --file <path>         Use a local backup archive instead of downloading.
+                        Either .tar.gz.age (decrypted with $VV_AGE_KEY) or a
+                        plain .tar.gz.
   --base <git-ref>      Ref representing what is already deployed.
                         Default: origin/main
   --db <name>           Scratch database name. Default: prod_rehearsal
@@ -70,7 +77,7 @@ Options:
 Examples:
   scripts/restore-prod-snapshot.sh
   scripts/restore-prod-snapshot.sh --no-migrate
-  scripts/restore-prod-snapshot.sh --file ~/Downloads/supabase_backup_20260907.tar.gz
+  scripts/restore-prod-snapshot.sh --file ~/Downloads/supabase_backup_20260907_000512.tar.gz.age
 USAGE
 }
 
@@ -107,6 +114,13 @@ docker ps --format '{{.Names}}' | grep -qx "$CONTAINER" \
 psql_db postgres -c 'select 1' >/dev/null 2>&1 || die "cannot reach postgres in '$CONTAINER'"
 ok "local Supabase container reachable ($CONTAINER)"
 
+# Anything downloaded is encrypted; a --file archive only when it ends in .age.
+if [[ -z "$ARCHIVE" || "$ARCHIVE" == *.age ]]; then
+  command -v age >/dev/null 2>&1 || die "age CLI not found. Install it with: sudo apt install age"
+  [[ -r "$AGE_KEY" ]] || die "backup decryption key not found at $AGE_KEY (set VV_AGE_KEY to its path)"
+  ok "age key found ($AGE_KEY)"
+fi
+
 WORKDIR="$(mktemp -d -t vv-restore-XXXXXX)"
 cleanup() {
   if [[ $KEEP -eq 1 ]]; then
@@ -134,7 +148,11 @@ trap cleanup EXIT
 if [[ -n "$ARCHIVE" ]]; then
   [[ -f "$ARCHIVE" ]] || die "no such file: $ARCHIVE"
   log "Using local archive"
-  cp "$ARCHIVE" "$WORKDIR/backup.tar.gz"
+  if [[ "$ARCHIVE" == *.age ]]; then
+    cp "$ARCHIVE" "$WORKDIR/backup.tar.gz.age"
+  else
+    cp "$ARCHIVE" "$WORKDIR/backup.tar.gz"
+  fi
   ok "$(basename "$ARCHIVE")"
 else
   command -v gh >/dev/null 2>&1 || die "gh CLI not found (or pass --file <archive>)"
@@ -142,17 +160,25 @@ else
 
   log "Locating newest backup in $BACKUP_REPO"
   LATEST="$(gh api "repos/$BACKUP_REPO/contents/daily" --jq '.[].name' 2>/dev/null \
-            | grep '^supabase_backup_.*\.tar\.gz$' | sort | tail -1)"
+            | grep '^supabase_backup_.*\.tar\.gz\.age$' | sort | tail -1)"
   [[ -n "$LATEST" ]] \
     || die "no backups found in $BACKUP_REPO. Run the workflow: gh workflow run supabase-backup.yml"
   ok "$LATEST"
 
   log "Downloading"
   gh api "repos/$BACKUP_REPO/contents/daily/$LATEST" \
-     -H "Accept: application/vnd.github.raw" > "$WORKDIR/backup.tar.gz" \
+     -H "Accept: application/vnd.github.raw" > "$WORKDIR/backup.tar.gz.age" \
     || die "download failed"
-  [[ -s "$WORKDIR/backup.tar.gz" ]] || die "downloaded archive is empty"
-  ok "$(du -h "$WORKDIR/backup.tar.gz" | cut -f1)"
+  [[ -s "$WORKDIR/backup.tar.gz.age" ]] || die "downloaded archive is empty"
+  ok "$(du -h "$WORKDIR/backup.tar.gz.age" | cut -f1)"
+fi
+
+if [[ -f "$WORKDIR/backup.tar.gz.age" ]]; then
+  log "Decrypting"
+  age -d -i "$AGE_KEY" -o "$WORKDIR/backup.tar.gz" "$WORKDIR/backup.tar.gz.age" \
+    || die "decryption failed (wrong key for this backup?)"
+  rm -f "$WORKDIR/backup.tar.gz.age"
+  ok "decrypted"
 fi
 
 log "Extracting"
