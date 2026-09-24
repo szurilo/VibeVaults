@@ -104,6 +104,24 @@ psql_soft() { docker exec -i "$CONTAINER" psql -X -q -U postgres -d "$1" "${@:2}
 # pg_cron can only live in the `postgres` database, so it is never installed in
 # the scratch DB. See the shim below.
 strip_pg_cron() { sed -E 's/^(CREATE EXTENSION[^;]*pg_cron[^;]*;)/-- [rehearsal] \1/I' "$1"; }
+# The managed schemas (auth, storage, ...) are copied from the LOCAL stack, but
+# the data comes from prod. When Supabase upgrades prod ahead of the local CLI,
+# prod rows carry columns or tables the local schema lacks. Given the psql error
+# output, explain that case instead of leaving a raw SQL error, since the
+# backup itself is fine and the fix is on the local side.
+explain_managed_drift() {
+  local rel
+  rel="$(grep -oE 'relation "[^"]+" does not exist|of relation "[^"]+"' "$1" | head -1 | sed -E 's/.*relation "([^"]+)".*/\1/')"
+  [[ -n "$rel" ]] || return 0
+  rel="${rel##*.}"
+  # public.* comes from the prod dump itself, so a mismatch there is a real problem.
+  [[ -z "$(psql_db "$SCRATCH_DB" -tAc "SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = '$rel'" 2>/dev/null)" ]] || return 0
+  warn "This is not a problem with the backup. '$rel' is a Supabase-managed table, and"
+  warn "production's version of it is newer than your local stack's"
+  warn "(local CLI: $(supabase --version 2>/dev/null || echo unknown))."
+  warn "Fix: update the Supabase CLI, then run 'supabase stop && supabase start'"
+  warn "(stop keeps your local data), and re-run this script."
+}
 
 # ---------------------------------------------------------------- preflight --
 log "Preflight"
@@ -288,8 +306,13 @@ log "Loading data"
 # session_replication_role=replica disables FK/trigger enforcement for the load,
 # so dump ordering cannot cause spurious failures. This is Supabase's own
 # documented restore incantation.
-docker exec -i "$CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$SCRATCH_DB" \
-  -c 'SET session_replication_role = replica;' -f - < "$DUMP_DIR/data.sql" >/dev/null
+if ! docker exec -i "$CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$SCRATCH_DB" \
+       -c 'SET session_replication_role = replica;' -f - < "$DUMP_DIR/data.sql" \
+       >/dev/null 2>"$WORKDIR/data.err"; then
+  cat "$WORKDIR/data.err" >&2
+  explain_managed_drift "$WORKDIR/data.err"
+  die "data load failed"
+fi
 ok "data restored"
 
 # ------------------------------------------------------------ verify counts --
