@@ -15,7 +15,11 @@
 #     contents (backups/{roles,schema,data}.sql) change, this script breaks.
 #   - Local Supabase must be running (`supabase start`). psql is executed inside
 #     the supabase_db_* container, so no host psql install is required.
-#   - `gh` CLI, authenticated, for artifact download (skip with --file).
+#   - `gh` CLI, authenticated, for downloading from the backup repo (skip with --file).
+#   - Backups are age-encrypted (`.tar.gz.age`). Decrypting needs the `age` CLI
+#     (sudo apt install age) and the private key, read from $VV_AGE_KEY
+#     (default ~/.config/vibevaults/backup-age-key.txt). The key is kept offline;
+#     it is never in this repo or on GitHub.
 #
 # SAFETY: this NEVER touches your local dev database. It creates, and drops on
 # each run, a SEPARATE database (default: prod_rehearsal) in the same Postgres
@@ -29,6 +33,7 @@ cd "$REPO_ROOT"
 CONTAINER="${VV_DB_CONTAINER:-supabase_db_VibeVaults}"
 SCRATCH_DB="${VV_SCRATCH_DB:-prod_rehearsal}"
 BACKUP_REPO="${VV_BACKUP_REPO:-szurilo/VibeVaults-backups}"
+AGE_KEY="${VV_AGE_KEY:-$HOME/.config/vibevaults/backup-age-key.txt}"
 BASE_REF="origin/main"
 ARCHIVE=""
 KEEP=0
@@ -51,7 +56,9 @@ Restores the latest prod backup into a throwaway local database and applies
 any migrations on this branch that are not yet on the base ref.
 
 Options:
-  --file <path.tar.gz>  Use a local backup archive instead of downloading.
+  --file <path>         Use a local backup archive instead of downloading.
+                        Either .tar.gz.age (decrypted with $VV_AGE_KEY) or a
+                        plain .tar.gz.
   --base <git-ref>      Ref representing what is already deployed.
                         Default: origin/main
   --db <name>           Scratch database name. Default: prod_rehearsal
@@ -70,7 +77,7 @@ Options:
 Examples:
   scripts/restore-prod-snapshot.sh
   scripts/restore-prod-snapshot.sh --no-migrate
-  scripts/restore-prod-snapshot.sh --file ~/Downloads/supabase_backup_20260907.tar.gz
+  scripts/restore-prod-snapshot.sh --file ~/Downloads/supabase_backup_20260907_000512.tar.gz.age
 USAGE
 }
 
@@ -97,6 +104,54 @@ psql_soft() { docker exec -i "$CONTAINER" psql -X -q -U postgres -d "$1" "${@:2}
 # pg_cron can only live in the `postgres` database, so it is never installed in
 # the scratch DB. See the shim below.
 strip_pg_cron() { sed -E 's/^(CREATE EXTENSION[^;]*pg_cron[^;]*;)/-- [rehearsal] \1/I' "$1"; }
+# The managed schemas (auth, storage, ...) are copied from the LOCAL stack, but
+# the data comes from prod. Supabase upgrades hosted projects ahead of the image
+# versions even the newest CLI pins, so prod rows routinely carry managed columns
+# (or whole tables) the local schema does not have yet. Bridge that in the
+# scratch DB only: add whatever data.sql inserts into but is missing, typed as
+# text (every dump literal casts to text). public.* is never touched, since it
+# comes from the prod dump itself and a mismatch there is a real problem.
+bridge_managed_drift() {
+  local values missing s t c
+  values="$(grep -oE '^INSERT INTO "[^"]+"\."[^"]+" \([^)]*\) VALUES' "$1" | sort -u \
+    | sed -E 's/^INSERT INTO "([^"]+)"\."([^"]+)" \((.*)\) VALUES$/\1|\2|\3/' \
+    | awk -F'|' '$1 != "public" {
+        n = split($3, cols, ",")
+        for (i = 1; i <= n; i++) { c = cols[i]; gsub(/[" ]/, "", c)
+          if (c != "") printf "%s(\047%s\047,\047%s\047,\047%s\047)", (out++ ? "," : ""), $1, $2, c }
+      }')"
+  [[ -n "$values" ]] || return 0
+  missing="$(psql_db "$SCRATCH_DB" -tA -F'|' -c "
+    SELECT w.s, w.t, w.c FROM (VALUES $values) AS w(s, t, c)
+    WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns ic
+                      WHERE ic.table_schema = w.s AND ic.table_name = w.t AND ic.column_name = w.c)
+    ORDER BY 1, 2, 3")"
+  [[ -n "$missing" ]] || return 0
+  # </dev/null below: docker exec -i would otherwise swallow the loop's input.
+  while IFS='|' read -r s t c; do
+    psql_db "$SCRATCH_DB" -c "SET client_min_messages = warning;
+      CREATE SCHEMA IF NOT EXISTS \"$s\";
+      CREATE TABLE IF NOT EXISTS \"$s\".\"$t\" ();
+      ALTER TABLE \"$s\".\"$t\" ADD COLUMN IF NOT EXISTS \"$c\" text;" </dev/null >/dev/null
+    warn "added $s.$t.$c (prod's Supabase is ahead of the local stack)"
+  done <<< "$missing"
+}
+
+# If the data load still fails on a managed table, say so plainly: the backup
+# is fine, it is local/prod version skew the bridge above could not cover
+# (for example a changed column type).
+explain_managed_drift() {
+  local rel
+  rel="$(grep -oE 'relation "[^"]+" does not exist|of relation "[^"]+"' "$1" | head -1 | sed -E 's/.*relation "([^"]+)".*/\1/')"
+  [[ -n "$rel" ]] || return 0
+  rel="${rel##*.}"
+  # public.* comes from the prod dump itself, so a mismatch there is a real problem.
+  [[ -z "$(psql_db "$SCRATCH_DB" -tAc "SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = '$rel'" 2>/dev/null)" ]] || return 0
+  warn "This is not a problem with the backup. '$rel' is a Supabase-managed table whose"
+  warn "production shape differs from your local stack's in a way this script cannot"
+  warn "bridge automatically (local CLI: $(supabase --version 2>/dev/null || echo unknown))."
+  warn "Updating the CLI may help; otherwise extend bridge_managed_drift()."
+}
 
 # ---------------------------------------------------------------- preflight --
 log "Preflight"
@@ -106,6 +161,13 @@ docker ps --format '{{.Names}}' | grep -qx "$CONTAINER" \
   || die "container '$CONTAINER' is not running. Start it with: supabase start"
 psql_db postgres -c 'select 1' >/dev/null 2>&1 || die "cannot reach postgres in '$CONTAINER'"
 ok "local Supabase container reachable ($CONTAINER)"
+
+# Anything downloaded is encrypted; a --file archive only when it ends in .age.
+if [[ -z "$ARCHIVE" || "$ARCHIVE" == *.age ]]; then
+  command -v age >/dev/null 2>&1 || die "age CLI not found. Install it with: sudo apt install age"
+  [[ -r "$AGE_KEY" ]] || die "backup decryption key not found at $AGE_KEY (set VV_AGE_KEY to its path)"
+  ok "age key found ($AGE_KEY)"
+fi
 
 WORKDIR="$(mktemp -d -t vv-restore-XXXXXX)"
 cleanup() {
@@ -134,7 +196,11 @@ trap cleanup EXIT
 if [[ -n "$ARCHIVE" ]]; then
   [[ -f "$ARCHIVE" ]] || die "no such file: $ARCHIVE"
   log "Using local archive"
-  cp "$ARCHIVE" "$WORKDIR/backup.tar.gz"
+  if [[ "$ARCHIVE" == *.age ]]; then
+    cp "$ARCHIVE" "$WORKDIR/backup.tar.gz.age"
+  else
+    cp "$ARCHIVE" "$WORKDIR/backup.tar.gz"
+  fi
   ok "$(basename "$ARCHIVE")"
 else
   command -v gh >/dev/null 2>&1 || die "gh CLI not found (or pass --file <archive>)"
@@ -142,17 +208,25 @@ else
 
   log "Locating newest backup in $BACKUP_REPO"
   LATEST="$(gh api "repos/$BACKUP_REPO/contents/daily" --jq '.[].name' 2>/dev/null \
-            | grep '^supabase_backup_.*\.tar\.gz$' | sort | tail -1)"
+            | grep '^supabase_backup_.*\.tar\.gz\.age$' | sort | tail -1)"
   [[ -n "$LATEST" ]] \
     || die "no backups found in $BACKUP_REPO. Run the workflow: gh workflow run supabase-backup.yml"
   ok "$LATEST"
 
   log "Downloading"
   gh api "repos/$BACKUP_REPO/contents/daily/$LATEST" \
-     -H "Accept: application/vnd.github.raw" > "$WORKDIR/backup.tar.gz" \
+     -H "Accept: application/vnd.github.raw" > "$WORKDIR/backup.tar.gz.age" \
     || die "download failed"
-  [[ -s "$WORKDIR/backup.tar.gz" ]] || die "downloaded archive is empty"
-  ok "$(du -h "$WORKDIR/backup.tar.gz" | cut -f1)"
+  [[ -s "$WORKDIR/backup.tar.gz.age" ]] || die "downloaded archive is empty"
+  ok "$(du -h "$WORKDIR/backup.tar.gz.age" | cut -f1)"
+fi
+
+if [[ -f "$WORKDIR/backup.tar.gz.age" ]]; then
+  log "Decrypting"
+  age -d -i "$AGE_KEY" -o "$WORKDIR/backup.tar.gz" "$WORKDIR/backup.tar.gz.age" \
+    || die "decryption failed (wrong key for this backup?)"
+  rm -f "$WORKDIR/backup.tar.gz.age"
+  ok "decrypted"
 fi
 
 log "Extracting"
@@ -259,11 +333,17 @@ strip_pg_cron "$WORKDIR/bootstrap.sql" | psql_soft "$SCRATCH_DB" >/dev/null 2>&1
 ok "auth triggers reattached"
 
 log "Loading data"
+bridge_managed_drift "$DUMP_DIR/data.sql"
 # session_replication_role=replica disables FK/trigger enforcement for the load,
 # so dump ordering cannot cause spurious failures. This is Supabase's own
 # documented restore incantation.
-docker exec -i "$CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$SCRATCH_DB" \
-  -c 'SET session_replication_role = replica;' -f - < "$DUMP_DIR/data.sql" >/dev/null
+if ! docker exec -i "$CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$SCRATCH_DB" \
+       -c 'SET session_replication_role = replica;' -f - < "$DUMP_DIR/data.sql" \
+       >/dev/null 2>"$WORKDIR/data.err"; then
+  cat "$WORKDIR/data.err" >&2
+  explain_managed_drift "$WORKDIR/data.err"
+  die "data load failed"
+fi
 ok "data restored"
 
 # ------------------------------------------------------------ verify counts --

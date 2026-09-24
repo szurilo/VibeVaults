@@ -12,6 +12,11 @@
 #   - Each run force-pushes a single orphan commit. History therefore never
 #     accumulates: a pruned backup is genuinely gone, which is what our stated
 #     retention period requires.
+#   - Every dump is age-encrypted on the runner before it leaves it, to the
+#     public key in secret BACKUP_AGE_RECIPIENT. The private key never touches
+#     GitHub: it lives offline with the operator, and losing it makes every
+#     backup unrestorable. The job fails closed (no dump at all) if the
+#     recipient is missing, so a plaintext archive can never be pushed.
 #   - scripts/restore-prod-snapshot.sh reads from this repo. Changing the path
 #     layout or retention here breaks that script.
 
@@ -44,19 +49,28 @@ jobs:
         with:
           version: 2.101.0
 
+      - name: Install age
+        run: sudo apt-get install -y -qq age
+
       - name: Run Database Dump
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
         run: |
+          set -euo pipefail
+          # Fail closed: without a recipient we must not even produce a dump.
+          [[ "$BACKUP_AGE_RECIPIENT" == age1* ]] || { echo "BACKUP_AGE_RECIPIENT secret is missing or not an age public key"; exit 1; }
           mkdir -p backups
           supabase link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
           supabase db dump --password "$DB_PASSWORD" --role-only -f backups/roles.sql
           supabase db dump --password "$DB_PASSWORD" -f backups/schema.sql
           supabase db dump --password "$DB_PASSWORD" --data-only -f backups/data.sql
-          tar -czf "supabase_backup_$(date -u +%Y%m%d_%H%M%S).tar.gz" backups/
-          ls -lh supabase_backup_*.tar.gz
+          # Tar straight into age, so no unencrypted archive is ever written.
+          tar -czf - backups/ | age -r "$BACKUP_AGE_RECIPIENT" -o "supabase_backup_$(date -u +%Y%m%d_%H%M%S).tar.gz.age"
+          rm -rf backups/
+          ls -lh supabase_backup_*.tar.gz.age
 
       - name: Configure SSH for backup repo
         env:
@@ -68,6 +82,8 @@ jobs:
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Push backup to private repo
+        env:
+          BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/backup-repo
@@ -80,10 +96,20 @@ jobs:
             || echo "backup repo is empty, starting fresh"
 
           mkdir -p daily
-          cp "$GITHUB_WORKSPACE"/supabase_backup_*.tar.gz daily/
+          cp "$GITHUB_WORKSPACE"/supabase_backup_*.tar.gz.age daily/
+
+          # One-time migration: encrypt backups pushed before encryption existed,
+          # so the retention window is kept instead of being thrown away.
+          shopt -s nullglob
+          for legacy in daily/supabase_backup_*.tar.gz; do
+            echo "encrypting legacy $(basename "$legacy")"
+            age -r "$BACKUP_AGE_RECIPIENT" -o "$legacy.age" "$legacy"
+            rm -f "$legacy"
+          done
+          shopt -u nullglob
 
           # Keep only the newest $RETENTION backups. Filenames sort chronologically.
-          ls -1 daily/supabase_backup_*.tar.gz | sort | head -n -"$RETENTION" | while read -r old; do
+          ls -1 daily/supabase_backup_*.tar.gz.age | sort | head -n -"$RETENTION" | while read -r old; do
             echo "pruning $(basename "$old")"
             rm -f "$old"
           done
@@ -99,7 +125,9 @@ jobs:
           private. Do not fork, mirror, or add collaborators without a DPA in
           place.
 
-          - Layout: `daily/supabase_backup_<UTC timestamp>.tar.gz`
+          - Layout: `daily/supabase_backup_<UTC timestamp>.tar.gz.age`
+          - Every archive is age-encrypted. The private key is held offline by
+            the operator and is never stored on GitHub.
           - Retention: newest 30 runs. Each run force-pushes a single orphan
             commit, so pruned backups leave no trace in git history.
           - Restore: `npm run db:rehearse` in the main repo.
