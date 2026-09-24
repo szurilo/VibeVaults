@@ -105,10 +105,41 @@ psql_soft() { docker exec -i "$CONTAINER" psql -X -q -U postgres -d "$1" "${@:2}
 # the scratch DB. See the shim below.
 strip_pg_cron() { sed -E 's/^(CREATE EXTENSION[^;]*pg_cron[^;]*;)/-- [rehearsal] \1/I' "$1"; }
 # The managed schemas (auth, storage, ...) are copied from the LOCAL stack, but
-# the data comes from prod. When Supabase upgrades prod ahead of the local CLI,
-# prod rows carry columns or tables the local schema lacks. Given the psql error
-# output, explain that case instead of leaving a raw SQL error, since the
-# backup itself is fine and the fix is on the local side.
+# the data comes from prod. Supabase upgrades hosted projects ahead of the image
+# versions even the newest CLI pins, so prod rows routinely carry managed columns
+# (or whole tables) the local schema does not have yet. Bridge that in the
+# scratch DB only: add whatever data.sql inserts into but is missing, typed as
+# text (every dump literal casts to text). public.* is never touched, since it
+# comes from the prod dump itself and a mismatch there is a real problem.
+bridge_managed_drift() {
+  local values missing s t c
+  values="$(grep -oE '^INSERT INTO "[^"]+"\."[^"]+" \([^)]*\) VALUES' "$1" | sort -u \
+    | sed -E 's/^INSERT INTO "([^"]+)"\."([^"]+)" \((.*)\) VALUES$/\1|\2|\3/' \
+    | awk -F'|' '$1 != "public" {
+        n = split($3, cols, ",")
+        for (i = 1; i <= n; i++) { c = cols[i]; gsub(/[" ]/, "", c)
+          if (c != "") printf "%s(\047%s\047,\047%s\047,\047%s\047)", (out++ ? "," : ""), $1, $2, c }
+      }')"
+  [[ -n "$values" ]] || return 0
+  missing="$(psql_db "$SCRATCH_DB" -tA -F'|' -c "
+    SELECT w.s, w.t, w.c FROM (VALUES $values) AS w(s, t, c)
+    WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns ic
+                      WHERE ic.table_schema = w.s AND ic.table_name = w.t AND ic.column_name = w.c)
+    ORDER BY 1, 2, 3")"
+  [[ -n "$missing" ]] || return 0
+  # </dev/null below: docker exec -i would otherwise swallow the loop's input.
+  while IFS='|' read -r s t c; do
+    psql_db "$SCRATCH_DB" -c "SET client_min_messages = warning;
+      CREATE SCHEMA IF NOT EXISTS \"$s\";
+      CREATE TABLE IF NOT EXISTS \"$s\".\"$t\" ();
+      ALTER TABLE \"$s\".\"$t\" ADD COLUMN IF NOT EXISTS \"$c\" text;" </dev/null >/dev/null
+    warn "added $s.$t.$c (prod's Supabase is ahead of the local stack)"
+  done <<< "$missing"
+}
+
+# If the data load still fails on a managed table, say so plainly: the backup
+# is fine, it is local/prod version skew the bridge above could not cover
+# (for example a changed column type).
 explain_managed_drift() {
   local rel
   rel="$(grep -oE 'relation "[^"]+" does not exist|of relation "[^"]+"' "$1" | head -1 | sed -E 's/.*relation "([^"]+)".*/\1/')"
@@ -116,11 +147,10 @@ explain_managed_drift() {
   rel="${rel##*.}"
   # public.* comes from the prod dump itself, so a mismatch there is a real problem.
   [[ -z "$(psql_db "$SCRATCH_DB" -tAc "SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = '$rel'" 2>/dev/null)" ]] || return 0
-  warn "This is not a problem with the backup. '$rel' is a Supabase-managed table, and"
-  warn "production's version of it is newer than your local stack's"
-  warn "(local CLI: $(supabase --version 2>/dev/null || echo unknown))."
-  warn "Fix: update the Supabase CLI, then run 'supabase stop && supabase start'"
-  warn "(stop keeps your local data), and re-run this script."
+  warn "This is not a problem with the backup. '$rel' is a Supabase-managed table whose"
+  warn "production shape differs from your local stack's in a way this script cannot"
+  warn "bridge automatically (local CLI: $(supabase --version 2>/dev/null || echo unknown))."
+  warn "Updating the CLI may help; otherwise extend bridge_managed_drift()."
 }
 
 # ---------------------------------------------------------------- preflight --
@@ -303,6 +333,7 @@ strip_pg_cron "$WORKDIR/bootstrap.sql" | psql_soft "$SCRATCH_DB" >/dev/null 2>&1
 ok "auth triggers reattached"
 
 log "Loading data"
+bridge_managed_drift "$DUMP_DIR/data.sql"
 # session_replication_role=replica disables FK/trigger enforcement for the load,
 # so dump ordering cannot cause spurious failures. This is Supabase's own
 # documented restore incantation.
